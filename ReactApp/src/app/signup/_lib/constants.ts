@@ -1,19 +1,19 @@
-import { Rocket, ShieldCheck, Users } from "lucide-react";
+import { Database, PhoneCall, Sparkles } from "lucide-react";
 
 export const FEATURES = [
   {
-    icon: Rocket,
-    title: "Quick Onboarding",
-    description: "Create your account and access the console in seconds.",
+    icon: PhoneCall,
+    title: "Choose Your SIM & Number",
+    description: "Select Normal or Business SIM, pick your preferred mobile number, and activate.",
   },
   {
-    icon: ShieldCheck,
-    title: "Secure by Default",
-    description: "Hashed credentials and isolated sessions keep data protected.",
+    icon: Database,
+    title: "Instant Data Bank",
+    description: "Your daily plan automatically banks unused data with up to 10 GB reserves.",
   },
   {
-    icon: Users,
-    title: "Team Collaboration",
-    description: "Seamless access to administrative tools and activity logs.",
+    icon: Sparkles,
+    title: "Level Up with Quests",
+    description: "Earn XP, unlock badges, and redeem bonus data rewards starting from your first day.",
   },
 ];

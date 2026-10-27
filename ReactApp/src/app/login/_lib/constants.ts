@@ -1,19 +1,19 @@
-import { KeyRound, ShieldCheck, Users } from "lucide-react";
+import { Database, SendHorizontal, Trophy } from "lucide-react";
 
 export const FEATURES = [
   {
-    icon: ShieldCheck,
-    title: "Access Management",
-    description: "Granular role-based controls for administrators and team members.",
+    icon: Database,
+    title: "Data Bank",
+    description: "Never lose unused daily data. Auto-save up to 10 GB with 90-day lot validity.",
   },
   {
-    icon: Users,
-    title: "User Administration",
-    description: "Provision, edit, and oversee user accounts and security statuses.",
+    icon: SendHorizontal,
+    title: "Data Transfer",
+    description: "Instant peer-to-peer data sharing with any verified Zylo mobile number.",
   },
   {
-    icon: KeyRound,
-    title: "Secure Sessions",
-    description: "JWT-based protected authentication with password rotation enforcement.",
+    icon: Trophy,
+    title: "Data Quest & Rewards",
+    description: "Turn data habits into achievements. Earn XP, unlock badges, and claim bonus data.",
   },
 ];
