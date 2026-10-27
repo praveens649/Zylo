@@ -188,6 +188,31 @@ enum DataLoanTransactionType {
   ADJUSTMENT
 }
 
+enum QuestMetric {
+  DATA_BANK_SAVED_MB
+  DATA_TRANSFERRED_MB
+  DAILY_CHECK_IN
+  QUESTS_COMPLETED
+}
+
+enum QuestFrequency {
+  DAILY
+  WEEKLY
+  ONE_TIME
+}
+
+enum QuestStatus {
+  IN_PROGRESS
+  COMPLETED
+  CLAIMED
+  EXPIRED
+}
+
+enum QuestRewardType {
+  DATA_BANK_MB
+  RECHARGE_DISCOUNT
+}
+
 // ======================================================
 // USERS
 // ======================================================
@@ -209,6 +234,7 @@ model User {
   supportTickets      SupportTicket[]
   notifications       Notification[]
   dataLoans           DataLoan[]
+  userQuests          UserQuest[]
 
   ownedOrganizations      BusinessOrganization[] @relation("OrganizationOwner")
   organizationMemberships OrganizationMember[]
@@ -764,6 +790,79 @@ model DataLoanTransaction {
 
   @@index([loanId, processedAt])
   @@index([type, processedAt])
+}
+
+// ======================================================
+// ZYLO QUESTS
+// ======================================================
+
+model Quest {
+  id          String         @id @default(uuid())
+  title       String
+  description String
+  metric      QuestMetric
+  frequency   QuestFrequency @default(DAILY)
+  targetValue Int
+
+  rewardType          QuestRewardType
+  rewardAmountMb      Int?
+  rewardDiscountPaise Int?
+
+  startsAt DateTime?
+  endsAt   DateTime?
+  isActive Boolean   @default(true)
+
+  userQuests UserQuest[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, frequency])
+}
+
+model UserQuest {
+  id      String @id @default(uuid())
+  userId  String
+  questId String
+
+  periodStart DateTime
+  periodEnd   DateTime
+  progress    Int         @default(0)
+  status      QuestStatus @default(IN_PROGRESS)
+
+  completedAt DateTime?
+  claimedAt   DateTime?
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Restrict)
+  quest Quest @relation(fields: [questId], references: [id], onDelete: Restrict)
+
+  coupon RewardCoupon?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, questId, periodStart])
+  @@index([userId, status])
+  @@index([periodEnd, status])
+}
+
+model RewardCoupon {
+  id          String @id @default(uuid())
+  userId      String
+  userQuestId String @unique
+  code        String @unique
+
+  discountPaise        Int
+  minimumRechargePaise Int @default(0)
+
+  expiresAt  DateTime
+  redeemedAt DateTime?
+
+  userQuest UserQuest @relation(fields: [userQuestId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, expiresAt])
 }
 
 // ======================================================
