@@ -7,6 +7,8 @@
   "scripts": {
     "client": "pnpm --filter ./ReactApp dev",
     "server": "pnpm --filter ./Server dev",
+    "seed": "pnpm --filter ./Server seed",
+    "db:push": "pnpm --filter ./Server prisma db push",
     "stripe": "pnpm --filter ./Server stripe",
     "og-stripe": "pnpm --filter ./Server og-stripe",
     "test": "echo \"Error: no test specified\" && exit 1",

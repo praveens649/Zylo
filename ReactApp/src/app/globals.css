@@ -4,142 +4,161 @@
 
 @layer base {
   :root {
-    /* Tailwind v3 opacity modifiers (bg-card/95 etc.) need channel values —
-       the config wraps these in oklch(var(--x) / <alpha-value>). */
+    /* BRAND PALETTE — "Light Green" (tweakcn: cmlhfpjhw000004l4f4ax3m7z) */
+    --background: 0.9892 0.0054 117.9205;
+    --foreground: 0.2077 0.0398 265.7549;
 
-    /* BRAND PALETTE — "Neon Arcade"
-       1. Primary:   Electric violet (L: 0.62, C: 0.24, H: 295)
-       2. Secondary: Deep violet surface
-       3. Tertiary:  Neon cyan (L: 0.79, C: 0.16, H: 195)
-    */
-    --primary: 0.6200 0.2400 295.0000;
-    --primary-foreground: 0.9700 0.0100 280.0000;
+    --card: 1.0000 0 0;
+    --card-foreground: 0.2077 0.0398 265.7549;
 
-    --secondary: 0.2200 0.0350 280.0000;
-    --secondary-foreground: 0.9200 0.0200 275.0000;
+    --popover: 1.0000 0 0;
+    --popover-foreground: 0.2077 0.0398 265.7549;
 
-    --tertiary: 0.7900 0.1600 195.0000;
-    --tertiary-foreground: 0.1500 0.0400 250.0000;
+    --primary: 0.8871 0.2122 128.5041;
+    --primary-foreground: 0 0 0;
 
-    /* SURFACES & NEUTRALS — deep space ink with a violet tint */
-    --background: 0.1250 0.0220 278.0000;
-    --foreground: 0.9350 0.0120 275.0000;
+    --secondary: 0.3717 0.0392 257.2870;
+    --secondary-foreground: 0.9842 0.0034 247.8575;
 
-    --card: 0.1700 0.0280 278.0000;
-    --card-foreground: 0.9350 0.0120 275.0000;
+    --tertiary: 0.7227 0.1920 149.5793;
+    --tertiary-foreground: 0.2077 0.0398 265.7549;
 
-    --popover: 0.1650 0.0280 278.0000;
-    --popover-foreground: 0.9350 0.0120 275.0000;
+    --muted: 0.9683 0.0069 247.8956;
+    --muted-foreground: 0.5544 0.0407 257.4166;
 
-    --muted: 0.2300 0.0300 278.0000;
-    --muted-foreground: 0.6800 0.0350 278.0000;
+    --accent: 0.9819 0.0181 155.8263;
+    --accent-foreground: 0.4479 0.1083 151.3277;
 
-    --accent: 0.2700 0.0700 288.0000;
-    --accent-foreground: 0.9400 0.0300 280.0000;
+    --destructive: 0.6368 0.2078 25.3313;
+    --destructive-foreground: 1.0000 0 0;
 
-    --destructive: 0.6300 0.2400 25.0000;
-    --destructive-foreground: 0.9850 0.0100 30.0000;
+    --border: 0.9288 0.0126 255.5078;
+    --input: 0.9288 0.0126 255.5078;
+    --ring: 0.8871 0.2122 128.5041;
 
-    --border: 0.2650 0.0350 280.0000;
-    --input: 0.2650 0.0350 280.0000;
-    --ring: 0.6800 0.2300 295.0000;
+    /* CHARTS */
+    --chart-1: 0.8871 0.2122 128.5041;
+    --chart-2: 0.3717 0.0392 257.2870;
+    --chart-3: 0.7227 0.1920 149.5793;
+    --chart-4: 0.5544 0.0407 257.4166;
+    --chart-5: 0.7107 0.0351 256.7878;
 
-    /* CHARTS — violet, cyan, magenta, slate, teal */
-    --chart-1: 0.6200 0.2400 295.0000;
-    --chart-2: 0.7900 0.1600 195.0000;
-    --chart-3: 0.7000 0.2100 330.0000;
-    --chart-4: 0.6000 0.0500 275.0000;
-    --chart-5: 0.7000 0.1300 165.0000;
+    --radius: 1rem;
 
-    --radius: 0.75rem;
-
-    /* SIDEBAR — near-black violet panel */
-    --sidebar-background: 0.1050 0.0200 278.0000;
-    --sidebar-foreground: 0.9000 0.0120 275.0000;
-    --sidebar-primary: 0.7000 0.2300 295.0000;
-    --sidebar-primary-foreground: 0.9850 0.0050 275.0000;
-    --sidebar-accent: 0.2200 0.0400 282.0000;
-    --sidebar-accent-foreground: 0.9600 0.0150 275.0000;
-    --sidebar-border: 0.2350 0.0300 280.0000;
-    --sidebar-ring: 0.7000 0.2300 295.0000;
-    --sidebar: 0.1050 0.0200 278.0000;
+    /* SIDEBAR */
+    --sidebar: 1.0000 0 0;
+    --sidebar-background: 1.0000 0 0;
+    --sidebar-foreground: 0.2077 0.0398 265.7549;
+    --sidebar-primary: 0.8871 0.2122 128.5041;
+    --sidebar-primary-foreground: 0 0 0;
+    --sidebar-accent: 0.9842 0.0034 247.8575;
+    --sidebar-accent-foreground: 0.2077 0.0398 265.7549;
+    --sidebar-border: 0.9683 0.0069 247.8956;
+    --sidebar-ring: 0.8871 0.2122 128.5041;
 
     /* TYPOGRAPHY */
-    --font-sans: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    --font-display: var(--font-space-grotesk), var(--font-inter), system-ui, sans-serif;
-    --font-serif: Source Serif 4, Georgia, serif;
-    --font-mono: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, Consolas, monospace;
+    --font-sans: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-display: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-serif: Georgia, serif;
+    --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
-    /* SHADOW TOKENS — pure black with violet glow shadows */
-    --shadow-color: hsl(0 0% 0%);
-    --shadow-2xs: 0px 1px 2px 0px hsl(0 0% 0% / 0.25);
-    --shadow-xs: 0px 1px 3px 0px hsl(0 0% 0% / 0.30);
-    --shadow-sm: 0px 1px 3px 0px hsl(0 0% 0% / 0.35), 0px 1px 2px -1px hsl(0 0% 0% / 0.25);
-    --shadow: 0px 2px 4px 0px hsl(0 0% 0% / 0.35), 0px 2px 4px -2px hsl(0 0% 0% / 0.25);
-    --shadow-md: 0px 4px 6px -1px hsl(0 0% 0% / 0.40), 0px 2px 4px -2px hsl(0 0% 0% / 0.30);
-    --shadow-lg: 0px 10px 15px -3px hsl(0 0% 0% / 0.45), 0px 4px 6px -4px hsl(0 0% 0% / 0.35);
-    --shadow-xl: 0px 20px 25px -5px hsl(0 0% 0% / 0.50), 0px 8px 10px -6px hsl(0 0% 0% / 0.40);
-    --shadow-2xl: 0px 25px 50px -12px hsl(0 0% 0% / 0.65);
+    /* SHADOW TOKENS */
+    --shadow-color: #000000;
+    --shadow-opacity: 0.05;
+    --shadow-blur: 20px;
+    --shadow-spread: 0px;
+    --shadow-offset-x: 0px;
+    --shadow-offset-y: 8px;
+    --shadow-2xs: 0px 8px 20px 0px hsl(0 0% 0% / 0.03);
+    --shadow-xs: 0px 8px 20px 0px hsl(0 0% 0% / 0.03);
+    --shadow-sm: 0px 8px 20px 0px hsl(0 0% 0% / 0.05), 0px 1px 2px -1px hsl(0 0% 0% / 0.05);
+    --shadow: 0px 8px 20px 0px hsl(0 0% 0% / 0.05), 0px 1px 2px -1px hsl(0 0% 0% / 0.05);
+    --shadow-md: 0px 8px 20px 0px hsl(0 0% 0% / 0.05), 0px 2px 4px -1px hsl(0 0% 0% / 0.05);
+    --shadow-lg: 0px 8px 20px 0px hsl(0 0% 0% / 0.05), 0px 4px 6px -1px hsl(0 0% 0% / 0.05);
+    --shadow-xl: 0px 8px 20px 0px hsl(0 0% 0% / 0.05), 0px 8px 10px -1px hsl(0 0% 0% / 0.05);
+    --shadow-2xl: 0px 8px 20px 0px hsl(0 0% 0% / 0.13);
 
-    --tracking-normal: -0.011em;
-    --letter-spacing: -0.011em;
+    --tracking-normal: -0.01em;
+    --letter-spacing: -0.01em;
     --spacing: 0.25rem;
   }
 
-  /* The app is dark-only — .dark mirrors :root so the class is a no-op. */
   .dark {
-    --primary: 0.6200 0.2400 295.0000;
-    --primary-foreground: 0.9700 0.0100 280.0000;
-    --secondary: 0.2200 0.0350 280.0000;
-    --secondary-foreground: 0.9200 0.0200 275.0000;
-    --tertiary: 0.7900 0.1600 195.0000;
-    --tertiary-foreground: 0.1500 0.0400 250.0000;
-    --background: 0.1250 0.0220 278.0000;
-    --foreground: 0.9350 0.0120 275.0000;
-    --card: 0.1700 0.0280 278.0000;
-    --card-foreground: 0.9350 0.0120 275.0000;
-    --popover: 0.1650 0.0280 278.0000;
-    --popover-foreground: 0.9350 0.0120 275.0000;
-    --muted: 0.2300 0.0300 278.0000;
-    --muted-foreground: 0.6800 0.0350 278.0000;
-    --accent: 0.2700 0.0700 288.0000;
-    --accent-foreground: 0.9400 0.0300 280.0000;
-    --destructive: 0.6300 0.2400 25.0000;
-    --destructive-foreground: 0.9850 0.0100 30.0000;
-    --border: 0.2650 0.0350 280.0000;
-    --input: 0.2650 0.0350 280.0000;
-    --ring: 0.6800 0.2300 295.0000;
-    --chart-1: 0.6200 0.2400 295.0000;
-    --chart-2: 0.7900 0.1600 195.0000;
-    --chart-3: 0.7000 0.2100 330.0000;
-    --chart-4: 0.6000 0.0500 275.0000;
-    --chart-5: 0.7000 0.1300 165.0000;
-    --sidebar-background: 0.1050 0.0200 278.0000;
-    --sidebar-foreground: 0.9000 0.0120 275.0000;
-    --sidebar-primary: 0.7000 0.2300 295.0000;
-    --sidebar-primary-foreground: 0.9850 0.0050 275.0000;
-    --sidebar-accent: 0.2200 0.0400 282.0000;
-    --sidebar-accent-foreground: 0.9600 0.0150 275.0000;
-    --sidebar-border: 0.2350 0.0300 280.0000;
-    --sidebar-ring: 0.7000 0.2300 295.0000;
-    --sidebar: 0.1050 0.0200 278.0000;
-    --shadow-color: hsl(0 0% 0%);
-    --shadow-2xs: 0px 1px 2px 0px hsl(0 0% 0% / 0.25);
-    --shadow-xs: 0px 1px 3px 0px hsl(0 0% 0% / 0.30);
-    --shadow-sm: 0px 1px 3px 0px hsl(0 0% 0% / 0.35), 0px 1px 2px -1px hsl(0 0% 0% / 0.25);
-    --shadow: 0px 2px 4px 0px hsl(0 0% 0% / 0.35), 0px 2px 4px -2px hsl(0 0% 0% / 0.25);
-    --shadow-md: 0px 4px 6px -1px hsl(0 0% 0% / 0.40), 0px 2px 4px -2px hsl(0 0% 0% / 0.30);
-    --shadow-lg: 0px 10px 15px -3px hsl(0 0% 0% / 0.45), 0px 4px 6px -4px hsl(0 0% 0% / 0.35);
-    --shadow-xl: 0px 20px 25px -5px hsl(0 0% 0% / 0.50), 0px 8px 10px -6px hsl(0 0% 0% / 0.40);
-    --shadow-2xl: 0px 25px 50px -12px hsl(0 0% 0% / 0.65);
+    /* BRAND PALETTE — "Light Green" (Dark Mode) */
+    --background: 0.1288 0.0406 264.6952;
+    --foreground: 0.9842 0.0034 247.8575;
+
+    --card: 0.2077 0.0398 265.7549;
+    --card-foreground: 0.9842 0.0034 247.8575;
+
+    --popover: 0.2077 0.0398 265.7549;
+    --popover-foreground: 0.9842 0.0034 247.8575;
+
+    --primary: 0.8871 0.2122 128.5041;
+    --primary-foreground: 0 0 0;
+
+    --secondary: 0.2795 0.0368 260.0310;
+    --secondary-foreground: 0.9842 0.0034 247.8575;
+
+    --tertiary: 0.7227 0.1920 149.5793;
+    --tertiary-foreground: 0.1288 0.0406 264.6952;
+
+    --muted: 0.2795 0.0368 260.0310;
+    --muted-foreground: 0.7107 0.0351 256.7878;
+
+    --accent: 0.3925 0.0896 152.5353;
+    --accent-foreground: 0.8871 0.2122 128.5041;
+
+    --destructive: 0.4437 0.1613 26.8994;
+    --destructive-foreground: 1.0000 0 0;
+
+    --border: 0.2795 0.0368 260.0310;
+    --input: 0.2795 0.0368 260.0310;
+    --ring: 0.8871 0.2122 128.5041;
+
+    /* CHARTS */
+    --chart-1: 0.8871 0.2122 128.5041;
+    --chart-2: 0.6231 0.1880 259.8145;
+    --chart-3: 0.7227 0.1920 149.5793;
+    --chart-4: 0.6268 0.2325 303.9004;
+    --chart-5: 0.7686 0.1647 70.0804;
+
+    --radius: 1rem;
+
+    /* SIDEBAR */
+    --sidebar: 0.1288 0.0406 264.6952;
+    --sidebar-background: 0.1288 0.0406 264.6952;
+    --sidebar-foreground: 0.9842 0.0034 247.8575;
+    --sidebar-primary: 0.8871 0.2122 128.5041;
+    --sidebar-primary-foreground: 0 0 0;
+    --sidebar-accent: 0.2795 0.0368 260.0310;
+    --sidebar-accent-foreground: 0.9842 0.0034 247.8575;
+    --sidebar-border: 0.2795 0.0368 260.0310;
+    --sidebar-ring: 0.8871 0.2122 128.5041;
+
+    /* SHADOW TOKENS */
+    --shadow-color: #000000;
+    --shadow-opacity: 0.4;
+    --shadow-blur: 25px;
+    --shadow-spread: 0px;
+    --shadow-offset-x: 0px;
+    --shadow-offset-y: 10px;
+    --shadow-2xs: 0px 10px 25px 0px hsl(0 0% 0% / 0.20);
+    --shadow-xs: 0px 10px 25px 0px hsl(0 0% 0% / 0.20);
+    --shadow-sm: 0px 10px 25px 0px hsl(0 0% 0% / 0.40), 0px 1px 2px -1px hsl(0 0% 0% / 0.40);
+    --shadow: 0px 10px 25px 0px hsl(0 0% 0% / 0.40), 0px 1px 2px -1px hsl(0 0% 0% / 0.40);
+    --shadow-md: 0px 10px 25px 0px hsl(0 0% 0% / 0.40), 0px 2px 4px -1px hsl(0 0% 0% / 0.40);
+    --shadow-lg: 0px 10px 25px 0px hsl(0 0% 0% / 0.40), 0px 4px 6px -1px hsl(0 0% 0% / 0.40);
+    --shadow-xl: 0px 10px 25px 0px hsl(0 0% 0% / 0.40), 0px 8px 10px -1px hsl(0 0% 0% / 0.40);
+    --shadow-2xl: 0px 10px 25px 0px hsl(0 0% 0% / 1.00);
   }
 
   .theme {
-    --font-sans: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    --font-display: var(--font-space-grotesk), var(--font-inter), system-ui, sans-serif;
-    --font-mono: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, Consolas, monospace;
-    --font-serif: Source Serif 4, Georgia, serif;
-    --radius: 0.75rem;
+    --font-sans: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-display: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --font-serif: Georgia, serif;
+    --radius: 1rem;
     --tracking-tighter: calc(var(--tracking-normal) - 0.05em);
     --tracking-tight: calc(var(--tracking-normal) - 0.025em);
     --tracking-wide: calc(var(--tracking-normal) + 0.025em);
@@ -171,14 +190,14 @@
 }
 
 /* ── Ambient page backdrop ────────────────────────────────────────────────
-   Neon glow orbs + a faint cyber grid, fixed behind the main content. */
+   Light Green ambient glow + subtle dark slate grid */
 .bg-ambient-mesh {
   background-image:
-    linear-gradient(oklch(0.70 0.20 295 / 0.045) 1px, transparent 1px),
-    linear-gradient(90deg, oklch(0.70 0.20 295 / 0.045) 1px, transparent 1px),
-    radial-gradient(at 12% -5%, oklch(0.6200 0.2400 295.0000 / 0.20) 0px, transparent 45%),
-    radial-gradient(at 88% 0%, oklch(0.7900 0.1600 195.0000 / 0.13) 0px, transparent 42%),
-    radial-gradient(at 50% 105%, oklch(0.7000 0.2100 330.0000 / 0.12) 0px, transparent 50%);
+    linear-gradient(oklch(0.8871 0.2122 128.5041 / 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(0.8871 0.2122 128.5041 / 0.035) 1px, transparent 1px),
+    radial-gradient(at 12% -5%, oklch(0.8871 0.2122 128.5041 / 0.16) 0px, transparent 45%),
+    radial-gradient(at 88% 0%, oklch(0.7227 0.1920 149.5793 / 0.12) 0px, transparent 42%),
+    radial-gradient(at 50% 105%, oklch(0.3925 0.0896 152.5353 / 0.14) 0px, transparent 50%);
   background-size: 44px 44px, 44px 44px, auto, auto, auto;
   background-attachment: fixed;
 }
@@ -186,8 +205,8 @@
 /* Standalone grid texture for feature panels */
 .cyber-grid {
   background-image:
-    linear-gradient(oklch(0.72 0.19 295 / 0.07) 1px, transparent 1px),
-    linear-gradient(90deg, oklch(0.72 0.19 295 / 0.07) 1px, transparent 1px);
+    linear-gradient(oklch(0.8871 0.2122 128.5041 / 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(0.8871 0.2122 128.5041 / 0.06) 1px, transparent 1px);
   background-size: 32px 32px;
 }
 
@@ -243,7 +262,7 @@
   animation: pulse-glow 2.4s ease-in-out infinite;
 }
 
-/* Animated violet → cyan gradient text */
+/* Animated light green → emerald gradient text */
 @keyframes gradient-slide {
   0%, 100% { background-position: 0% 50%; }
   50%      { background-position: 100% 50%; }
@@ -253,7 +272,7 @@
   background: linear-gradient(
     120deg,
     oklch(var(--primary)) 0%,
-    oklch(var(--tertiary)) 50%,
+    oklch(var(--chart-3)) 50%,
     oklch(var(--primary)) 100%
   );
   background-size: 200% auto;
