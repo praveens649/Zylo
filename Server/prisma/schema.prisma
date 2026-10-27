@@ -16,6 +16,62 @@ enum UserRole {
   CUSTOMER
 }
 
+enum SimCategory {
+  PERSONAL
+  BUSINESS
+}
+
+enum SimTechnology {
+  PHYSICAL
+  ESIM
+}
+
+enum SimStatus {
+  PENDING_ACTIVATION
+  ACTIVE
+  SUSPENDED
+  LOST
+  CANCELLED
+}
+
+enum PhoneNumberStatus {
+  AVAILABLE
+  RESERVED
+  ASSIGNED
+}
+
+enum PhoneNumberType {
+  STANDARD
+  PREMIUM
+}
+
+enum PlanType {
+  PREPAID
+  POSTPAID
+}
+
+enum PlanSubscriptionStatus {
+  PENDING
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+enum OrderType {
+  SIM_PURCHASE
+  PLAN_PURCHASE
+  RECHARGE
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
 enum PaymentStatus {
   PENDING
   SUCCEEDED
@@ -39,6 +95,57 @@ enum SubscriptionStatus {
   UNPAID
 }
 
+enum OrganizationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+enum OrganizationMemberRole {
+  OWNER
+  ADMIN
+  EMPLOYEE
+}
+
+enum MembershipStatus {
+  PENDING
+  ACTIVE
+  REJECTED
+  SUSPENDED
+  REMOVED
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum SupportCategory {
+  SIM_ACTIVATION
+  RECHARGE
+  PLAN
+  PAYMENT
+  SIM_REPLACEMENT
+  BUSINESS_SIM
+  OTHER
+}
+
 // ======================================================
 // USERS
 // ======================================================
@@ -53,8 +160,15 @@ model User {
   mustChangePassword Boolean  @default(false)
   isActive           Boolean  @default(true)
 
-  subscription Subscription?
-  payments     Payment[]
+  sims                Sim[]
+  orders              Order[]
+  payments            Payment[]
+  stripeSubscriptions StripeSubscription[]
+  supportTickets      SupportTicket[]
+  notifications       Notification[]
+
+  ownedOrganizations      BusinessOrganization[] @relation("OrganizationOwner")
+  organizationMemberships OrganizationMember[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -65,13 +179,317 @@ model User {
 }
 
 // ======================================================
-// STRIPE SUBSCRIPTIONS
+// BUSINESS ORGANIZATIONS
+// An owner registers a business and requests a 4-digit prefix.
 // ======================================================
 
-model Subscription {
-  id                   String             @id @default(uuid())
-  userId               String             @unique
-  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+model BusinessOrganization {
+  id                 String  @id @default(uuid())
+  name               String
+  businessType       String?
+  registrationNumber String? @unique
+  businessEmail      String
+  businessPhone      String
+  address            String
+  city               String
+  state              String
+  postalCode         String?
+
+  // Store prefixes as strings to preserve leading zeroes.
+  // Example: "0482"
+  numberPrefix String? @unique
+
+  status          OrganizationStatus @default(PENDING)
+  rejectionReason String?
+  verifiedAt      DateTime?
+
+  ownerUserId String
+  owner       User   @relation("OrganizationOwner", fields: [ownerUserId], references: [id], onDelete: Restrict)
+
+  members      OrganizationMember[]
+  invitations  BusinessInvite[]
+  phoneNumbers PhoneNumber[]
+  sims         Sim[]
+  orders       Order[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerUserId])
+  @@index([status])
+}
+
+// ======================================================
+// ORGANIZATION MEMBERS
+// Employees join an existing approved organization.
+// ======================================================
+
+model OrganizationMember {
+  id             String @id @default(uuid())
+  organizationId String
+  userId         String
+
+  // Employee ID inside the organization, not a Zylo user ID.
+  employeeId String
+  role       OrganizationMemberRole @default(EMPLOYEE)
+  status     MembershipStatus       @default(PENDING)
+  verifiedAt DateTime?
+
+  organization BusinessOrganization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  sims Sim[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // One employee ID per organization.
+  @@unique([organizationId, employeeId])
+  // One account has one membership per organization.
+  @@unique([organizationId, userId])
+  @@index([userId, status])
+  @@index([organizationId, status])
+}
+
+// ======================================================
+// BUSINESS INVITATIONS
+// Invite employees without asking them to register
+// the organization's business details again.
+// ======================================================
+
+model BusinessInvite {
+  id             String           @id @default(uuid())
+  organizationId String
+  email          String
+  employeeId     String?
+  tokenHash      String           @unique
+  status         InvitationStatus @default(PENDING)
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+
+  organization BusinessOrganization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId, status])
+  @@index([email, status])
+}
+
+// ======================================================
+// PHONE NUMBER INVENTORY
+// Personal numbers can be standard or premium.
+// Business numbers belong to an approved organization.
+// ======================================================
+
+model PhoneNumber {
+  id            String            @id @default(uuid())
+  number        String            @unique
+  prefix        String?
+  type          PhoneNumberType   @default(STANDARD)
+  price         Decimal           @default(0) @db.Decimal(10, 2)
+  status        PhoneNumberStatus @default(AVAILABLE)
+  reservedUntil DateTime?
+
+  organizationId String?
+  organization   BusinessOrganization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  sim    Sim?
+  orders Order[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, type])
+  @@index([organizationId, status])
+  @@index([prefix, status])
+}
+
+// ======================================================
+// SIM MANAGEMENT
+// SIM category and SIM technology are separate concepts.
+// PERSONAL/BUSINESS describes ownership.
+// PHYSICAL/ESIM describes the SIM format.
+// ======================================================
+
+model Sim {
+  id            String @id @default(uuid())
+  userId        String
+  phoneNumberId String @unique
+
+  category    SimCategory   @default(PERSONAL)
+  technology  SimTechnology @default(PHYSICAL)
+  status      SimStatus     @default(PENDING_ACTIVATION)
+  activatedAt DateTime?
+
+  organizationId       String?
+  organizationMemberId String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  phoneNumber PhoneNumber @relation(fields: [phoneNumberId], references: [id], onDelete: Restrict)
+
+  organization BusinessOrganization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  organizationMember OrganizationMember? @relation(fields: [organizationMemberId], references: [id], onDelete: Restrict)
+
+  planSubscriptions PlanSubscription[]
+  orders            Order[]
+  supportTickets    SupportTicket[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([organizationId, category])
+  @@index([organizationMemberId])
+}
+
+// ======================================================
+// MOBILE PLANS
+// businessOnly = true means the plan is restricted
+// to eligible business SIMs.
+// ======================================================
+
+model Plan {
+  id              String   @id @default(uuid())
+  name            String   @unique
+  description     String?
+  type            PlanType @default(PREPAID)
+  price           Decimal  @db.Decimal(10, 2)
+  currency        String   @default("inr")
+  validityDays    Int      @default(28)
+  dataAllowanceGb Decimal? @db.Decimal(8, 2)
+  callingBenefit  String   @default("Unlimited")
+  smsCount        Int?
+  businessOnly    Boolean  @default(false)
+  isActive        Boolean  @default(true)
+  isFeatured      Boolean  @default(false)
+
+  orders            Order[]
+  planSubscriptions PlanSubscription[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([type, isActive])
+  @@index([businessOnly, isActive])
+  @@index([price])
+}
+
+// ======================================================
+// PLAN HISTORY PER SIM
+// A user can own multiple SIMs with separate plans.
+// ======================================================
+
+model PlanSubscription {
+  id        String                 @id @default(uuid())
+  simId     String
+  planId    String
+  orderId   String?                @unique
+  status    PlanSubscriptionStatus @default(PENDING)
+  startDate DateTime?
+  endDate   DateTime?
+  autoRenew Boolean                @default(false)
+
+  sim Sim @relation(fields: [simId], references: [id], onDelete: Restrict)
+
+  plan Plan @relation(fields: [planId], references: [id], onDelete: Restrict)
+
+  order Order? @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([simId, status])
+  @@index([status, endDate])
+}
+
+// ======================================================
+// ORDERS
+// Supports personal and business SIM purchases.
+// ======================================================
+
+model Order {
+  id       String      @id @default(uuid())
+  userId   String
+  type     OrderType
+  status   OrderStatus @default(PENDING)
+  amount   Decimal     @db.Decimal(10, 2)
+  currency String      @default("inr")
+
+  simId          String?
+  phoneNumberId  String?
+  planId         String?
+  organizationId String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  sim Sim? @relation(fields: [simId], references: [id], onDelete: Restrict)
+
+  phoneNumber PhoneNumber? @relation(fields: [phoneNumberId], references: [id], onDelete: Restrict)
+
+  plan Plan? @relation(fields: [planId], references: [id], onDelete: Restrict)
+
+  organization BusinessOrganization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  payment          Payment?
+  planSubscription PlanSubscription?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@index([type])
+  @@index([organizationId])
+}
+
+// ======================================================
+// STRIPE PAYMENTS
+// ======================================================
+
+model Payment {
+  id      String  @id @default(uuid())
+  userId  String
+  orderId String? @unique
+
+  type        PaymentType   @default(ONE_TIME)
+  status      PaymentStatus @default(PENDING)
+  amount      Decimal       @db.Decimal(10, 2)
+  currency    String        @default("inr")
+  description String?
+
+  stripeCheckoutSessionId String? @unique
+  stripePaymentIntentId   String? @unique
+  stripeInvoiceId         String? @unique
+
+  failureCode    String?
+  failureMessage String?
+  paidAt         DateTime?
+  refundedAt     DateTime?
+  metadata       Json?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  order Order? @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+}
+
+// ======================================================
+// STRIPE RECURRING SUBSCRIPTIONS
+// Kept separate from SIM plan subscriptions.
+// ======================================================
+
+model StripeSubscription {
+  id     String @id @default(uuid())
+  userId String @unique
 
   stripeCustomerId     String?            @unique
   stripeSubscriptionId String             @unique
@@ -79,9 +497,11 @@ model Subscription {
   plan                 String?
   status               String             @default("incomplete")
   subscriptionStatus   SubscriptionStatus @default(INCOMPLETE)
-  billingInterval      String?            // e.g. "month" | "year"
+  billingInterval      String?
   currentPeriodEnd     DateTime?
   cancelAtPeriodEnd    Boolean            @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -91,34 +511,49 @@ model Subscription {
 }
 
 // ======================================================
-// PAYMENTS
+// CUSTOMER SUPPORT
 // ======================================================
 
-model Payment {
-  id                      String        @id @default(uuid())
-  userId                  String
-  user                    User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+model SupportTicket {
+  id           String          @id @default(uuid())
+  ticketNumber String          @unique
+  userId       String
+  simId        String?
+  subject      String
+  description  String
+  category     SupportCategory @default(OTHER)
+  priority     TicketPriority  @default(MEDIUM)
+  status       TicketStatus    @default(OPEN)
+  adminReply   String?
+  resolvedAt   DateTime?
 
-  type                    PaymentType   @default(ONE_TIME)
-  status                  PaymentStatus @default(PENDING)
-  amount                  Decimal       @db.Decimal(10, 2)
-  currency                String        @default("usd")
-  description             String?
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
 
-  stripeCheckoutSessionId String?       @unique
-  stripePaymentIntentId   String?       @unique
-  stripeInvoiceId         String?       @unique
-  failureCode             String?
-  failureMessage          String?
-  paidAt                  DateTime?
-  refundedAt              DateTime?
-  metadata                Json?
+  sim Sim? @relation(fields: [simId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([userId, createdAt])
-  @@index([type, status])
+  @@index([status, priority])
+}
+
+// ======================================================
+// NOTIFICATIONS
+// ======================================================
+
+model Notification {
+  id      String  @id @default(uuid())
+  userId  String
+  title   String
+  message String
+  isRead  Boolean @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead, createdAt])
 }
 
 // ======================================================
@@ -126,11 +561,12 @@ model Payment {
 // ======================================================
 
 model StoredFile {
-  id        String   @id @default(uuid())
-  filename  String
-  mimeType  String
-  size      Int
-  data      Bytes
+  id       String @id @default(uuid())
+  filename String
+  mimeType String
+  size     Int
+  data     Bytes
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
