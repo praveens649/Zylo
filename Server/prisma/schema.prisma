@@ -168,6 +168,22 @@ enum DataTransferRequestStatus {
   CANCELLED
 }
 
+enum DataLoanStatus {
+  ACTIVE
+  PARTIALLY_REPAID
+  DUE
+  REPAID
+  SETTLED
+  CANCELLED
+}
+
+enum DataLoanTransactionType {
+  LOAN_ISSUED
+  BANK_REPAYMENT
+  RECHARGE_REPAYMENT
+  ADJUSTMENT
+}
+
 // ======================================================
 // USERS
 // ======================================================
@@ -188,6 +204,7 @@ model User {
   stripeSubscriptions StripeSubscription[]
   supportTickets      SupportTicket[]
   notifications       Notification[]
+  dataLoans           DataLoan[]
 
   ownedOrganizations      BusinessOrganization[] @relation("OrganizationOwner")
   organizationMemberships OrganizationMember[]
@@ -366,6 +383,8 @@ model Sim {
 
   sentDataRequests     DataTransferRequest[] @relation("DataRequestSenderSim")
   receivedDataRequests DataTransferRequest[] @relation("DataRequestRecipientSim")
+
+  dataLoans DataLoan[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -686,6 +705,53 @@ model DataTransferRequest {
 
   @@index([requesterSimId, status])
   @@index([recipientSimId, status])
+}
+
+// ======================================================
+// ZYLO DATA LOAN
+// ======================================================
+
+model DataLoan {
+  id     String @id @default(uuid())
+  userId String
+  simId  String
+
+  originalAmountMb    Int
+  outstandingAmountMb Int
+  status              DataLoanStatus @default(ACTIVE)
+
+  borrowedAt DateTime  @default(now())
+  dueAt      DateTime?
+  repaidAt   DateTime?
+
+  user         User                  @relation(fields: [userId], references: [id], onDelete: Restrict)
+  sim          Sim                   @relation(fields: [simId], references: [id], onDelete: Restrict)
+  transactions DataLoanTransaction[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([simId, status])
+  @@index([status, dueAt])
+}
+
+model DataLoanTransaction {
+  id             String                  @id @default(uuid())
+  loanId         String
+  type           DataLoanTransactionType
+  amountMb       Int
+  balanceAfterMb Int
+  reference      String                  @unique @default(uuid())
+  description    String?
+  processedAt    DateTime                @default(now())
+
+  loan DataLoan @relation(fields: [loanId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+
+  @@index([loanId, processedAt])
+  @@index([type, processedAt])
 }
 
 // ======================================================
