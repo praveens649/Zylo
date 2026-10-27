@@ -182,7 +182,7 @@ export class StripeService {
 
   /** The user's stored subscription record (null when never subscribed). */
   async getSubscription(userId: string) {
-    return this.prisma.subscription.findUnique({
+    return this.prisma.stripeSubscription.findUnique({
       where: { userId },
     });
   }
@@ -286,7 +286,7 @@ export class StripeService {
    * methods, view invoices, or cancel subscriptions directly on Stripe.
    */
   async createCustomerPortalSession(userId: string, returnUrl?: string) {
-    const subscription = await this.prisma.subscription.findUnique({
+    const subscription = await this.prisma.stripeSubscription.findUnique({
       where: { userId },
     });
 
@@ -382,7 +382,7 @@ export class StripeService {
     // Record payment if user is found
     const customerId = idOf(invoice.customer);
     if (customerId) {
-      const sub = await this.prisma.subscription.findUnique({
+      const sub = await this.prisma.stripeSubscription.findUnique({
         where: { stripeCustomerId: customerId },
       });
       if (sub?.userId) {
@@ -416,7 +416,7 @@ export class StripeService {
     const subscriptionId = invoiceSubscriptionId(invoice);
     if (!subscriptionId) return;
 
-    await this.prisma.subscription
+    await this.prisma.stripeSubscription
       .update({
         where: { stripeSubscriptionId: subscriptionId },
         data: {
@@ -432,7 +432,7 @@ export class StripeService {
   }
 
   async handleSubscriptionDeleted(subscription: Stripe.Subscription) {
-    await this.prisma.subscription
+    await this.prisma.stripeSubscription
       .update({
         where: { stripeSubscriptionId: subscription.id },
         data: {
@@ -458,11 +458,11 @@ export class StripeService {
       extras.stripeCustomerId ?? idOf(subscription.customer);
 
     const existing =
-      (await this.prisma.subscription.findUnique({
+      (await this.prisma.stripeSubscription.findUnique({
         where: { stripeSubscriptionId: subscription.id },
       })) ??
       (userId
-        ? await this.prisma.subscription.findUnique({
+        ? await this.prisma.stripeSubscription.findUnique({
             where: { userId },
           })
         : null);
@@ -499,7 +499,7 @@ export class StripeService {
     };
 
     if (existing) {
-      await this.prisma.subscription.update({
+      await this.prisma.stripeSubscription.update({
         where: { id: existing.id },
         data: {
           stripeSubscriptionId: subscription.id,
@@ -507,7 +507,7 @@ export class StripeService {
         },
       });
     } else {
-      await this.prisma.subscription.create({
+      await this.prisma.stripeSubscription.create({
         data: {
           stripeSubscriptionId: subscription.id,
           ...data,
