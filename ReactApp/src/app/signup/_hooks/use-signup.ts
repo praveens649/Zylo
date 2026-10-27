@@ -38,7 +38,7 @@ export function useSignup() {
         description: "Your account is ready.",
       });
 
-      router.replace("/dashboard");
+      router.replace("/");
     },
     onError: (error) => {
       if (error instanceof ApiRequestError) {

@@ -28,7 +28,7 @@ export function useLogin() {
         title: `Welcome back, ${user.name.split(" ")[0]}`,
         description: `Signed in as ${getRoleLabel(user.role)}`,
       });
-      router.replace("/dashboard");
+      router.replace("/");
     },
     onError: (error) => {
       if (error instanceof ApiRequestError) {
