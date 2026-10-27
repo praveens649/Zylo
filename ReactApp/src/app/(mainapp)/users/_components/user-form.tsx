@@ -3,7 +3,7 @@
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { toast } from "@/hooks/use-toast";
 import { Loader2, KeyRound, Eye, EyeOff, Mail, Upload, X } from "lucide-react";
 
 import { USERS_LIST_KEY, usersApi, type User } from "@/api/users.api";
@@ -94,11 +94,13 @@ export function UserForm({ user }: UserFormProps) {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: USERS_LIST_KEY });
       if (data.emailSent) {
-        toast.success("User created", {
+        toast({
+          title: "User created",
           description: "Login credentials were emailed to them.",
         });
       } else {
-        toast.warning("User created — email not sent", {
+        toast({
+          title: "User created — email not sent",
           description:
             "Email isn't configured on the server; share credentials manually.",
         });
@@ -123,6 +125,10 @@ export function UserForm({ user }: UserFormProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: USERS_LIST_KEY });
       queryClient.invalidateQueries({ queryKey: ["users", "detail", user!.id] });
+      toast({
+        title: "User updated",
+        description: "User details were saved successfully.",
+      });
       router.push("/users");
     },
     onError: (err: Error) => {

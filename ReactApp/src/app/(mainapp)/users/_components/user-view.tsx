@@ -51,7 +51,7 @@ export function UsersView() {
                 className="h-8 w-8 shrink-0 rounded-full border border-primary/20 object-cover"
               />
             ) : (
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted font-semibold text-xs text-foreground">
                 {row.original.name.charAt(0).toUpperCase()}
               </div>
             )}

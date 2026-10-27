@@ -1,19 +1,19 @@
-import { Rocket, ShieldCheck, UserCheck } from "lucide-react";
+import { Rocket, ShieldCheck, Users } from "lucide-react";
 
 export const FEATURES = [
   {
     icon: Rocket,
-    title: "Quick setup",
-    description: "Create your account and get started right away.",
+    title: "Quick Onboarding",
+    description: "Create your account and access the console in seconds.",
   },
   {
     icon: ShieldCheck,
-    title: "Secure by default",
-    description: "Your credentials are hashed and sessions stay private.",
+    title: "Secure by Default",
+    description: "Hashed credentials and isolated sessions keep data protected.",
   },
   {
-    icon: UserCheck,
-    title: "Book & subscribe",
-    description: "Reserve games and unlock member discounts instantly.",
+    icon: Users,
+    title: "Team Collaboration",
+    description: "Seamless access to administrative tools and activity logs.",
   },
 ];

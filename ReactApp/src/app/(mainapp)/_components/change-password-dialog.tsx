@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { toast } from "@/hooks/use-toast";
 import {
   KeyRound,
   Lock,
@@ -56,7 +56,8 @@ export function ChangePasswordDialog({
       setNewPassword("");
       setConfirmPassword("");
       setFormError(null);
-      toast.success("Password changed", {
+      toast({
+        title: "Password changed",
         description: "You can continue using the app with your new password.",
       });
     },

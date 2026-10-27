@@ -3,7 +3,7 @@
 
 import { Button, type ButtonProps  } from "./button";
 import { Loader2, LogOut } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { authToken } from "@/lib/api";
 import { authApi } from "@/api/auth.api";
@@ -36,7 +36,10 @@ export function LogoutButton({
       router.refresh();
     },
     onSuccess: () => {
-      toast.success("Logged out successfully");
+      toast({
+        title: "Logged out",
+        description: "Logged out successfully",
+      });
     },
     onError: (error) => {
       console.error('Logout error:', error);

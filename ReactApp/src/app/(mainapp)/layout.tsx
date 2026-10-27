@@ -40,7 +40,7 @@ export default function DashboardLayout({
   if (error) {
     if (!(error instanceof ApiRequestError && error.status === 401)) {
       return (
-        <div className="flex min-h-screen items-center justify-center bg-ambient-mesh p-6">
+        <div className="flex min-h-screen items-center justify-center bg-background p-6">
           <Card className="w-full max-w-md text-center border-border/70 bg-card/95 shadow-sm">
             <CardHeader>
               <CardTitle>Can&apos;t reach the server</CardTitle>
@@ -64,7 +64,7 @@ export default function DashboardLayout({
 
   if (isPending || !data) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-ambient-mesh p-6" />
+      <div className="flex min-h-screen items-center justify-center bg-background p-6" />
     );
   }
 

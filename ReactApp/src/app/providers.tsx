@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { NuqsAdapter } from "nuqs/adapters/react-router/v7";
-import { Toaster } from "sonner";
+import { Toaster } from "@/components/ui/toaster";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -22,39 +22,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <NuqsAdapter>{children}</NuqsAdapter>
-      <Toaster
-        richColors
-        position="top-center"
-        offset={20}
-        gap={10}
-        duration={3500}
-        toastOptions={{
-          style: {
-            "--normal-bg": "oklch(var(--card) / 0.97)",
-            "--normal-border": "oklch(var(--border))",
-            "--normal-text": "oklch(var(--card-foreground))",
-            "--success-bg": "oklch(var(--card) / 0.97)",
-            "--success-border": "oklch(0.70 0.18 155 / 0.4)",
-            "--success-text": "oklch(0.75 0.17 155)",
-            "--error-bg": "oklch(var(--card) / 0.97)",
-            "--error-border": "oklch(var(--destructive) / 0.4)",
-            "--error-text": "oklch(var(--destructive))",
-            "--warning-bg": "oklch(var(--card) / 0.97)",
-            "--warning-border": "oklch(0.75 0.16 75 / 0.4)",
-            "--warning-text": "oklch(0.78 0.15 75)",
-            "--info-bg": "oklch(var(--card) / 0.97)",
-            "--info-border": "oklch(var(--tertiary) / 0.4)",
-            "--info-text": "oklch(var(--tertiary))",
-          } as React.CSSProperties,
-          classNames: {
-            toast:
-              "rounded-2xl px-4 py-3.5 shadow-xl backdrop-blur-md items-start",
-            title: "text-sm font-semibold leading-tight",
-            description: "text-xs leading-relaxed opacity-80",
-            icon: "mt-0.5",
-          },
-        }}
-      />
+      <Toaster />
     </QueryClientProvider>
   );
 }

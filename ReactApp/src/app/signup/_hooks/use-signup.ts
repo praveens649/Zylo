@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { toast } from "@/hooks/use-toast";
 
 import { authService, AUTH_ME_KEY } from "@/api/auth.api";
 import { ApiRequestError, authToken } from "@/lib/api";
@@ -33,7 +33,8 @@ export function useSignup() {
       queryClient.setQueryData(AUTH_ME_KEY, { user });
       setFormError(null);
 
-      toast.success(`Welcome, ${user.name.split(" ")[0]}`, {
+      toast({
+        title: `Welcome, ${user.name.split(" ")[0]}`,
         description: "Your account is ready.",
       });
 

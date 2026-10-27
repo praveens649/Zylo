@@ -3,17 +3,17 @@ import { KeyRound, ShieldCheck, Users } from "lucide-react";
 export const FEATURES = [
   {
     icon: ShieldCheck,
-    title: "Member pricing",
-    description: "Automatic membership discounts applied to every booking.",
+    title: "Access Management",
+    description: "Granular role-based controls for administrators and team members.",
   },
   {
     icon: Users,
-    title: "Simple booking",
-    description: "Reserve a game session in a few clicks.",
+    title: "User Administration",
+    description: "Provision, edit, and oversee user accounts and security statuses.",
   },
   {
     icon: KeyRound,
-    title: "Secure sessions",
-    description: "JWT access tokens with forced password rotation.",
+    title: "Secure Sessions",
+    description: "JWT-based protected authentication with password rotation enforcement.",
   },
 ];

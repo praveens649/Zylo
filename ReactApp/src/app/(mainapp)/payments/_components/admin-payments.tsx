@@ -111,15 +111,15 @@ function SummaryCards({ payments }: { payments: Payment[] }) {
     {
       label: "Total Payments",
       value: stats.count.toString(),
-      icon: <ArrowDownUp className="h-5 w-5 text-primary" />,
-      accent: "text-primary",
+      icon: <ArrowDownUp className="h-5 w-5 text-muted-foreground" />,
+      accent: "text-foreground",
     },
   ];
 
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       {cards.map((c) => (
-        <Card key={c.label} className="glass-card">
+        <Card key={c.label} className="border-border bg-card shadow-sm hover:shadow-md transition-shadow">
           <CardContent className="flex items-center gap-4 p-4">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted/60">
               {c.icon}
@@ -207,7 +207,7 @@ function usePaymentColumns() {
         accessorKey: "amount",
         header: "Amount",
         cell: ({ row }) => (
-          <span className="flex items-center gap-0.5 font-display text-sm font-bold text-primary">
+          <span className="flex items-center gap-0.5 font-display text-sm font-bold text-foreground">
             <IndianRupee className="h-3.5 w-3.5" />
             {formatINR(row.original.amount)}
           </span>

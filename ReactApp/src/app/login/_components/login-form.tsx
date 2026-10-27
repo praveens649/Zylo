@@ -9,9 +9,9 @@ import { Label } from "@/components/ui/label";
 import { useLogin } from "../_hooks/use-login";
 
 const FIELD_INPUT =
-  "h-11 rounded-md border-[#262626] bg-[#111111] pl-10 text-white placeholder:text-neutral-600 transition-all focus-visible:border-violet-400 focus-visible:ring-2 focus-visible:ring-violet-400/30";
+  "h-11 rounded-lg border-input bg-background pl-10 text-foreground placeholder:text-muted-foreground transition-all focus-visible:ring-2 focus-visible:ring-ring";
 
-/** The login form — email/password fields, error banner, submit. */
+/** The login form in clean light theme. */
 export function LoginForm() {
   const {
     email,
@@ -26,18 +26,18 @@ export function LoginForm() {
   } = useLogin();
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5" noValidate>
-      <div className="space-y-2">
-        <Label htmlFor="email" className="text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-500">
+    <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+      <div className="space-y-1.5">
+        <Label htmlFor="email" className="text-xs font-medium text-foreground">
           Email address
         </Label>
         <div className="relative">
-          <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-600" />
+          <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             id="email"
             type="email"
             autoComplete="email"
-            placeholder="you@example.com"
+            placeholder="name@example.com"
             className={FIELD_INPUT}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -46,12 +46,12 @@ export function LoginForm() {
         </div>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="password" className="text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-500">
+      <div className="space-y-1.5">
+        <Label htmlFor="password" className="text-xs font-medium text-foreground">
           Password
         </Label>
         <div className="relative">
-          <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-600" />
+          <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             id="password"
             type={showPassword ? "text" : "password"}
@@ -65,7 +65,7 @@ export function LoginForm() {
           <button
             type="button"
             onClick={() => setShowPassword((v) => !v)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-neutral-500 transition-colors hover:bg-white/10 hover:text-violet-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
+            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label={showPassword ? "Hide password" : "Show password"}
           >
             {showPassword ? (
@@ -78,7 +78,7 @@ export function LoginForm() {
       </div>
 
       {formError && (
-        <div className="rounded-md border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-400">
+        <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive">
           {formError}
         </div>
       )}
@@ -86,18 +86,18 @@ export function LoginForm() {
       <Button
         type="submit"
         size="lg"
-        className="h-11 w-full rounded-md border-0 bg-violet-400 text-sm font-bold uppercase tracking-widest text-black shadow-[0_0_28px_-6px_rgba(139,92,246,0.6)] transition-all duration-300 hover:bg-violet-300 hover:shadow-[0_0_36px_-4px_rgba(139,92,246,0.8)]"
+        className="h-11 w-full rounded-lg bg-primary text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90"
         disabled={isSubmitting}
       >
         {isSubmitting ? (
           <>
-            <Loader2 className="h-4 w-4 animate-spin" />
+            <Loader2 className="h-4 w-4 animate-spin mr-2" />
             Signing in…
           </>
         ) : (
           <>
             Sign in
-            <ArrowRight className="h-4 w-4" />
+            <ArrowRight className="h-4 w-4 ml-2" />
           </>
         )}
       </Button>

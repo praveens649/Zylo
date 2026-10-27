@@ -32,7 +32,7 @@ export function ConsoleShell({
         <SidebarRail />
       </Sidebar>
 
-      <SidebarInset className="min-w-0 overflow-x-hidden bg-ambient-mesh">
+      <SidebarInset className="min-w-0 overflow-x-hidden bg-background">
         <header className="sticky top-0 z-10 flex h-14 items-center justify-between border-b border-border/70 bg-background/80 px-4 backdrop-blur-md sm:px-6">
           <div className="flex items-center gap-3">
             <SidebarTrigger className="hover:bg-accent hover:text-accent-foreground" />

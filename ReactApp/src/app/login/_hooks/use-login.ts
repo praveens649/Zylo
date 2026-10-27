@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { toast } from "@/hooks/use-toast";
 
 import { authService, AUTH_ME_KEY, getRoleLabel } from "@/api/auth.api";
 import { ApiRequestError, authToken } from "@/lib/api";
@@ -24,7 +24,8 @@ export function useLogin() {
       queryClient.setQueryData(AUTH_ME_KEY, { user });
       setFormError(null);
 
-      toast.success(`Welcome back, ${user.name.split(" ")[0]}`, {
+      toast({
+        title: `Welcome back, ${user.name.split(" ")[0]}`,
         description: `Signed in as ${getRoleLabel(user.role)}`,
       });
       router.replace("/dashboard");
