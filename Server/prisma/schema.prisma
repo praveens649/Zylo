@@ -146,6 +146,28 @@ enum SupportCategory {
   OTHER
 }
 
+enum DataBankTransactionType {
+  DEPOSIT
+  REDEMPTION
+  EXPIRY
+  ADJUSTMENT
+}
+
+enum DataTransferStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum DataTransferRequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+  CANCELLED
+}
+
 // ======================================================
 // USERS
 // ======================================================
@@ -338,6 +360,13 @@ model Sim {
   orders            Order[]
   supportTickets    SupportTicket[]
 
+  dataBankAccount   DataBankAccount?
+  sentTransfers     DataTransfer[]   @relation("TransferSenderSim")
+  receivedTransfers DataTransfer[]   @relation("TransferRecipientSim")
+
+  sentDataRequests     DataTransferRequest[] @relation("DataRequestSenderSim")
+  receivedDataRequests DataTransferRequest[] @relation("DataRequestRecipientSim")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -366,6 +395,15 @@ model Plan {
   businessOnly    Boolean  @default(false)
   isActive        Boolean  @default(true)
   isFeatured      Boolean  @default(false)
+
+  // Zylo Data Bank settings
+  dataBankEnabled    Boolean @default(false)
+  rolloverLimitMb    Int?
+  rolloverExpiryDays Int?
+
+  // Zylo Data Transfer settings
+  dataTransferEnabled Boolean @default(false)
+  transferLimitMb     Int?
 
   orders            Order[]
   planSubscriptions PlanSubscription[]
@@ -554,6 +592,100 @@ model Notification {
   createdAt DateTime @default(now())
 
   @@index([userId, isRead, createdAt])
+}
+
+// ======================================================
+// ZYLO DATA BANK
+// ======================================================
+
+model DataBankAccount {
+  id        String @id @default(uuid())
+  simId     String @unique
+  balanceMb Int    @default(0)
+
+  sim          Sim                   @relation(fields: [simId], references: [id], onDelete: Restrict)
+  transactions DataBankTransaction[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([balanceMb])
+}
+
+model DataBankTransaction {
+  id             String                  @id @default(uuid())
+  dataBankId     String
+  type           DataBankTransactionType
+  amountMb       Int
+  balanceAfterMb Int
+  description    String?
+  reference      String                  @unique @default(uuid())
+  expiresAt      DateTime?
+  processedAt    DateTime                @default(now())
+
+  dataBank DataBankAccount @relation(fields: [dataBankId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+
+  @@index([dataBankId, processedAt])
+  @@index([type, processedAt])
+  @@index([expiresAt])
+}
+
+// ======================================================
+// ZYLO DATA TRANSFER
+// ======================================================
+
+model DataTransfer {
+  id        String @id @default(uuid())
+  reference String @unique @default(uuid())
+
+  fromSimId      String
+  toSimId        String
+  amountMb       Int
+  status         DataTransferStatus @default(PENDING)
+  message        String?
+  failureReason  String?
+  idempotencyKey String?            @unique
+
+  completedAt DateTime?
+
+  fromSim Sim @relation("TransferSenderSim", fields: [fromSimId], references: [id], onDelete: Restrict)
+
+  toSim Sim @relation("TransferRecipientSim", fields: [toSimId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([fromSimId, createdAt])
+  @@index([toSimId, createdAt])
+  @@index([status, createdAt])
+}
+
+// ======================================================
+// ZYLO DATA TRANSFER REQUESTS
+// ======================================================
+
+model DataTransferRequest {
+  id             String                    @id @default(uuid())
+  reference      String                    @unique @default(uuid())
+  requesterSimId String
+  recipientSimId String
+  amountMb       Int
+  message        String?
+  status         DataTransferRequestStatus @default(PENDING)
+  expiresAt      DateTime
+  respondedAt    DateTime?
+
+  requesterSim Sim @relation("DataRequestSenderSim", fields: [requesterSimId], references: [id], onDelete: Restrict)
+
+  recipientSim Sim @relation("DataRequestRecipientSim", fields: [recipientSimId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([requesterSimId, status])
+  @@index([recipientSimId, status])
 }
 
 // ======================================================
