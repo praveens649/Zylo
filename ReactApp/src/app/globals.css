@@ -1,0 +1,390 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Tailwind v3 opacity modifiers (bg-card/95 etc.) need channel values —
+       the config wraps these in oklch(var(--x) / <alpha-value>). */
+
+    /* BRAND PALETTE — "Neon Arcade"
+       1. Primary:   Electric violet (L: 0.62, C: 0.24, H: 295)
+       2. Secondary: Deep violet surface
+       3. Tertiary:  Neon cyan (L: 0.79, C: 0.16, H: 195)
+    */
+    --primary: 0.6200 0.2400 295.0000;
+    --primary-foreground: 0.9700 0.0100 280.0000;
+
+    --secondary: 0.2200 0.0350 280.0000;
+    --secondary-foreground: 0.9200 0.0200 275.0000;
+
+    --tertiary: 0.7900 0.1600 195.0000;
+    --tertiary-foreground: 0.1500 0.0400 250.0000;
+
+    /* SURFACES & NEUTRALS — deep space ink with a violet tint */
+    --background: 0.1250 0.0220 278.0000;
+    --foreground: 0.9350 0.0120 275.0000;
+
+    --card: 0.1700 0.0280 278.0000;
+    --card-foreground: 0.9350 0.0120 275.0000;
+
+    --popover: 0.1650 0.0280 278.0000;
+    --popover-foreground: 0.9350 0.0120 275.0000;
+
+    --muted: 0.2300 0.0300 278.0000;
+    --muted-foreground: 0.6800 0.0350 278.0000;
+
+    --accent: 0.2700 0.0700 288.0000;
+    --accent-foreground: 0.9400 0.0300 280.0000;
+
+    --destructive: 0.6300 0.2400 25.0000;
+    --destructive-foreground: 0.9850 0.0100 30.0000;
+
+    --border: 0.2650 0.0350 280.0000;
+    --input: 0.2650 0.0350 280.0000;
+    --ring: 0.6800 0.2300 295.0000;
+
+    /* CHARTS — violet, cyan, magenta, slate, teal */
+    --chart-1: 0.6200 0.2400 295.0000;
+    --chart-2: 0.7900 0.1600 195.0000;
+    --chart-3: 0.7000 0.2100 330.0000;
+    --chart-4: 0.6000 0.0500 275.0000;
+    --chart-5: 0.7000 0.1300 165.0000;
+
+    --radius: 0.75rem;
+
+    /* SIDEBAR — near-black violet panel */
+    --sidebar-background: 0.1050 0.0200 278.0000;
+    --sidebar-foreground: 0.9000 0.0120 275.0000;
+    --sidebar-primary: 0.7000 0.2300 295.0000;
+    --sidebar-primary-foreground: 0.9850 0.0050 275.0000;
+    --sidebar-accent: 0.2200 0.0400 282.0000;
+    --sidebar-accent-foreground: 0.9600 0.0150 275.0000;
+    --sidebar-border: 0.2350 0.0300 280.0000;
+    --sidebar-ring: 0.7000 0.2300 295.0000;
+    --sidebar: 0.1050 0.0200 278.0000;
+
+    /* TYPOGRAPHY */
+    --font-sans: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-display: var(--font-space-grotesk), var(--font-inter), system-ui, sans-serif;
+    --font-serif: Source Serif 4, Georgia, serif;
+    --font-mono: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, Consolas, monospace;
+
+    /* SHADOW TOKENS — pure black with violet glow shadows */
+    --shadow-color: hsl(0 0% 0%);
+    --shadow-2xs: 0px 1px 2px 0px hsl(0 0% 0% / 0.25);
+    --shadow-xs: 0px 1px 3px 0px hsl(0 0% 0% / 0.30);
+    --shadow-sm: 0px 1px 3px 0px hsl(0 0% 0% / 0.35), 0px 1px 2px -1px hsl(0 0% 0% / 0.25);
+    --shadow: 0px 2px 4px 0px hsl(0 0% 0% / 0.35), 0px 2px 4px -2px hsl(0 0% 0% / 0.25);
+    --shadow-md: 0px 4px 6px -1px hsl(0 0% 0% / 0.40), 0px 2px 4px -2px hsl(0 0% 0% / 0.30);
+    --shadow-lg: 0px 10px 15px -3px hsl(0 0% 0% / 0.45), 0px 4px 6px -4px hsl(0 0% 0% / 0.35);
+    --shadow-xl: 0px 20px 25px -5px hsl(0 0% 0% / 0.50), 0px 8px 10px -6px hsl(0 0% 0% / 0.40);
+    --shadow-2xl: 0px 25px 50px -12px hsl(0 0% 0% / 0.65);
+
+    --tracking-normal: -0.011em;
+    --letter-spacing: -0.011em;
+    --spacing: 0.25rem;
+  }
+
+  /* The app is dark-only — .dark mirrors :root so the class is a no-op. */
+  .dark {
+    --primary: 0.6200 0.2400 295.0000;
+    --primary-foreground: 0.9700 0.0100 280.0000;
+    --secondary: 0.2200 0.0350 280.0000;
+    --secondary-foreground: 0.9200 0.0200 275.0000;
+    --tertiary: 0.7900 0.1600 195.0000;
+    --tertiary-foreground: 0.1500 0.0400 250.0000;
+    --background: 0.1250 0.0220 278.0000;
+    --foreground: 0.9350 0.0120 275.0000;
+    --card: 0.1700 0.0280 278.0000;
+    --card-foreground: 0.9350 0.0120 275.0000;
+    --popover: 0.1650 0.0280 278.0000;
+    --popover-foreground: 0.9350 0.0120 275.0000;
+    --muted: 0.2300 0.0300 278.0000;
+    --muted-foreground: 0.6800 0.0350 278.0000;
+    --accent: 0.2700 0.0700 288.0000;
+    --accent-foreground: 0.9400 0.0300 280.0000;
+    --destructive: 0.6300 0.2400 25.0000;
+    --destructive-foreground: 0.9850 0.0100 30.0000;
+    --border: 0.2650 0.0350 280.0000;
+    --input: 0.2650 0.0350 280.0000;
+    --ring: 0.6800 0.2300 295.0000;
+    --chart-1: 0.6200 0.2400 295.0000;
+    --chart-2: 0.7900 0.1600 195.0000;
+    --chart-3: 0.7000 0.2100 330.0000;
+    --chart-4: 0.6000 0.0500 275.0000;
+    --chart-5: 0.7000 0.1300 165.0000;
+    --sidebar-background: 0.1050 0.0200 278.0000;
+    --sidebar-foreground: 0.9000 0.0120 275.0000;
+    --sidebar-primary: 0.7000 0.2300 295.0000;
+    --sidebar-primary-foreground: 0.9850 0.0050 275.0000;
+    --sidebar-accent: 0.2200 0.0400 282.0000;
+    --sidebar-accent-foreground: 0.9600 0.0150 275.0000;
+    --sidebar-border: 0.2350 0.0300 280.0000;
+    --sidebar-ring: 0.7000 0.2300 295.0000;
+    --sidebar: 0.1050 0.0200 278.0000;
+    --shadow-color: hsl(0 0% 0%);
+    --shadow-2xs: 0px 1px 2px 0px hsl(0 0% 0% / 0.25);
+    --shadow-xs: 0px 1px 3px 0px hsl(0 0% 0% / 0.30);
+    --shadow-sm: 0px 1px 3px 0px hsl(0 0% 0% / 0.35), 0px 1px 2px -1px hsl(0 0% 0% / 0.25);
+    --shadow: 0px 2px 4px 0px hsl(0 0% 0% / 0.35), 0px 2px 4px -2px hsl(0 0% 0% / 0.25);
+    --shadow-md: 0px 4px 6px -1px hsl(0 0% 0% / 0.40), 0px 2px 4px -2px hsl(0 0% 0% / 0.30);
+    --shadow-lg: 0px 10px 15px -3px hsl(0 0% 0% / 0.45), 0px 4px 6px -4px hsl(0 0% 0% / 0.35);
+    --shadow-xl: 0px 20px 25px -5px hsl(0 0% 0% / 0.50), 0px 8px 10px -6px hsl(0 0% 0% / 0.40);
+    --shadow-2xl: 0px 25px 50px -12px hsl(0 0% 0% / 0.65);
+  }
+
+  .theme {
+    --font-sans: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-display: var(--font-space-grotesk), var(--font-inter), system-ui, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, Consolas, monospace;
+    --font-serif: Source Serif 4, Georgia, serif;
+    --radius: 0.75rem;
+    --tracking-tighter: calc(var(--tracking-normal) - 0.05em);
+    --tracking-tight: calc(var(--tracking-normal) - 0.025em);
+    --tracking-wide: calc(var(--tracking-normal) + 0.025em);
+    --tracking-wider: calc(var(--tracking-normal) + 0.05em);
+    --tracking-widest: calc(var(--tracking-normal) + 0.1em);
+  }
+
+  body {
+    letter-spacing: var(--tracking-normal);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply overflow-x-hidden bg-background text-foreground;
+    font-family: var(--font-sans);
+    letter-spacing: var(--tracking-normal);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+/* ── Ambient page backdrop ────────────────────────────────────────────────
+   Neon glow orbs + a faint cyber grid, fixed behind the main content. */
+.bg-ambient-mesh {
+  background-image:
+    linear-gradient(oklch(0.70 0.20 295 / 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(0.70 0.20 295 / 0.045) 1px, transparent 1px),
+    radial-gradient(at 12% -5%, oklch(0.6200 0.2400 295.0000 / 0.20) 0px, transparent 45%),
+    radial-gradient(at 88% 0%, oklch(0.7900 0.1600 195.0000 / 0.13) 0px, transparent 42%),
+    radial-gradient(at 50% 105%, oklch(0.7000 0.2100 330.0000 / 0.12) 0px, transparent 50%);
+  background-size: 44px 44px, 44px 44px, auto, auto, auto;
+  background-attachment: fixed;
+}
+
+/* Standalone grid texture for feature panels */
+.cyber-grid {
+  background-image:
+    linear-gradient(oklch(0.72 0.19 295 / 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(0.72 0.19 295 / 0.07) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* Dotted texture kept for dark feature panels */
+.dot-grid {
+  background-image: radial-gradient(oklch(1 0 0 / 0.14) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+/* ── Cards ─────────────────────────────────────────────────────────────── */
+.glass-card {
+  background: oklch(var(--card) / 0.72);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid oklch(var(--border) / 0.80);
+  box-shadow: 0 4px 14px -2px hsl(0 0% 0% / 0.40);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-card:hover {
+  border-color: oklch(var(--primary) / 0.55);
+  box-shadow:
+    0 0 0 1px oklch(var(--primary) / 0.15),
+    0 12px 32px -6px oklch(var(--primary) / 0.30),
+    0 4px 12px -2px hsl(0 0% 0% / 0.45);
+}
+
+/* Glow helpers — pair with buttons, badges, icons. */
+.glow-primary {
+  box-shadow:
+    0 0 20px -4px oklch(var(--primary) / 0.65),
+    0 0 44px -10px oklch(var(--primary) / 0.40);
+}
+
+.glow-cyan {
+  box-shadow:
+    0 0 20px -4px oklch(var(--tertiary) / 0.55),
+    0 0 44px -10px oklch(var(--tertiary) / 0.35);
+}
+
+/* Pulsing neon ring for "live"/featured elements */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 oklch(var(--primary) / 0.45),
+      0 0 18px -2px oklch(var(--primary) / 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 5px oklch(var(--primary) / 0),
+      0 0 26px 0px oklch(var(--primary) / 0.55);
+  }
+}
+.animate-pulse-glow {
+  animation: pulse-glow 2.4s ease-in-out infinite;
+}
+
+/* Animated violet → cyan gradient text */
+@keyframes gradient-slide {
+  0%, 100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
+}
+
+.gradient-text {
+  background: linear-gradient(
+    120deg,
+    oklch(var(--primary)) 0%,
+    oklch(var(--tertiary)) 50%,
+    oklch(var(--primary)) 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradient-slide 6s ease-in-out infinite;
+}
+
+/* Entrance animations */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-up {
+  animation: fade-up 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.animate-fade-in {
+  animation: fade-in 0.4s ease-out both;
+}
+
+/* Stagger helpers — apply animation-delay on siblings */
+.stagger-1 { animation-delay: 0.05s; }
+.stagger-2 { animation-delay: 0.10s; }
+.stagger-3 { animation-delay: 0.15s; }
+.stagger-4 { animation-delay: 0.20s; }
+
+/* Slow drift for decorative glow blobs */
+@keyframes drift {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50%      { transform: translate3d(4%, -3%, 0) scale(1.08); }
+}
+.animate-drift {
+  animation: drift 14s ease-in-out infinite;
+}
+
+/* Gentle vertical bob for hero illustrations */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-10px); }
+}
+.animate-float {
+  animation: float 5s ease-in-out infinite;
+}
+
+/* Infinite horizontal marquee */
+@keyframes marquee {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes marquee-reverse {
+  0% { transform: translateX(-50%); }
+  100% { transform: translateX(0%); }
+}
+
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee 35s linear infinite;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+.animate-marquee-reverse {
+  display: flex;
+  width: max-content;
+  animation: marquee-reverse 40s linear infinite;
+}
+
+.animate-marquee-reverse:hover {
+  animation-play-state: paused;
+}
+
+/* Shimmer sweep for skeletons / loading bars */
+@keyframes shimmer {
+  from { background-position: -200% 0; }
+  to   { background-position: 200% 0; }
+}
+.animate-shimmer {
+  background: linear-gradient(
+    100deg,
+    transparent 30%,
+    oklch(var(--primary) / 0.10) 50%,
+    transparent 70%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.8s linear infinite;
+}
+
+/* Custom scrollbar — violet tinted */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: oklch(var(--primary) / 0.30);
+  border-radius: 9999px;
+  transition: background 0.15s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: oklch(var(--primary) / 0.55);
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Respect user motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

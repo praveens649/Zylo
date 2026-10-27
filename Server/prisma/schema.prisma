@@ -1,0 +1,136 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ======================================================
+// ENUMS
+// ======================================================
+
+enum UserRole {
+  SUPER_ADMIN
+  CUSTOMER
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+  CANCELLED
+}
+
+enum PaymentType {
+  ONE_TIME
+  SUBSCRIPTION
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  TRIALING
+  PAST_DUE
+  INCOMPLETE
+  CANCELLED
+  EXPIRED
+  UNPAID
+}
+
+// ======================================================
+// USERS
+// ======================================================
+
+model User {
+  id                 String   @id @default(uuid())
+  name               String
+  email              String   @unique
+  passwordHash       String
+  role               UserRole @default(CUSTOMER)
+  image              String?
+  mustChangePassword Boolean  @default(false)
+  isActive           Boolean  @default(true)
+
+  subscription Subscription?
+  payments     Payment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([role])
+  @@index([isActive])
+  @@index([createdAt])
+}
+
+// ======================================================
+// STRIPE SUBSCRIPTIONS
+// ======================================================
+
+model Subscription {
+  id                   String             @id @default(uuid())
+  userId               String             @unique
+  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  stripeCustomerId     String?            @unique
+  stripeSubscriptionId String             @unique
+  stripePriceId        String?
+  plan                 String?
+  status               String             @default("incomplete")
+  subscriptionStatus   SubscriptionStatus @default(INCOMPLETE)
+  billingInterval      String?            // e.g. "month" | "year"
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean            @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([subscriptionStatus, currentPeriodEnd])
+}
+
+// ======================================================
+// PAYMENTS
+// ======================================================
+
+model Payment {
+  id                      String        @id @default(uuid())
+  userId                  String
+  user                    User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  type                    PaymentType   @default(ONE_TIME)
+  status                  PaymentStatus @default(PENDING)
+  amount                  Decimal       @db.Decimal(10, 2)
+  currency                String        @default("usd")
+  description             String?
+
+  stripeCheckoutSessionId String?       @unique
+  stripePaymentIntentId   String?       @unique
+  stripeInvoiceId         String?       @unique
+  failureCode             String?
+  failureMessage          String?
+  paidAt                  DateTime?
+  refundedAt              DateTime?
+  metadata                Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([type, status])
+}
+
+// ======================================================
+// OBJECT STORAGE
+// ======================================================
+
+model StoredFile {
+  id        String   @id @default(uuid())
+  filename  String
+  mimeType  String
+  size      Int
+  data      Bytes
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

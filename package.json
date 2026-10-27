@@ -1,0 +1,23 @@
+{
+  "name": "DoodleBlue-2",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "client": "pnpm --filter ./ReactApp dev",
+    "server": "pnpm --filter ./Server dev",
+    "stripe": "pnpm --filter ./Server stripe",
+    "og-stripe": "pnpm --filter ./Server og-stripe",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prepare": "husky",
+    "lint": "pnpm --filter ./ReactApp lint && pnpm --filter ./Server lint"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^17.6.0"
+  }
+}

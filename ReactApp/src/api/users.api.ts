@@ -1,0 +1,91 @@
+import { api, PaginationMeta } from "@/lib/api";
+import type { UserRole } from "./auth.api";
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  image?: string;
+  mustChangePassword: boolean;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface CreateUserInput {
+  name: string;
+  email: string;
+  /** Omit to have the server generate one and email it to the user. */
+  password?: string;
+  /** Defaults to CUSTOMER when omitted. */
+  role?: UserRole;
+  image?: string;
+}
+
+export interface UpdateUserInput {
+  name?: string;
+  email?: string;
+  password?: string;
+  role?: UserRole;
+  image?: string;
+  isActive?: boolean;
+}
+
+/** Minimal picker shape returned by GET /users/options. */
+export interface UserOption {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  isActive: boolean;
+}
+
+export interface ListUsersParams {
+  search?: string;
+  page?: number;
+  limit?: number;
+}
+
+export const usersApi = {
+  /**
+   * Lightweight picker list for forms.
+   * Available to roles that can read users.
+   */
+  listUserOptions: () => api.get<UserOption[]>("/api/v1/users/options"),
+
+  uploadAvatar: (file: File) => {
+    const formData = new FormData();
+    formData.append("avatar", file);
+    return api.postFormData<{ url: string; filename: string }>(
+      "/api/v1/users/upload-avatar",
+      formData
+    );
+  },
+
+  createUser: (input: CreateUserInput) =>
+    api.post<{ user: User; emailSent: boolean }>("/api/v1/users", input),
+
+  updateUser: (id: string, input: UpdateUserInput) =>
+    api.patch<{ user: User }>(`/api/v1/users/${id}`, input),
+
+  getUser: (id: string) =>
+    api.get<{ user: User }>(`/api/v1/users/${id}`),
+
+  deleteUser: (id: string) =>
+    api.delete<{ message: string }>(`/api/v1/users/${id}`),
+
+  listUsers: (params: ListUsersParams = {}) => {
+    const qs = new URLSearchParams();
+    if (params.search) qs.set("search", params.search);
+    if (params.page) qs.set("page", String(params.page));
+    if (params.limit) qs.set("limit", String(params.limit));
+    const query = qs.toString();
+    return api.getWithMeta<User[], PaginationMeta>(
+      `/api/v1/users${query ? `?${query}` : ""}`
+    );
+  },
+};
+
+export const usersService = usersApi;
+export const USERS_LIST_KEY = ["users", "list"] as const;
+export const USER_OPTIONS_KEY = ["users", "options"] as const;
