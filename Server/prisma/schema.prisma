@@ -213,6 +213,18 @@ enum QuestRewardType {
   RECHARGE_DISCOUNT
 }
 
+enum TravelEsimOrderStatus {
+  PENDING_PAYMENT
+  PAID
+  PROCESSING
+  READY_TO_ACTIVATE
+  ACTIVATED
+  COMPLETED
+  CANCELLED
+  FAILED
+  REFUNDED
+}
+
 // ======================================================
 // USERS
 // ======================================================
@@ -235,6 +247,7 @@ model User {
   notifications       Notification[]
   dataLoans           DataLoan[]
   userQuests          UserQuest[]
+  travelEsimOrders    TravelEsimOrder[]
 
   ownedOrganizations      BusinessOrganization[] @relation("OrganizationOwner")
   organizationMemberships OrganizationMember[]
@@ -863,6 +876,86 @@ model RewardCoupon {
   createdAt DateTime @default(now())
 
   @@index([userId, expiresAt])
+}
+
+// ======================================================
+// TRAVEL eSIM
+// ======================================================
+
+model InternationalPlan {
+  id          String  @id @default(uuid())
+  name        String
+  description String?
+
+  // ISO country code, e.g. SG, AE, GB, US, JP
+  destinationCountry String
+
+  dataAllowanceMb Int
+  validityDays    Int
+
+  // All plans are data-only; no phone number, voice or SMS.
+  pricePaise Int
+  currency   String @default("INR")
+
+  // Optional real eSIM provider integration details
+  providerName     String?
+  providerPlanCode String?
+
+  isActive Boolean @default(true)
+
+  orders TravelEsimOrder[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([destinationCountry, isActive])
+}
+
+model TravelEsimOrder {
+  id        String @id @default(uuid())
+  reference String @unique @default(uuid())
+
+  userId              String
+  internationalPlanId String
+
+  // Travel details
+  destinationCountry String
+  departureDate      DateTime
+  returnDate         DateTime
+
+  // Passport details
+  travellerName           String
+  passportCountry         String
+  passportNumberEncrypted String
+  passportExpiryDate      DateTime
+
+  // Order and payment
+  status      TravelEsimOrderStatus @default(PENDING_PAYMENT)
+  amountPaise Int
+  currency    String                @default("INR")
+
+  stripeCheckoutSessionId String? @unique
+  stripePaymentIntentId   String? @unique
+
+  // eSIM activation details (encrypted where sensitive)
+  activationCodeEncrypted String?
+  qrCodeDataEncrypted     String?
+  activationExpiresAt     DateTime?
+  activatedAt             DateTime?
+
+  // Provider fulfilment
+  providerOrderId String? @unique
+  failureReason   String?
+
+  user              User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  internationalPlan InternationalPlan @relation(fields: [internationalPlanId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@index([destinationCountry, departureDate])
 }
 
 // ======================================================
