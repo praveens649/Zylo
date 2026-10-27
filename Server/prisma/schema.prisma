@@ -29,6 +29,8 @@ enum SimTechnology {
 enum SimStatus {
   PENDING_ACTIVATION
   ACTIVE
+  GRACE_PERIOD
+  DEACTIVATED
   SUSPENDED
   LOST
   CANCELLED
@@ -48,6 +50,8 @@ enum PhoneNumberType {
 enum PlanType {
   PREPAID
   POSTPAID
+  BUSINESS
+  VALIDITY_ONLY
 }
 
 enum PlanSubscriptionStatus {
@@ -362,6 +366,11 @@ model Sim {
   status      SimStatus     @default(PENDING_ACTIVATION)
   activatedAt DateTime?
 
+  // Lifecycle tracking
+  planExpiredAt     DateTime?
+  gracePeriodEndsAt DateTime?
+  deactivatedAt     DateTime?
+
   organizationId       String?
   organizationMemberId String?
 
@@ -414,6 +423,9 @@ model Plan {
   businessOnly    Boolean  @default(false)
   isActive        Boolean  @default(true)
   isFeatured      Boolean  @default(false)
+
+  // A validity-only pack gives no regular plan benefits.
+  isValidityOnly Boolean @default(false)
 
   // Zylo Data Bank settings
   dataBankEnabled    Boolean @default(false)
