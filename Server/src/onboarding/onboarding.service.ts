@@ -1,23 +1,38 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ApiException } from '../common/api-error.js';
+import { StripeService } from '../stripe/stripe.service.js';
+import type { Prisma } from '../generated/prisma/client.js';
+import type {
+  PhoneNumberModel,
+  PlanModel,
+} from '../generated/prisma/models.js';
 import {
   KycDocumentType,
   KycStatus,
   OrderStatus,
   OrderType,
   PaymentStatus,
+  PaymentType,
   PhoneNumberStatus,
   PlanSubscriptionStatus,
   PlanType,
   SimCategory,
   SimStatus,
+  SimTechnology,
 } from '../generated/prisma/enums.js';
 import { CompleteOnboardingDto, SubmitKycDto } from './dto.js';
 
+const ONBOARDING_SESSION_TYPE = 'sim_onboarding';
+
 @Injectable()
 export class OnboardingService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(OnboardingService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly stripeService: StripeService,
+  ) {}
 
   /**
    * Get current user's onboarding progress.
@@ -207,12 +222,13 @@ export class OnboardingService {
   }
 
   /**
-   * Final step: completes the onboarding process.
-   * Atomically assigns the phone number, activates the SIM, provisions the plan,
-   * records the order & payment, and initializes the Data Bank.
+   * Shared pre-payment validation: KYC must be verified, the phone number
+   * must be allocatable, and the plan must be active.
    */
-  async completeOnboarding(userId: string, dto: CompleteOnboardingDto) {
-    // 1. Verify KYC exists and is approved
+  private async validateActivationPrereqs(
+    userId: string,
+    dto: { phoneNumberId: string; planId: string },
+  ) {
     const kyc = await this.prisma.kycVerification.findUnique({
       where: { userId },
     });
@@ -225,7 +241,6 @@ export class OnboardingService {
       );
     }
 
-    // 2. Verify Phone Number
     const phoneNumber = await this.prisma.phoneNumber.findUnique({
       where: { id: dto.phoneNumberId },
     });
@@ -242,7 +257,6 @@ export class OnboardingService {
       );
     }
 
-    // 3. Verify Plan
     const plan = await this.prisma.plan.findUnique({
       where: { id: dto.planId },
     });
@@ -251,12 +265,424 @@ export class OnboardingService {
       throw new ApiException(404, 'PLAN_NOT_FOUND', 'Selected plan is not available');
     }
 
-    // 4. Calculate total amount (Plan price + any VIP number price)
     const totalAmount = Number(plan.price) + Number(phoneNumber.price || 0);
 
-    // 5. Execute atomic activation in a transaction
+    return { phoneNumber, plan, totalAmount };
+  }
+
+  /**
+   * Provisions the SIM inside a transaction: assigns the phone number,
+   * creates the SIM, plan subscription, Data Bank account, and welcome
+   * notification, and links the SIM back to the order.
+   */
+  private async provisionSim(
+    tx: Prisma.TransactionClient,
+    opts: {
+      userId: string;
+      orderId: string;
+      phoneNumber: PhoneNumberModel;
+      plan: PlanModel;
+      simCategory: SimCategory;
+      simTechnology: CompleteOnboardingDto['simTechnology'];
+    },
+  ) {
+    const { userId, orderId, phoneNumber, plan } = opts;
+
+    await tx.phoneNumber.update({
+      where: { id: phoneNumber.id },
+      data: {
+        status: PhoneNumberStatus.ASSIGNED,
+        reservedUntil: null,
+      },
+    });
+
+    const sim = await tx.sim.create({
+      data: {
+        userId,
+        phoneNumberId: phoneNumber.id,
+        category: opts.simCategory ?? SimCategory.PERSONAL,
+        technology: opts.simTechnology,
+        status: SimStatus.ACTIVE,
+        activatedAt: new Date(),
+      },
+    });
+
+    await tx.order.update({
+      where: { id: orderId },
+      data: { simId: sim.id },
+    });
+
+    const startDate = new Date();
+    const endDate = new Date(startDate.getTime() + plan.validityDays * 24 * 60 * 60 * 1000);
+
+    const subscription = await tx.planSubscription.create({
+      data: {
+        simId: sim.id,
+        planId: plan.id,
+        orderId,
+        status: PlanSubscriptionStatus.ACTIVE,
+        startDate,
+        endDate,
+      },
+    });
+
+    const dataBank = await tx.dataBankAccount.create({
+      data: {
+        simId: sim.id,
+        balanceMb: 0,
+      },
+    });
+
+    await tx.notification.create({
+      data: {
+        userId,
+        title: 'Welcome to Zylo Network!',
+        message: `Your new Personal SIM with number ${phoneNumber.number} and plan ${plan.name} has been activated successfully.`,
+      },
+    });
+
+    return { sim, subscription, dataBank };
+  }
+
+  private activationResponse(
+    sim: { id: string; technology: string },
+    phoneNumber: { number: string },
+    plan: { name: string; validityDays: number },
+    orderId: string,
+    dataBankBalanceMb: number,
+  ) {
+    return {
+      success: true,
+      message: 'Congratulations! Your Zylo SIM and plan are now active.',
+      data: {
+        simId: sim.id,
+        phoneNumber: phoneNumber.number,
+        planName: plan.name,
+        validityDays: plan.validityDays,
+        simTechnology: sim.technology,
+        orderId,
+        dataBankBalanceMb,
+      },
+    };
+  }
+
+  /**
+   * Create a Stripe Checkout session for the SIM onboarding payment.
+   * Creates a PENDING order + payment and returns the hosted-checkout URL.
+   * Re-verifies an existing pending order first so a user who already paid
+   * is never charged twice.
+   */
+  async createCheckout(userId: string, dto: CompleteOnboardingDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true },
+    });
+
+    if (!user) {
+      throw new ApiException(404, 'USER_NOT_FOUND', 'User not found');
+    }
+
+    const { phoneNumber, plan, totalAmount } =
+      await this.validateActivationPrereqs(userId, dto);
+
+    // If a pending checkout already exists for this selection, check Stripe
+    // before creating a new session — the user may already have paid.
+    const pendingPayment = await this.prisma.payment.findFirst({
+      where: {
+        userId,
+        status: PaymentStatus.PENDING,
+        stripeCheckoutSessionId: { not: null },
+        order: {
+          type: OrderType.SIM_PURCHASE,
+          status: OrderStatus.PENDING,
+          phoneNumberId: phoneNumber.id,
+          planId: plan.id,
+        },
+      },
+      include: { order: true },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (pendingPayment?.stripeCheckoutSessionId && pendingPayment.order) {
+      try {
+        const existing = await this.stripeService.retrieveCheckoutSession(
+          pendingPayment.stripeCheckoutSessionId,
+        );
+
+        if (existing.payment_status === 'paid') {
+          const activated = await this.activatePaidOrder(
+            pendingPayment.order.id,
+            dto,
+          );
+          return { activated: true, ...activated };
+        }
+
+        if (existing.status === 'open') {
+          // Session still valid — reuse it instead of charging again.
+          return { sessionId: existing.id, url: existing.url };
+        }
+      } catch (err) {
+        this.logger.warn(
+          `Could not reconcile onboarding session ${pendingPayment.stripeCheckoutSessionId}: ${err instanceof Error ? err.message : err}`,
+        );
+      }
+
+      // Session expired or unusable — cancel the stale records.
+      await this.prisma.$transaction([
+        this.prisma.order.update({
+          where: { id: pendingPayment.order.id },
+          data: { status: OrderStatus.CANCELLED },
+        }),
+        this.prisma.payment.update({
+          where: { id: pendingPayment.id },
+          data: { status: PaymentStatus.CANCELLED },
+        }),
+      ]);
+    }
+
+    const order = await this.prisma.order.create({
+      data: {
+        userId,
+        type: OrderType.SIM_PURCHASE,
+        status: OrderStatus.PENDING,
+        amount: totalAmount,
+        currency: 'inr',
+        phoneNumberId: phoneNumber.id,
+        planId: plan.id,
+      },
+    });
+
+    const payment = await this.prisma.payment.create({
+      data: {
+        userId,
+        orderId: order.id,
+        type: PaymentType.ONE_TIME,
+        status: PaymentStatus.PENDING,
+        amount: totalAmount,
+        currency: 'inr',
+        description: `SIM Onboarding Payment - Plan: ${plan.name}`,
+      },
+    });
+
+    try {
+      const frontend = this.stripeService.frontendUrl;
+      const session = await this.stripeService.createPaymentCheckoutSession(
+        user,
+        {
+          amount: totalAmount,
+          currency: 'inr',
+          name: `Zylo SIM Activation — ${plan.name}`,
+          description: `Number ${phoneNumber.number} + ${plan.validityDays}-day plan`,
+          metadata: {
+            type: ONBOARDING_SESSION_TYPE,
+            userId,
+            orderId: order.id,
+            phoneNumberId: phoneNumber.id,
+            planId: plan.id,
+            simCategory: dto.simCategory ?? SimCategory.PERSONAL,
+            simTechnology: dto.simTechnology,
+          },
+          successUrl: `${frontend}/onboarding?session_id={CHECKOUT_SESSION_ID}`,
+          cancelUrl: `${frontend}/onboarding?payment=cancelled`,
+          expiresInMinutes: 30,
+        },
+      );
+
+      await this.prisma.payment.update({
+        where: { id: payment.id },
+        data: { stripeCheckoutSessionId: session.sessionId },
+      });
+
+      return { sessionId: session.sessionId, url: session.url };
+    } catch (err) {
+      await this.prisma.$transaction([
+        this.prisma.order.update({
+          where: { id: order.id },
+          data: { status: OrderStatus.CANCELLED },
+        }),
+        this.prisma.payment.update({
+          where: { id: payment.id },
+          data: { status: PaymentStatus.CANCELLED },
+        }),
+      ]);
+      throw err;
+    }
+  }
+
+  /**
+   * Activate a SIM once its order has been paid. Idempotent — safe to call
+   * from both the success redirect and webhook-driven reconciliation.
+   */
+  private async activatePaidOrder(orderId: string, dto: CompleteOnboardingDto) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: { phoneNumber: true, plan: true, sim: true },
+    });
+
+    if (!order || !order.phoneNumber || !order.plan) {
+      throw new ApiException(404, 'ORDER_NOT_FOUND', 'Order not found');
+    }
+
+    // Idempotent: activation already ran.
+    if (order.status === OrderStatus.COMPLETED && order.sim) {
+      const dataBank = await this.prisma.dataBankAccount.findUnique({
+        where: { simId: order.sim.id },
+      });
+      return this.activationResponse(
+        order.sim,
+        order.phoneNumber,
+        order.plan,
+        order.id,
+        dataBank?.balanceMb ?? 0,
+      );
+    }
+
+    if (order.phoneNumber.status === PhoneNumberStatus.ASSIGNED) {
+      throw new ApiException(
+        409,
+        'NUMBER_ALREADY_ASSIGNED',
+        'This phone number was assigned to another SIM while payment was processing. Please contact support for a refund.',
+      );
+    }
+
     const result = await this.prisma.$transaction(async (tx) => {
-      // Create Order
+      await tx.order.update({
+        where: { id: order.id },
+        data: { status: OrderStatus.COMPLETED },
+      });
+
+      await tx.payment.updateMany({
+        where: { orderId: order.id, status: { not: PaymentStatus.SUCCEEDED } },
+        data: {
+          status: PaymentStatus.SUCCEEDED,
+          paidAt: new Date(),
+        },
+      });
+
+      const provisioned = await this.provisionSim(tx, {
+        userId: order.userId,
+        orderId: order.id,
+        phoneNumber: order.phoneNumber!,
+        plan: order.plan!,
+        simCategory: dto.simCategory ?? SimCategory.PERSONAL,
+        simTechnology: dto.simTechnology,
+      });
+
+      return provisioned;
+    });
+
+    return this.activationResponse(
+      result.sim,
+      order.phoneNumber,
+      order.plan,
+      order.id,
+      result.dataBank.balanceMb,
+    );
+  }
+
+  /**
+   * Verify a Stripe checkout session after the customer is redirected back.
+   * The session is retrieved directly from Stripe — the client redirect is
+   * never trusted as proof of payment.
+   */
+  async verifyCheckout(userId: string, sessionId: string) {
+    const session = await this.stripeService.retrieveCheckoutSession(sessionId);
+
+    if (session.client_reference_id !== userId) {
+      throw new ApiException(
+        403,
+        'FORBIDDEN',
+        'This checkout session belongs to another user',
+      );
+    }
+
+    if (session.metadata?.type !== ONBOARDING_SESSION_TYPE) {
+      throw new ApiException(
+        400,
+        'INVALID_SESSION',
+        'This checkout session is not a SIM onboarding payment',
+      );
+    }
+
+    const payment = await this.prisma.payment.findUnique({
+      where: { stripeCheckoutSessionId: sessionId },
+      include: { order: true },
+    });
+
+    if (!payment?.order) {
+      throw new ApiException(
+        404,
+        'PAYMENT_NOT_FOUND',
+        'No onboarding payment found for this checkout session',
+      );
+    }
+
+    const orderId = payment.order.id;
+    const metadata = session.metadata;
+
+    const paid =
+      session.payment_status === 'paid' ||
+      payment.status === PaymentStatus.SUCCEEDED;
+
+    if (!paid) {
+      if (session.status === 'expired') {
+        await this.prisma.$transaction([
+          this.prisma.order.update({
+            where: { id: orderId },
+            data: { status: OrderStatus.CANCELLED },
+          }),
+          this.prisma.payment.update({
+            where: { id: payment.id },
+            data: { status: PaymentStatus.CANCELLED },
+          }),
+        ]);
+      }
+      throw new ApiException(
+        402,
+        'PAYMENT_NOT_COMPLETED',
+        'Payment was not completed for this checkout session',
+      );
+    }
+
+    const dto: CompleteOnboardingDto = {
+      simCategory: (metadata.simCategory as SimCategory) ?? SimCategory.PERSONAL,
+      simTechnology:
+        (metadata.simTechnology as CompleteOnboardingDto['simTechnology']) ??
+        SimTechnology.PHYSICAL,
+      phoneNumberId: metadata.phoneNumberId!,
+      planId: metadata.planId!,
+    };
+
+    const activated = await this.activatePaidOrder(orderId, dto);
+
+    // Persist the Stripe payment intent reference if not already stored.
+    if (!payment.stripePaymentIntentId) {
+      const intentId =
+        typeof session.payment_intent === 'string'
+          ? session.payment_intent
+          : session.payment_intent?.id;
+      if (intentId) {
+        await this.prisma.payment.update({
+          where: { id: payment.id },
+          data: { stripePaymentIntentId: intentId },
+        });
+      }
+    }
+
+    return activated;
+  }
+
+  /**
+   * Development-only activation path: completes onboarding without a real
+   * Stripe charge. Used as a fallback when Stripe is not configured.
+   * Atomically assigns the phone number, activates the SIM, provisions the plan,
+   * records the order & payment, and initializes the Data Bank.
+   */
+  async completeOnboarding(userId: string, dto: CompleteOnboardingDto) {
+    const { phoneNumber, plan, totalAmount } =
+      await this.validateActivationPrereqs(userId, dto);
+
+    const result = await this.prisma.$transaction(async (tx) => {
       const order = await tx.order.create({
         data: {
           userId,
@@ -269,7 +695,6 @@ export class OnboardingService {
         },
       });
 
-      // Create Payment (Demo / Simulated Stripe confirmation)
       const payment = await tx.payment.create({
         data: {
           userId,
@@ -278,91 +703,29 @@ export class OnboardingService {
           currency: 'inr',
           status: PaymentStatus.SUCCEEDED,
           paidAt: new Date(),
-          description: `SIM Onboarding Payment - Plan: ${plan.name}`,
+          description: `SIM Onboarding Payment (dev simulator) - Plan: ${plan.name}`,
         },
       });
 
-      // Assign Phone Number
-      await tx.phoneNumber.update({
-        where: { id: phoneNumber.id },
-        data: {
-          status: PhoneNumberStatus.ASSIGNED,
-          reservedUntil: null,
-        },
+      const provisioned = await this.provisionSim(tx, {
+        userId,
+        orderId: order.id,
+        phoneNumber,
+        plan,
+        simCategory: dto.simCategory ?? SimCategory.PERSONAL,
+        simTechnology: dto.simTechnology,
       });
 
-      // Create SIM
-      const sim = await tx.sim.create({
-        data: {
-          userId,
-          phoneNumberId: phoneNumber.id,
-          category: dto.simCategory ?? SimCategory.PERSONAL,
-          technology: dto.simTechnology,
-          status: SimStatus.ACTIVE,
-          activatedAt: new Date(),
-        },
-      });
-
-      // Update Order with SIM id
-      await tx.order.update({
-        where: { id: order.id },
-        data: { simId: sim.id },
-      });
-
-      // Create Plan Subscription
-      const startDate = new Date();
-      const endDate = new Date(startDate.getTime() + plan.validityDays * 24 * 60 * 60 * 1000);
-
-      const subscription = await tx.planSubscription.create({
-        data: {
-          simId: sim.id,
-          planId: plan.id,
-          orderId: order.id,
-          status: PlanSubscriptionStatus.ACTIVE,
-          startDate,
-          endDate,
-        },
-      });
-
-      // Initialize Data Bank account
-      const dataBank = await tx.dataBankAccount.create({
-        data: {
-          simId: sim.id,
-          balanceMb: 0,
-        },
-      });
-
-      // Create Welcome Notification
-      await tx.notification.create({
-        data: {
-          userId,
-          title: 'Welcome to Zylo Network!',
-          message: `Your new Personal SIM with number ${phoneNumber.number} and plan ${plan.name} has been activated successfully.`,
-        },
-      });
-
-      return {
-        order,
-        payment,
-        sim,
-        subscription,
-        dataBank,
-      };
+      return { order, payment, ...provisioned };
     });
 
-    return {
-      success: true,
-      message: 'Congratulations! Your Zylo SIM and plan are now active.',
-      data: {
-        simId: result.sim.id,
-        phoneNumber: phoneNumber.number,
-        planName: plan.name,
-        validityDays: plan.validityDays,
-        simTechnology: result.sim.technology,
-        orderId: result.order.id,
-        dataBankBalanceMb: result.dataBank.balanceMb,
-      },
-    };
+    return this.activationResponse(
+      result.sim,
+      phoneNumber,
+      plan,
+      result.order.id,
+      result.dataBank.balanceMb,
+    );
   }
 
   /**

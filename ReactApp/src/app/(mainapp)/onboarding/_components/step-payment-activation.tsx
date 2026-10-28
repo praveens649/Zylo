@@ -95,9 +95,9 @@ export function StepPaymentActivation({
           <CreditCard className="h-5 w-5 text-primary mt-0.5" />
           <div className="text-xs text-muted-foreground">
             <span className="font-bold text-foreground block mb-0.5">
-              Stripe Test Payment Integration
+              Secure Payment via Stripe
             </span>
-            This transaction is processed in Stripe test simulation mode. Upon payment authorization, your SIM line, Data Bank account, and 5G plan will be provisioned immediately.
+            You'll be redirected to Stripe's secure checkout to complete your payment (test mode). Once payment is confirmed, your SIM line, Data Bank account, and 5G plan will be provisioned immediately.
           </div>
         </div>
 
@@ -119,12 +119,12 @@ export function StepPaymentActivation({
             {isActivating ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Authorizing Payment & Activating…
+                Redirecting to Stripe…
               </>
             ) : (
               <>
                 <Lock className="h-4 w-4 mr-2" />
-                Pay ₹{totalAmount} & Activate SIM
+                Pay ₹{totalAmount} with Stripe
               </>
             )}
           </Button>
