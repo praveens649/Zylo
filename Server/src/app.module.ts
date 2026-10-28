@@ -12,6 +12,7 @@ import { UsersModule } from './users/users.module.js';
 import { PaymentsModule } from './payments/payments.module.js';
 import { StripeModule } from './stripe/stripe.module.js';
 import { NumbersModule } from './numbers/numbers.module.js';
+import { OnboardingModule } from './onboarding/onboarding.module.js';
 import { ApiExceptionFilter } from './common/api-exception.filter.js';
 import { EnvelopeInterceptor } from './common/envelope.interceptor.js';
 
@@ -37,6 +38,7 @@ import { EnvelopeInterceptor } from './common/envelope.interceptor.js';
     PaymentsModule,
     StripeModule,
     NumbersModule,
+    OnboardingModule,
   ],
   controllers: [AppController],
   providers: [

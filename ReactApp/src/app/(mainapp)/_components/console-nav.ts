@@ -1,4 +1,4 @@
-import { CreditCard, Users } from "lucide-react";
+import { CreditCard, LayoutDashboard, Users } from "lucide-react";
 
 export type NavItem = {
   href: string;
@@ -13,6 +13,7 @@ export type NavItem = {
  * non-admin users (the server enforces the same restriction).
  */
 export const NAV_ITEMS: NavItem[] = [
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/users", label: "Users", icon: Users, adminOnly: true },
   { href: "/payments", label: "Payments", icon: CreditCard },
 ];
