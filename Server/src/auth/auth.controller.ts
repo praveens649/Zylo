@@ -21,7 +21,12 @@ import {
   type AuthenticatedRequest,
 } from './auth.guard.js';
 import { CurrentUser } from './current-user.decorator.js';
-import { ChangePasswordDto, LoginDto, RegisterDto } from './dto.js';
+import {
+  ChangePasswordDto,
+  LoginDto,
+  RegisterDto,
+  UpdateProfileDto,
+} from './dto.js';
 
 import { StorageService } from '../storage/storage.service.js';
 
@@ -137,6 +142,51 @@ export class AuthController {
   @UseGuards(AuthGuard)
   async me(@CurrentUser() user: UserWithRole) {
     return { data: { user: await this.auth.safeUser(user) } };
+  }
+
+  /**
+   * Self-service profile update — any signed-in user may change their own
+   * name and avatar. Email/role/status remain admin-managed.
+   */
+  @Patch('me')
+  @UseGuards(AuthGuard)
+  async updateProfile(
+    @Body() dto: UpdateProfileDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    const user = await this.prisma.user.update({
+      where: { id: req.user.id },
+      data: {
+        ...(dto.name !== undefined ? { name: dto.name } : {}),
+        ...(dto.image !== undefined ? { image: dto.image } : {}),
+      },
+    });
+    return { data: { user: await this.auth.safeUser(user) } };
+  }
+
+  /**
+   * Authenticated avatar upload — same storage path as the public signup
+   * upload, for users updating their profile photo after sign-in.
+   */
+  @Post('me/avatar')
+  @UseGuards(AuthGuard)
+  @UseInterceptors(FileInterceptor('avatar', avatarMulterOptions))
+  async uploadProfileAvatar(@UploadedFile() file?: Express.Multer.File) {
+    if (!file) {
+      throw new ApiException(
+        400,
+        'NO_FILE_UPLOADED',
+        'No image file provided',
+      );
+    }
+    const saved = await this.storage.saveFile(file);
+    return {
+      data: {
+        url: saved.url,
+        filename: saved.filename,
+        id: saved.id,
+      },
+    };
   }
 
   @Patch('change-password')

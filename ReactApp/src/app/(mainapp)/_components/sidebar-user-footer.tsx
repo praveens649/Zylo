@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Crown, UserCog } from "lucide-react";
 
 import { AuthUser, getRoleLabel } from "@/api/auth.api";
@@ -25,9 +26,10 @@ export function SidebarUserFooter({ user: initialUser }: { user: AuthUser }) {
 
   return (
     <SidebarFooter className="mt-auto border-t border-sidebar-border/60 px-3 py-3 group-data-[collapsible=icon]:p-2">
-      <div
-        title={user.name}
-        className="mb-2 flex items-center gap-3 rounded-lg border border-sidebar-border/50 bg-sidebar-accent/50 p-2.5 group-data-[collapsible=icon]:border-transparent group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:p-1.5 group-data-[collapsible=icon]:justify-center"
+      <Link
+        href="/profile"
+        title={`${user.name} — view profile`}
+        className="mb-2 flex items-center gap-3 rounded-lg border border-sidebar-border/50 bg-sidebar-accent/50 p-2.5 transition-colors hover:bg-sidebar-accent group-data-[collapsible=icon]:border-transparent group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:p-1.5 group-data-[collapsible=icon]:justify-center"
       >
         {imageUrl ? (
 
@@ -54,7 +56,7 @@ export function SidebarUserFooter({ user: initialUser }: { user: AuthUser }) {
             {user.email}
           </p>
         </div>
-      </div>
+      </Link>
       <div className="flex items-center gap-2 group-data-[collapsible=icon]:flex-col">
         <Badge
           className={

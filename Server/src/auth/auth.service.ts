@@ -32,6 +32,7 @@ export class AuthService {
       image: user.image ?? undefined,
       mustChangePassword: user.mustChangePassword,
       isActive: user.isActive,
+      createdAt: user.createdAt,
     };
   }
 

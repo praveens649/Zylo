@@ -10,6 +10,7 @@ import DashboardLayout from "@/app/(mainapp)/layout";
 import UsersPage from "@/app/(mainapp)/users/page";
 import EditUserPage from "@/app/(mainapp)/users/[userId]/edit/page";
 import PaymentsPage from "@/app/(mainapp)/payments/page";
+import ProfilePage from "@/app/(mainapp)/profile/page";
 
 export default function App() {
   return (
@@ -25,6 +26,7 @@ export default function App() {
             <Route path="/users" element={<UsersPage />} />
             <Route path="/users/:userId/edit" element={<EditUserPage />} />
             <Route path="/payments" element={<PaymentsPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
           </Route>
 
           {/* Catch-all 404 */}
