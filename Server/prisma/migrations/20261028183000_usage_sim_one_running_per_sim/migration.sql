@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "UsageSimulation_one_running_per_sim" ON "UsageSimulation" ("simId") WHERE "status" = 'RUNNING';

@@ -16,6 +16,7 @@ import OrdersPage from "@/app/(mainapp)/orders/page";
 import PaymentsPage from "@/app/(mainapp)/payments/page";
 import PlansPage from "@/app/(mainapp)/plans/page";
 import RechargePage from "@/app/(mainapp)/recharge/page";
+import DataBankPage from "@/app/(mainapp)/data-bank/page";
 import ProfilePage from "@/app/(mainapp)/profile/page";
 import TvPage from "@/app/(mainapp)/tv/page";
 import MyTvPage from "@/app/(mainapp)/tv/my/page";
@@ -37,6 +38,7 @@ export default function App() {
             <Route path="/onboarding" element={<OnboardingPage />} />
             <Route path="/dashboard" element={<CustomerDashboardPage />} />
             <Route path="/recharge" element={<RechargePage />} />
+            <Route path="/data-bank" element={<DataBankPage />} />
             <Route path="/users" element={<UsersPage />} />
             <Route path="/sims" element={<SimsPage />} />
             <Route path="/users/:userId/edit" element={<EditUserPage />} />

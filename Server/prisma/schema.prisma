@@ -175,6 +175,12 @@ enum DataTransferRequestStatus {
   CANCELLED
 }
 
+enum UsageSimulationStatus {
+  RUNNING
+  STOPPED
+  COMPLETED
+}
+
 enum DataLoanStatus {
   ACTIVE
   PARTIALLY_REPAID
@@ -266,7 +272,7 @@ model User {
   userQuests           UserQuest[]
   travelEsimOrders     TravelEsimOrder[]
   setTopBoxConnections SetTopBoxConnection[]
-  kyc                 KycVerification?
+  kyc                  KycVerification?
 
   ownedOrganizations      BusinessOrganization[] @relation("OrganizationOwner")
   organizationMemberships OrganizationMember[]
@@ -453,6 +459,9 @@ model Sim {
 
   dataLoans DataLoan[]
 
+  dailyUsages      DailyDataUsage[]
+  usageSimulations UsageSimulation[]
+
   setTopBoxConnections SetTopBoxConnection[]
 
   createdAt DateTime @default(now())
@@ -487,6 +496,9 @@ model Plan {
   // A validity-only pack gives no regular plan benefits.
   isValidityOnly Boolean @default(false)
 
+  // Daily data simulation allowance (set explicitly per plan; null = simulation disabled)
+  dailyDataAllowanceMb Int?
+
   // Zylo Data Bank settings
   dataBankEnabled    Boolean @default(false)
   rolloverLimitMb    Int?
@@ -498,6 +510,7 @@ model Plan {
 
   orders            Order[]
   planSubscriptions PlanSubscription[]
+  dailyUsages       DailyDataUsage[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -728,13 +741,18 @@ model DataBankTransaction {
   expiresAt      DateTime?
   processedAt    DateTime                @default(now())
 
-  dataBank DataBankAccount @relation(fields: [dataBankId], references: [id], onDelete: Restrict)
+  // Which daily usage cycle produced this deposit (audit trail for rollover saves).
+  dailyUsageId String?
+
+  dataBank   DataBankAccount @relation(fields: [dataBankId], references: [id], onDelete: Restrict)
+  dailyUsage DailyDataUsage? @relation(fields: [dailyUsageId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
 
   @@index([dataBankId, processedAt])
   @@index([type, processedAt])
   @@index([expiresAt])
+  @@index([dailyUsageId])
 }
 
 // ======================================================
@@ -838,6 +856,63 @@ model DataLoanTransaction {
 
   @@index([loanId, processedAt])
   @@index([type, processedAt])
+}
+
+// ======================================================
+// ZYLO DATA USAGE SIMULATION
+// Tracks the daily data consumption demo per SIM.
+// One DailyDataUsage record per SIM per calendar day (IST).
+// UsageSimulation records each start/stop session within a day.
+// ======================================================
+
+model DailyDataUsage {
+  id          String   @id @default(uuid())
+  simId       String
+  planId      String
+  cycleDate   DateTime @db.Date
+  allowanceMb Int
+  usedMb      Int      @default(0)
+
+  // How much of this cycle's unused data was saved to the Data Bank.
+  bankedMb Int       @default(0)
+  bankedAt DateTime?
+
+  // Extra data redeemed from the Data Bank into today's usable pool.
+  redeemedMb Int @default(0)
+
+  sim              Sim                   @relation(fields: [simId], references: [id], onDelete: Restrict)
+  plan             Plan                  @relation(fields: [planId], references: [id], onDelete: Restrict)
+  simulations      UsageSimulation[]
+  bankTransactions DataBankTransaction[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([simId, cycleDate])
+  @@index([cycleDate])
+  @@index([planId])
+}
+
+model UsageSimulation {
+  id           String                @id @default(uuid())
+  simId        String
+  dailyUsageId String
+  status       UsageSimulationStatus @default(RUNNING)
+
+  startUsedMb Int @default(0)
+  consumedMb  Int @default(0)
+
+  startedAt DateTime  @default(now())
+  stoppedAt DateTime?
+
+  sim        Sim            @relation(fields: [simId], references: [id], onDelete: Restrict)
+  dailyUsage DailyDataUsage @relation(fields: [dailyUsageId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([simId, status])
+  @@index([dailyUsageId])
 }
 
 // ======================================================
@@ -1183,8 +1258,8 @@ model SetTopBoxConnection {
   // Pause allowance tracking: days used inside the rolling 365-day window.
   pauseDaysUsed        Int       @default(0)
   pauseWindowStartedAt DateTime?
-  disconnectedAt    DateTime?
-  returnDueAt       DateTime?
+  disconnectedAt       DateTime?
+  returnDueAt          DateTime?
 
   user  User           @relation(fields: [userId], references: [id], onDelete: Restrict)
   model SetTopBoxModel @relation(fields: [modelId], references: [id], onDelete: Restrict)

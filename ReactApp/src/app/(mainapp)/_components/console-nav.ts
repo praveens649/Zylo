@@ -1,4 +1,4 @@
-import { CreditCard, ShoppingBag, LayoutDashboard, Users, Zap } from "lucide-react";
+import { CreditCard, Database, ShoppingBag, LayoutDashboard, Users, Zap } from "lucide-react";
 import { MonitorPlay, Radio, Smartphone, Tv, SmartphoneCharging } from "lucide-react";
 
 export type NavItem = {
@@ -22,6 +22,12 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/recharge",
     label: "Recharge",
     icon: SmartphoneCharging,
+    customerOnly: true,
+  },
+  {
+    href: "/data-bank",
+    label: "Data Bank",
+    icon: Database,
     customerOnly: true,
   },
   { href: "/plans", label: "Recharge Plans", icon: Zap, adminOnly: true },
