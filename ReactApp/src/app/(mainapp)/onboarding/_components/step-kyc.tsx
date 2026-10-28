@@ -9,6 +9,13 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { KycDocumentType, SubmitKycPayload } from "@/api/onboarding.api";
 
 interface StepKycProps {
@@ -184,20 +191,21 @@ export function StepKyc({
             <Label htmlFor="documentType" className="text-xs font-medium">
               Identity Document Type *
             </Label>
-            <select
-              id="documentType"
-              className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            <Select
               value={documentType}
-              onChange={(e) =>
-                setDocumentType(e.target.value as KycDocumentType)
-              }
+              onValueChange={(v) => setDocumentType(v as KycDocumentType)}
             >
-              <option value="AADHAAR">Aadhaar Card (12 Digits)</option>
-              <option value="PAN">PAN Card (10 Chars)</option>
-              <option value="PASSPORT">Indian Passport</option>
-              <option value="DRIVING_LICENSE">Driving License</option>
-              <option value="VOTER_ID">Voter ID</option>
-            </select>
+              <SelectTrigger id="documentType" className="h-10 w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="AADHAAR">Aadhaar Card (12 Digits)</SelectItem>
+                <SelectItem value="PAN">PAN Card (10 Chars)</SelectItem>
+                <SelectItem value="PASSPORT">Indian Passport</SelectItem>
+                <SelectItem value="DRIVING_LICENSE">Driving License</SelectItem>
+                <SelectItem value="VOTER_ID">Voter ID</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-1.5">

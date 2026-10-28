@@ -10,8 +10,11 @@ import type {
 import {
   KycDocumentType,
   KycStatus,
+  MembershipStatus,
   OrderStatus,
   OrderType,
+  OrganizationMemberRole,
+  OrganizationStatus,
   PaymentStatus,
   PaymentType,
   PhoneNumberStatus,
@@ -21,7 +24,15 @@ import {
   SimStatus,
   SimTechnology,
 } from '../generated/prisma/enums.js';
-import { CompleteOnboardingDto, SubmitKycDto } from './dto.js';
+import {
+  generateBusinessCandidatesBatch,
+  validateIndianMobileNumber,
+} from '../numbers/numbers-generator.engine.js';
+import {
+  CompleteOnboardingDto,
+  RegisterBusinessDto,
+  SubmitKycDto,
+} from './dto.js';
 
 const ONBOARDING_SESSION_TYPE = 'sim_onboarding';
 
@@ -38,7 +49,7 @@ export class OnboardingService {
    * Get current user's onboarding progress.
    */
   async getStatus(userId: string) {
-    const [user, kyc, sims] = await Promise.all([
+    const [user, kyc, sims, organization, membership] = await Promise.all([
       this.prisma.user.findUnique({
         where: { id: userId },
         select: { id: true, name: true, email: true, role: true },
@@ -56,6 +67,13 @@ export class OnboardingService {
           },
           dataBankAccount: true,
         },
+      }),
+      this.prisma.businessOrganization.findFirst({
+        where: { ownerUserId: userId },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.organizationMember.findFirst({
+        where: { userId, status: MembershipStatus.ACTIVE },
       }),
     ]);
 
@@ -83,6 +101,8 @@ export class OnboardingService {
       kyc,
       sims,
       activeSim: sims.find((s) => s.status === SimStatus.ACTIVE) ?? sims[0] ?? null,
+      organization,
+      membership,
     };
   }
 
@@ -222,23 +242,280 @@ export class OnboardingService {
   }
 
   /**
-   * Shared pre-payment validation: KYC must be verified, the phone number
-   * must be allocatable, and the plan must be active.
+   * Business SIM onboarding — registers the organization, requests a
+   * dedicated 4-digit number prefix, and stocks the first batch of
+   * corporate numbers.
+   *
+   * Demo boundary: verification auto-approves (same as the simulated KYC
+   * check) since there is no admin review queue for organizations yet.
+   */
+  async registerBusiness(userId: string, dto: RegisterBusinessDto) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new ApiException(404, 'USER_NOT_FOUND', 'User not found');
+    }
+
+    // Resume path — the owner already has an organization on file.
+    const existing = await this.prisma.businessOrganization.findFirst({
+      where: { ownerUserId: userId },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (existing && existing.status !== OrganizationStatus.REJECTED) {
+      const membership = await this.prisma.organizationMember.findUnique({
+        where: {
+          organizationId_userId: {
+            organizationId: existing.id,
+            userId,
+          },
+        },
+      });
+      return {
+        message: 'Organization already registered',
+        organization: existing,
+        membership,
+        numbersGenerated: 0,
+      };
+    }
+
+    const prefixTaken = await this.prisma.businessOrganization.findUnique({
+      where: { numberPrefix: dto.numberPrefix },
+    });
+    if (prefixTaken) {
+      throw new ApiException(
+        409,
+        'PREFIX_TAKEN',
+        `Prefix ${dto.numberPrefix} is already assigned to ${prefixTaken.name}`,
+      );
+    }
+
+    if (dto.registrationNumber) {
+      const regTaken = await this.prisma.businessOrganization.findUnique({
+        where: { registrationNumber: dto.registrationNumber },
+      });
+      if (regTaken) {
+        throw new ApiException(
+          409,
+          'REGISTRATION_TAKEN',
+          'An organization with this registration number already exists',
+        );
+      }
+    }
+
+    if (dto.verificationDocumentId) {
+      const doc = await this.prisma.storedFile.findUnique({
+        where: { id: dto.verificationDocumentId },
+      });
+      if (!doc) {
+        throw new ApiException(
+          400,
+          'DOCUMENT_NOT_FOUND',
+          'Uploaded verification document was not found',
+        );
+      }
+    }
+
+    const candidates = generateBusinessCandidatesBatch(
+      dto.numberPrefix,
+      10,
+    ).filter(
+      (c) =>
+        validateIndianMobileNumber(c.number, true, dto.numberPrefix).isValid,
+    );
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const organization = await tx.businessOrganization.create({
+        data: {
+          name: dto.name,
+          businessType: dto.businessType,
+          registrationNumber: dto.registrationNumber,
+          businessEmail: dto.businessEmail,
+          address: dto.address,
+          city: dto.city,
+          state: dto.state,
+          postalCode: dto.postalCode,
+          numberPrefix: dto.numberPrefix,
+          verificationDocumentId: dto.verificationDocumentId,
+          ownerUserId: userId,
+          status: OrganizationStatus.APPROVED,
+          verifiedAt: new Date(),
+        },
+      });
+
+      const membership = await tx.organizationMember.create({
+        data: {
+          organizationId: organization.id,
+          userId,
+          employeeId: dto.employeeId ?? 'OWN-001',
+          role: OrganizationMemberRole.OWNER,
+          status: MembershipStatus.ACTIVE,
+          verifiedAt: new Date(),
+        },
+      });
+
+      const numbers = await Promise.all(
+        candidates.map((c) =>
+          tx.phoneNumber.create({
+            data: {
+              number: c.number,
+              prefix: dto.numberPrefix,
+              type: c.type,
+              price: 0,
+              status: PhoneNumberStatus.AVAILABLE,
+              organizationId: organization.id,
+            },
+          }),
+        ),
+      );
+
+      await tx.notification.create({
+        data: {
+          userId,
+          title: 'Business verification complete',
+          message: `${organization.name} is approved. Corporate prefix ${dto.numberPrefix} is live with ${numbers.length} numbers.`,
+        },
+      });
+
+      return { organization, membership, numbersGenerated: numbers.length };
+    });
+
+    return {
+      message: 'Business organization verified and prefix activated',
+      ...result,
+    };
+  }
+
+  /**
+   * Business starter plans — restricted to `businessOnly` plans.
+   * Seeds defaults when none exist (same approach as personal starters).
+   */
+  async getBusinessPlans() {
+    let plans = await this.prisma.plan.findMany({
+      where: { isActive: true, businessOnly: true },
+      orderBy: [{ price: 'asc' }],
+    });
+
+    if (plans.length === 0) {
+      await this.prisma.plan.createMany({
+        data: [
+          {
+            name: 'Zylo Business Team 599',
+            description:
+              '2.5 GB/Day shared business data, unlimited calls, corporate prefix numbers & Data Bank rollover',
+            type: PlanType.BUSINESS,
+            price: 599.0,
+            validityDays: 28,
+            dataAllowanceGb: 70.0,
+            callingBenefit: 'Unlimited Pan-India',
+            smsCount: 100,
+            businessOnly: true,
+            isFeatured: true,
+            isActive: true,
+            dataBankEnabled: true,
+            rolloverLimitMb: 20480,
+            rolloverExpiryDays: 90,
+            dataTransferEnabled: true,
+            transferLimitMb: 5120,
+          },
+          {
+            name: 'Zylo Business Enterprise 999',
+            description:
+              '4 GB/Day enterprise data, priority support, unlimited calls & full innovation pack for teams',
+            type: PlanType.BUSINESS,
+            price: 999.0,
+            validityDays: 56,
+            dataAllowanceGb: 224.0,
+            callingBenefit: 'Unlimited Pan-India',
+            smsCount: 200,
+            businessOnly: true,
+            isFeatured: false,
+            isActive: true,
+            dataBankEnabled: true,
+            rolloverLimitMb: 30720,
+            rolloverExpiryDays: 90,
+            dataTransferEnabled: true,
+            transferLimitMb: 10240,
+          },
+        ],
+      });
+
+      plans = await this.prisma.plan.findMany({
+        where: { isActive: true, businessOnly: true },
+        orderBy: [{ price: 'asc' }],
+      });
+    }
+
+    return plans;
+  }
+
+  /**
+   * Shared pre-payment validation: for PERSONAL SIMs the KYC must be
+   * verified; for BUSINESS SIMs the organization must be approved and the
+   * number must come from its corporate prefix pool. The plan must be
+   * active and match the SIM category.
    */
   private async validateActivationPrereqs(
     userId: string,
-    dto: { phoneNumberId: string; planId: string },
+    dto: CompleteOnboardingDto,
   ) {
-    const kyc = await this.prisma.kycVerification.findUnique({
-      where: { userId },
-    });
+    const isBusiness = dto.simCategory === SimCategory.BUSINESS;
 
-    if (!kyc || kyc.status !== KycStatus.VERIFIED) {
-      throw new ApiException(
-        400,
-        'KYC_REQUIRED',
-        'You must complete and pass KYC verification before activating a SIM',
-      );
+    let organization = null;
+    let membership = null;
+
+    if (isBusiness) {
+      if (!dto.organizationId) {
+        throw new ApiException(
+          400,
+          'ORGANIZATION_REQUIRED',
+          'Business SIM activation requires a verified organization',
+        );
+      }
+      organization = await this.prisma.businessOrganization.findUnique({
+        where: { id: dto.organizationId },
+      });
+      if (!organization) {
+        throw new ApiException(
+          404,
+          'ORGANIZATION_NOT_FOUND',
+          'Organization not found',
+        );
+      }
+      membership = await this.prisma.organizationMember.findUnique({
+        where: {
+          organizationId_userId: {
+            organizationId: organization.id,
+            userId,
+          },
+        },
+      });
+      const isOwner = organization.ownerUserId === userId;
+      const isActiveMember = membership?.status === MembershipStatus.ACTIVE;
+      if (!isOwner && !isActiveMember) {
+        throw new ApiException(
+          403,
+          'NOT_ORGANIZATION_MEMBER',
+          'You are not an active member of this organization',
+        );
+      }
+      if (organization.status !== OrganizationStatus.APPROVED) {
+        throw new ApiException(
+          400,
+          'ORGANIZATION_NOT_VERIFIED',
+          `Organization verification is ${organization.status.toLowerCase()} — business SIMs require an approved organization`,
+        );
+      }
+    } else {
+      const kyc = await this.prisma.kycVerification.findUnique({
+        where: { userId },
+      });
+
+      if (!kyc || kyc.status !== KycStatus.VERIFIED) {
+        throw new ApiException(
+          400,
+          'KYC_REQUIRED',
+          'You must complete and pass KYC verification before activating a SIM',
+        );
+      }
     }
 
     const phoneNumber = await this.prisma.phoneNumber.findUnique({
@@ -257,6 +534,22 @@ export class OnboardingService {
       );
     }
 
+    if (isBusiness) {
+      if (phoneNumber.organizationId !== organization!.id) {
+        throw new ApiException(
+          400,
+          'NUMBER_NOT_IN_ORGANIZATION',
+          'Business SIMs must use a number from the organization prefix pool',
+        );
+      }
+    } else if (phoneNumber.organizationId) {
+      throw new ApiException(
+        400,
+        'CORPORATE_NUMBER_NOT_ALLOWED',
+        'Corporate-prefixed numbers are reserved for business SIMs',
+      );
+    }
+
     const plan = await this.prisma.plan.findUnique({
       where: { id: dto.planId },
     });
@@ -265,9 +558,24 @@ export class OnboardingService {
       throw new ApiException(404, 'PLAN_NOT_FOUND', 'Selected plan is not available');
     }
 
+    if (isBusiness && !plan.businessOnly) {
+      throw new ApiException(
+        400,
+        'BUSINESS_PLAN_REQUIRED',
+        'Business SIMs must be activated on a business-only plan',
+      );
+    }
+    if (!isBusiness && plan.businessOnly) {
+      throw new ApiException(
+        400,
+        'PERSONAL_PLAN_REQUIRED',
+        'Business-only plans are not available for personal SIMs',
+      );
+    }
+
     const totalAmount = Number(plan.price) + Number(phoneNumber.price || 0);
 
-    return { phoneNumber, plan, totalAmount };
+    return { phoneNumber, plan, totalAmount, organization, membership };
   }
 
   /**
@@ -284,9 +592,12 @@ export class OnboardingService {
       plan: PlanModel;
       simCategory: SimCategory;
       simTechnology: CompleteOnboardingDto['simTechnology'];
+      organization?: { id: string; name: string } | null;
+      organizationMemberId?: string | null;
     },
   ) {
     const { userId, orderId, phoneNumber, plan } = opts;
+    const isBusiness = (opts.simCategory ?? SimCategory.PERSONAL) === SimCategory.BUSINESS;
 
     await tx.phoneNumber.update({
       where: { id: phoneNumber.id },
@@ -304,6 +615,8 @@ export class OnboardingService {
         technology: opts.simTechnology,
         status: SimStatus.ACTIVE,
         activatedAt: new Date(),
+        organizationId: opts.organization?.id ?? null,
+        organizationMemberId: opts.organizationMemberId ?? null,
       },
     });
 
@@ -337,7 +650,9 @@ export class OnboardingService {
       data: {
         userId,
         title: 'Welcome to Zylo Network!',
-        message: `Your new Personal SIM with number ${phoneNumber.number} and plan ${plan.name} has been activated successfully.`,
+        message: isBusiness
+          ? `Your new Business SIM for ${opts.organization?.name} with number ${phoneNumber.number} and plan ${plan.name} has been activated successfully.`
+          : `Your new Personal SIM with number ${phoneNumber.number} and plan ${plan.name} has been activated successfully.`,
       },
     });
 
@@ -350,6 +665,7 @@ export class OnboardingService {
     plan: { name: string; validityDays: number },
     orderId: string,
     dataBankBalanceMb: number,
+    organizationName?: string | null,
   ) {
     return {
       success: true,
@@ -362,6 +678,7 @@ export class OnboardingService {
         simTechnology: sim.technology,
         orderId,
         dataBankBalanceMb,
+        organizationName: organizationName ?? null,
       },
     };
   }
@@ -382,7 +699,7 @@ export class OnboardingService {
       throw new ApiException(404, 'USER_NOT_FOUND', 'User not found');
     }
 
-    const { phoneNumber, plan, totalAmount } =
+    const { phoneNumber, plan, totalAmount, organization } =
       await this.validateActivationPrereqs(userId, dto);
 
     // If a pending checkout already exists for this selection, check Stripe
@@ -449,6 +766,7 @@ export class OnboardingService {
         currency: 'inr',
         phoneNumberId: phoneNumber.id,
         planId: plan.id,
+        organizationId: organization?.id ?? null,
       },
     });
 
@@ -481,6 +799,7 @@ export class OnboardingService {
             planId: plan.id,
             simCategory: dto.simCategory ?? SimCategory.PERSONAL,
             simTechnology: dto.simTechnology,
+            organizationId: organization?.id ?? '',
           },
           successUrl: `${frontend}/onboarding?session_id={CHECKOUT_SESSION_ID}`,
           cancelUrl: `${frontend}/onboarding?payment=cancelled`,
@@ -516,7 +835,12 @@ export class OnboardingService {
   private async activatePaidOrder(orderId: string, dto: CompleteOnboardingDto) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
-      include: { phoneNumber: true, plan: true, sim: true },
+      include: {
+        phoneNumber: true,
+        plan: true,
+        sim: true,
+        organization: true,
+      },
     });
 
     if (!order || !order.phoneNumber || !order.plan) {
@@ -534,6 +858,7 @@ export class OnboardingService {
         order.plan,
         order.id,
         dataBank?.balanceMb ?? 0,
+        order.organization?.name,
       );
     }
 
@@ -559,6 +884,17 @@ export class OnboardingService {
         },
       });
 
+      const membership = order.organizationId
+        ? await tx.organizationMember.findUnique({
+            where: {
+              organizationId_userId: {
+                organizationId: order.organizationId,
+                userId: order.userId,
+              },
+            },
+          })
+        : null;
+
       const provisioned = await this.provisionSim(tx, {
         userId: order.userId,
         orderId: order.id,
@@ -566,6 +902,10 @@ export class OnboardingService {
         plan: order.plan!,
         simCategory: dto.simCategory ?? SimCategory.PERSONAL,
         simTechnology: dto.simTechnology,
+        organization: order.organization
+          ? { id: order.organization.id, name: order.organization.name }
+          : null,
+        organizationMemberId: membership?.id ?? null,
       });
 
       return provisioned;
@@ -577,6 +917,7 @@ export class OnboardingService {
       order.plan,
       order.id,
       result.dataBank.balanceMb,
+      order.organization?.name,
     );
   }
 
@@ -651,6 +992,7 @@ export class OnboardingService {
         SimTechnology.PHYSICAL,
       phoneNumberId: metadata.phoneNumberId!,
       planId: metadata.planId!,
+      organizationId: metadata.organizationId || undefined,
     };
 
     const activated = await this.activatePaidOrder(orderId, dto);
@@ -679,7 +1021,7 @@ export class OnboardingService {
    * records the order & payment, and initializes the Data Bank.
    */
   async completeOnboarding(userId: string, dto: CompleteOnboardingDto) {
-    const { phoneNumber, plan, totalAmount } =
+    const { phoneNumber, plan, totalAmount, organization, membership } =
       await this.validateActivationPrereqs(userId, dto);
 
     const result = await this.prisma.$transaction(async (tx) => {
@@ -692,6 +1034,7 @@ export class OnboardingService {
           currency: 'inr',
           phoneNumberId: phoneNumber.id,
           planId: plan.id,
+          organizationId: organization?.id ?? null,
         },
       });
 
@@ -714,6 +1057,10 @@ export class OnboardingService {
         plan,
         simCategory: dto.simCategory ?? SimCategory.PERSONAL,
         simTechnology: dto.simTechnology,
+        organization: organization
+          ? { id: organization.id, name: organization.name }
+          : null,
+        organizationMemberId: membership?.id ?? null,
       });
 
       return { order, payment, ...provisioned };
@@ -725,6 +1072,7 @@ export class OnboardingService {
       plan,
       result.order.id,
       result.dataBank.balanceMb,
+      organization?.name,
     );
   }
 
