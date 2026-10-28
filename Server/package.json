@@ -19,6 +19,7 @@
     "test:watch": "vitest",
     "seed": "tsx scripts/seed-super-admin.ts",
     "seed:plans": "tsx scripts/seed-recharge-plans.ts",
+    "seed:demo": "tsx scripts/seed-history-demo.ts",
     "stripe": "stripe listen --all-snapshot --forward-to localhost:5000/api/v1/stripe/webhook",
     "og-stripe": "stripe listen --forward-to localhost:5000/api/v1/stripe/webhook",
     "postinstall": "prisma generate",

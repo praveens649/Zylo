@@ -9,6 +9,7 @@ import { MailModule } from './mail/mail.module.js';
 import { StorageModule } from './storage/storage.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { UsersModule } from './users/users.module.js';
+import { OrdersModule } from './orders/orders.module.js';
 import { PaymentsModule } from './payments/payments.module.js';
 import { StripeModule } from './stripe/stripe.module.js';
 import { PlansModule } from './plans/plans.module.js';
@@ -34,6 +35,7 @@ import { EnvelopeInterceptor } from './common/envelope.interceptor.js';
     StorageModule,
     AuthModule,
     UsersModule,
+    OrdersModule,
     PaymentsModule,
     StripeModule,
     PlansModule,
