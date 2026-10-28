@@ -2,8 +2,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import Stripe from 'stripe';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ApiException } from '../common/api-error.js';
+import { RechargeService } from '../recharge/recharge.service.js';
 import type { SubscriptionStatus } from '../generated/prisma/enums.js';
 import type { UserModel } from '../generated/prisma/models.js';
+import { TvFulfilmentService } from '../set-top-box/tv-fulfilment.service.js';
 
 function subscriptionPeriodEnd(sub: Stripe.Subscription): Date | null {
   const itemEnd = sub.items?.data?.[0]?.current_period_end;
@@ -66,7 +68,7 @@ export class StripeService {
     return this._stripe;
   }
 
-  private get frontendUrl(): string {
+  get frontendUrl(): string {
     const raw =
       process.env.FRONTEND_URL ??
       process.env.CLIENT_URL ??
@@ -74,7 +76,11 @@ export class StripeService {
     return raw.split(',')[0].trim().replace(/\/+$/, '');
   }
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly tvFulfilment: TvFulfilmentService,
+    private readonly rechargeService: RechargeService,
+  ) {}
 
   // -----------------------------------------------------------------------
   // One-Time Checkout Sessions
@@ -142,6 +148,68 @@ export class StripeService {
     });
 
     return { sessionId: session.id, url: session.url };
+  }
+
+  /**
+   * Create a one-time Stripe Checkout session with caller-supplied metadata.
+   * Unlike createCheckoutSession, this does not write a Payment record —
+   * the caller persists its own order/payment state.
+   */
+  async createPaymentCheckoutSession(
+    user: { id: string; email: string },
+    opts: {
+      amount: number;
+      currency?: string;
+      name: string;
+      description?: string;
+      metadata: Record<string, string>;
+      successUrl: string;
+      cancelUrl: string;
+      expiresInMinutes?: number;
+    },
+  ) {
+    const currency = (opts.currency || 'inr').toLowerCase();
+    const amountInCents = Math.round(opts.amount * 100);
+
+    if (amountInCents <= 0) {
+      throw new ApiException(
+        400,
+        'INVALID_AMOUNT',
+        'Amount must be greater than zero',
+      );
+    }
+
+    const session = await this.stripe.checkout.sessions.create({
+      mode: 'payment',
+      customer_email: user.email,
+      client_reference_id: user.id,
+      line_items: [
+        {
+          price_data: {
+            currency,
+            unit_amount: amountInCents,
+            product_data: {
+              name: opts.name,
+              description: opts.description,
+            },
+          },
+          quantity: 1,
+        },
+      ],
+      metadata: opts.metadata,
+      payment_intent_data: { metadata: opts.metadata },
+      success_url: opts.successUrl,
+      cancel_url: opts.cancelUrl,
+      expires_at:
+        Math.floor(Date.now() / 1000) + (opts.expiresInMinutes ?? 30) * 60,
+    });
+
+    return { sessionId: session.id, url: session.url };
+  }
+
+  /** Retrieve a checkout session directly from Stripe. */
+  async retrieveCheckoutSession(sessionId: string) {
+    return this.stripe.checkout.sessions.retrieve(sessionId);
   }
 
   // -----------------------------------------------------------------------
@@ -356,19 +424,31 @@ export class StripeService {
           },
         });
       }
-      return;
+    } else {
+      if (payment.status !== 'SUCCEEDED') {
+        await this.prisma.payment.update({
+          where: { id: payment.id },
+          data: {
+            status: 'SUCCEEDED',
+            paidAt: new Date(),
+            stripePaymentIntentId: idOf(session.payment_intent),
+          },
+        });
+      }
+
+      // Zylo TV orders: idempotent, so a redelivered webhook (or a retry after a
+      // failure below) is safe. Runs even when the payment was already marked paid.
+      if (payment.orderId && session.payment_status === 'paid') {
+        await this.tvFulfilment.onOrderPaid(payment.orderId);
+      }
     }
 
-    if (payment.status === 'SUCCEEDED') return;
-
-    await this.prisma.payment.update({
-      where: { id: payment.id },
-      data: {
-        status: 'SUCCEEDED',
-        paidAt: new Date(),
-        stripePaymentIntentId: idOf(session.payment_intent),
-      },
-    });
+    // Recharge checkouts create/queue the plan subscription only after
+    // payment is confirmed (idempotent — safe to call from both the
+    // webhook and the session-verify fallback).
+    if (session.metadata?.type === 'recharge') {
+      await this.rechargeService.fulfillFromCheckoutSession(session);
+    }
   }
 
   async handleInvoicePaid(invoice: Stripe.Invoice) {

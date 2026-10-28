@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { toast } from "@/hooks/use-toast";
@@ -23,6 +23,8 @@ import { AUTH_ME_KEY } from "@/api/auth.api";
 import {
   submitKycAction,
   completeOnboardingAction,
+  createCheckoutAction,
+  verifyCheckoutAction,
   reserveNumberAction,
   generateNumbersAction,
   registerBusinessAction,
@@ -89,6 +91,8 @@ export function useBusinessPlans(enabled = true) {
 export function useOnboarding() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const verifiedSessionRef = useRef<string | null>(null);
 
   const [currentStep, setCurrentStep] = useState<OnboardingStep>(1);
 
@@ -104,7 +108,8 @@ export function useOnboarding() {
   const [selectedNumber, setSelectedNumber] = useState<PhoneNumber | null>(null);
   const [numberSearch, setNumberSearch] = useState("");
   const [numberFilter, setNumberFilter] = useState<"ALL" | "STANDARD" | "PREMIUM">("ALL");
-  const [isReserving, setIsReserving] = useState(false);
+  const [reservingNumberId, setReservingNumberId] = useState<string | null>(null);
+  const isReserving = reservingNumberId !== null;
 
   // Step 4: Plan Selection State
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
@@ -204,7 +209,18 @@ export function useOnboarding() {
     },
   });
 
-  // Mutation: Complete Onboarding Action
+  const handleActivationSuccess = (data: ActivationData) => {
+    queryClient.invalidateQueries({ queryKey: ONBOARDING_STATUS_KEY });
+    queryClient.invalidateQueries({ queryKey: AUTH_ME_KEY });
+    setActivationResult(data);
+    setIsActivated(true);
+    toast({
+      title: "SIM Activated!",
+      description: `Your Zylo line ${data.phoneNumber} is now active.`,
+    });
+  };
+
+  // Mutation: Complete Onboarding Action (dev-only fallback, no real charge)
   const completeMutation = useMutation({
     mutationFn: () =>
       completeOnboardingAction({
@@ -215,14 +231,7 @@ export function useOnboarding() {
         organizationId: isBusiness ? organization?.id : undefined,
       }),
     onSuccess: (res) => {
-      queryClient.invalidateQueries({ queryKey: ONBOARDING_STATUS_KEY });
-      queryClient.invalidateQueries({ queryKey: AUTH_ME_KEY });
-      setActivationResult(res.data);
-      setIsActivated(true);
-      toast({
-        title: "SIM Activated!",
-        description: `Your Zylo line ${res.data.phoneNumber} is now active.`,
-      });
+      handleActivationSuccess(res.data);
     },
     onError: (err: any) => {
       toast({
@@ -233,10 +242,95 @@ export function useOnboarding() {
     },
   });
 
+  // Mutation: Create Stripe Checkout session and redirect to hosted payment
+  const checkoutMutation = useMutation({
+    mutationFn: () =>
+      createCheckoutAction({
+        simCategory,
+        simTechnology: "PHYSICAL",
+        phoneNumberId: selectedNumber!.id,
+        planId: selectedPlan!.id,
+        organizationId: isBusiness ? organization?.id : undefined,
+      }),
+    onSuccess: (res) => {
+      if (res.activated && res.data) {
+        // A previous pending session already captured the payment.
+        handleActivationSuccess(res.data);
+        return;
+      }
+      if (res.url) {
+        window.location.href = res.url;
+        return;
+      }
+      toast({
+        title: "Checkout Error",
+        description: "Could not start the Stripe checkout. Please try again.",
+        variant: "destructive",
+      });
+    },
+    onError: (err: any) => {
+      if (err?.code === "STRIPE_NOT_CONFIGURED") {
+        toast({
+          title: "Dev Payment Simulator",
+          description:
+            "Stripe is not configured — activating via development simulator instead.",
+        });
+        completeMutation.mutate();
+        return;
+      }
+      toast({
+        title: "Checkout Failed",
+        description: err?.message || "Could not start payment. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation: Verify Stripe session after redirect back from hosted checkout
+  const verifyMutation = useMutation({
+    mutationFn: (sessionId: string) => verifyCheckoutAction(sessionId),
+    onSuccess: (res) => {
+      handleActivationSuccess(res.data);
+      setSearchParams({}, { replace: true });
+    },
+    onError: (err: any) => {
+      toast({
+        title: "Payment Not Confirmed",
+        description:
+          err?.message || "We could not confirm your payment. If you were charged, please contact support.",
+        variant: "destructive",
+      });
+      setSearchParams({}, { replace: true });
+    },
+  });
+
+  // Handle the redirect back from Stripe hosted checkout
+  useEffect(() => {
+    const sessionId = searchParams.get("session_id");
+    const paymentState = searchParams.get("payment");
+
+    if (sessionId) {
+      if (verifiedSessionRef.current === sessionId) return;
+      verifiedSessionRef.current = sessionId;
+      verifyMutation.mutate(sessionId);
+      return;
+    }
+
+    if (paymentState === "cancelled") {
+      toast({
+        title: "Payment Cancelled",
+        description: "Your payment was cancelled. You can try again whenever you're ready.",
+        variant: "destructive",
+      });
+      setSearchParams({}, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
   // Handler: Reserve a selected number for 15 minutes
   const handleSelectNumber = async (num: PhoneNumber) => {
     try {
-      setIsReserving(true);
+      setReservingNumberId(num.id);
       await reserveNumberAction(num.id, 15);
       setSelectedNumber(num);
       toast({
@@ -250,7 +344,7 @@ export function useOnboarding() {
         variant: "destructive",
       });
     } finally {
-      setIsReserving(false);
+      setReservingNumberId(null);
     }
   };
 
@@ -300,6 +394,7 @@ export function useOnboarding() {
     isNumbersLoading,
     selectedNumber,
     isReserving,
+    reservingNumberId,
     handleSelectNumber,
     handleGenerateNumbers,
     numberFilter,
@@ -313,8 +408,11 @@ export function useOnboarding() {
     setSelectedPlanId,
 
     // Step 5: Activation & Success
-    isActivating: completeMutation.isPending,
-    activateSim: () => completeMutation.mutate(),
+    isActivating:
+      checkoutMutation.isPending ||
+      verifyMutation.isPending ||
+      completeMutation.isPending,
+    activateSim: () => checkoutMutation.mutate(),
     isActivated,
     activationResult,
   };

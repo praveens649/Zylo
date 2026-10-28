@@ -16,6 +16,13 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type {
   BusinessOrganization,
   RegisterBusinessPayload,
@@ -178,18 +185,18 @@ export function StepBusinessDetails({
             <Label htmlFor="businessType" className="text-xs font-medium">
               Business Type *
             </Label>
-            <select
-              id="businessType"
-              className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              value={businessType}
-              onChange={(e) => setBusinessType(e.target.value)}
-            >
-              {BUSINESS_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
+            <Select value={businessType} onValueChange={setBusinessType}>
+              <SelectTrigger id="businessType" className="h-10 w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {BUSINESS_TYPES.map((t) => (
+                  <SelectItem key={t} value={t}>
+                    {t}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 

@@ -29,6 +29,7 @@ export default function OnboardingPage() {
     isNumbersLoading,
     selectedNumber,
     isReserving,
+    reservingNumberId,
     handleSelectNumber,
     handleGenerateNumbers,
     numberFilter,
@@ -109,6 +110,7 @@ export default function OnboardingPage() {
                 isLoading={isNumbersLoading}
                 selectedNumber={selectedNumber}
                 isReserving={isReserving}
+                reservingNumberId={reservingNumberId}
                 onSelectNumber={handleSelectNumber}
                 onGenerateNumbers={handleGenerateNumbers}
                 onBack={() => setCurrentStep(2)}

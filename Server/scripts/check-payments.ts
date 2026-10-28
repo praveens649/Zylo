@@ -22,7 +22,7 @@ const payments = await prisma.payment.findMany({
 });
 console.log('PAYMENTS:', JSON.stringify(payments, null, 2));
 
-const subscriptions = await prisma.subscription.findMany({
+const subscriptions = await prisma.stripeSubscription.findMany({
   select: {
     id: true,
     userId: true,

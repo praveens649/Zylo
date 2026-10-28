@@ -10,6 +10,8 @@ interface StepNumberSelectionProps {
   isLoading: boolean;
   selectedNumber: PhoneNumber | null;
   isReserving: boolean;
+  /** Id of the number currently being reserved — shows a spinner on that card. */
+  reservingNumberId?: string | null;
   onSelectNumber: (num: PhoneNumber) => void;
   onGenerateNumbers: () => void;
   onBack: () => void;
@@ -26,6 +28,7 @@ export function StepNumberSelection({
   isLoading,
   selectedNumber,
   isReserving,
+  reservingNumberId = null,
   onSelectNumber,
   onGenerateNumbers,
   onBack,
@@ -116,26 +119,35 @@ export function StepNumberSelection({
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
           {numbers.map((item) => {
             const isSelected = selectedNumber?.id === item.id;
+            const isCardReserving = reservingNumberId === item.id;
             const isPremium = item.type === "PREMIUM";
 
             return (
               <div
                 key={item.id}
-                onClick={() => onSelectNumber(item)}
-                className={`cursor-pointer rounded-xl border p-4 transition-all relative ${
-                  isSelected
+                onClick={() => {
+                  if (!isReserving) onSelectNumber(item);
+                }}
+                className={`rounded-xl border p-4 transition-all relative ${
+                  isReserving ? "cursor-wait" : "cursor-pointer"
+                } ${
+                  isSelected || isCardReserving
                     ? "border-primary bg-primary/10 ring-2 ring-primary shadow-sm"
                     : "border-border bg-card hover:border-primary/50"
-                }`}
+                } ${isReserving && !isCardReserving ? "opacity-60" : ""}`}
               >
                 <div className="flex items-center justify-between">
                   <span className="font-mono text-base font-bold tracking-wider text-foreground">
                     {item.number}
                   </span>
-                  {isSelected && (
-                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                      <Check className="h-3 w-3" />
-                    </div>
+                  {isCardReserving ? (
+                    <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                  ) : (
+                    isSelected && (
+                      <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                        <Check className="h-3 w-3" />
+                      </div>
+                    )
                   )}
                 </div>
 
@@ -151,7 +163,11 @@ export function StepNumberSelection({
                   )}
 
                   <span className="text-[11px] text-muted-foreground">
-                    {item.prefix ? `Series ${item.prefix}` : "Personal"}
+                    {isCardReserving
+                      ? "Reserving…"
+                      : item.prefix
+                      ? `Series ${item.prefix}`
+                      : "Personal"}
                   </span>
                 </div>
               </div>

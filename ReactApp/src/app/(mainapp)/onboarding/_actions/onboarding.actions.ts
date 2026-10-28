@@ -32,6 +32,20 @@ export async function completeOnboardingAction(payload: CompleteOnboardingPayloa
 }
 
 /**
+ * Creates a Stripe Checkout session for the SIM activation payment.
+ */
+export async function createCheckoutAction(payload: CompleteOnboardingPayload) {
+  return onboardingApi.createCheckout(payload);
+}
+
+/**
+ * Verifies the Stripe checkout session server-side after redirect and activates the SIM.
+ */
+export async function verifyCheckoutAction(sessionId: string) {
+  return onboardingApi.verifyCheckout(sessionId);
+}
+
+/**
  * Places a temporary 15-minute reservation hold on a selected phone number during checkout.
  */
 export async function reserveNumberAction(numberId: string, holdMinutes = 15) {
