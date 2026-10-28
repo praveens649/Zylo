@@ -9,6 +9,7 @@ import NotFoundPage from "@/app/not-found";
 import DashboardLayout from "@/app/(mainapp)/layout";
 import UsersPage from "@/app/(mainapp)/users/page";
 import EditUserPage from "@/app/(mainapp)/users/[userId]/edit/page";
+import OrdersPage from "@/app/(mainapp)/orders/page";
 import PaymentsPage from "@/app/(mainapp)/payments/page";
 
 export default function App() {
@@ -24,6 +25,7 @@ export default function App() {
           <Route element={<DashboardLayout />}>
             <Route path="/users" element={<UsersPage />} />
             <Route path="/users/:userId/edit" element={<EditUserPage />} />
+            <Route path="/orders" element={<OrdersPage />} />
             <Route path="/payments" element={<PaymentsPage />} />
           </Route>
 

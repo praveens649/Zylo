@@ -1,4 +1,4 @@
-import { CreditCard, Users } from "lucide-react";
+import { CreditCard, ShoppingBag, Users } from "lucide-react";
 
 export type NavItem = {
   href: string;
@@ -14,5 +14,6 @@ export type NavItem = {
  */
 export const NAV_ITEMS: NavItem[] = [
   { href: "/users", label: "Users", icon: Users, adminOnly: true },
-  { href: "/payments", label: "Payments", icon: CreditCard },
+  { href: "/orders", label: "Order History", icon: ShoppingBag },
+  { href: "/payments", label: "Payment History", icon: CreditCard },
 ];
