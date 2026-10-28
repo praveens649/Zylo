@@ -19,5 +19,4 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/orders", label: "Order History", icon: ShoppingBag },
   { href: "/payments", label: "Payment History", icon: CreditCard },
   { href: "/sims", label: "SIMs", icon: Smartphone, adminOnly: true },
-  { href: "/payments", label: "Payments", icon: CreditCard },
 ];
