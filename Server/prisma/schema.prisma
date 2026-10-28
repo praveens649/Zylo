@@ -1179,6 +1179,10 @@ model SetTopBoxConnection {
   gracePeriodEndsAt DateTime?
   pausedAt          DateTime?
   pauseEndsAt       DateTime?
+
+  // Pause allowance tracking: days used inside the rolling 365-day window.
+  pauseDaysUsed        Int       @default(0)
+  pauseWindowStartedAt DateTime?
   disconnectedAt    DateTime?
   returnDueAt       DateTime?
 

@@ -1,5 +1,5 @@
 import { CreditCard, ShoppingBag, Users, Zap } from "lucide-react";
-import { Smartphone } from "lucide-react";
+import { MonitorPlay, Radio, Smartphone, Tv } from "lucide-react";
 
 export type NavItem = {
   href: string;
@@ -19,4 +19,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/orders", label: "Order History", icon: ShoppingBag },
   { href: "/payments", label: "Payment History", icon: CreditCard },
   { href: "/sims", label: "SIMs", icon: Smartphone, adminOnly: true },
+  { href: "/tv", label: "Zylo TV", icon: Tv },
+  { href: "/tv/my", label: "My TV", icon: MonitorPlay },
+  { href: "/tv-admin", label: "TV Console", icon: Radio, adminOnly: true },
 ];

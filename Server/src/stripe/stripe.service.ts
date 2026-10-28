@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { ApiException } from '../common/api-error.js';
 import type { SubscriptionStatus } from '../generated/prisma/enums.js';
 import type { UserModel } from '../generated/prisma/models.js';
+import { TvFulfilmentService } from '../set-top-box/tv-fulfilment.service.js';
 
 function subscriptionPeriodEnd(sub: Stripe.Subscription): Date | null {
   const itemEnd = sub.items?.data?.[0]?.current_period_end;
@@ -74,7 +75,10 @@ export class StripeService {
     return raw.split(',')[0].trim().replace(/\/+$/, '');
   }
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly tvFulfilment: TvFulfilmentService,
+  ) {}
 
   // -----------------------------------------------------------------------
   // One-Time Checkout Sessions
@@ -359,16 +363,22 @@ export class StripeService {
       return;
     }
 
-    if (payment.status === 'SUCCEEDED') return;
+    if (payment.status !== 'SUCCEEDED') {
+      await this.prisma.payment.update({
+        where: { id: payment.id },
+        data: {
+          status: 'SUCCEEDED',
+          paidAt: new Date(),
+          stripePaymentIntentId: idOf(session.payment_intent),
+        },
+      });
+    }
 
-    await this.prisma.payment.update({
-      where: { id: payment.id },
-      data: {
-        status: 'SUCCEEDED',
-        paidAt: new Date(),
-        stripePaymentIntentId: idOf(session.payment_intent),
-      },
-    });
+    // Zylo TV orders: idempotent, so a redelivered webhook (or a retry after a
+    // failure below) is safe. Runs even when the payment was already marked paid.
+    if (payment.orderId && session.payment_status === 'paid') {
+      await this.tvFulfilment.onOrderPaid(payment.orderId);
+    }
   }
 
   async handleInvoicePaid(invoice: Stripe.Invoice) {

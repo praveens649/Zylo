@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { StripeService } from './stripe.service.js';
 import { StripeController } from './stripe.controller.js';
 import { StripeWebhookController } from './stripe-webhook.controller.js';
+import { SetTopBoxModule } from '../set-top-box/set-top-box.module.js';
 
 /**
  * Self-contained Stripe module:
@@ -13,6 +14,7 @@ import { StripeWebhookController } from './stripe-webhook.controller.js';
  *   POST /api/v1/stripe/webhook                — Stripe event receiver (signature)
  */
 @Module({
+  imports: [SetTopBoxModule],
   controllers: [StripeController, StripeWebhookController],
   providers: [StripeService],
   exports: [StripeService],

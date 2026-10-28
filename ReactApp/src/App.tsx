@@ -14,6 +14,10 @@ import OrdersPage from "@/app/(mainapp)/orders/page";
 import PaymentsPage from "@/app/(mainapp)/payments/page";
 import PlansPage from "@/app/(mainapp)/plans/page";
 import ProfilePage from "@/app/(mainapp)/profile/page";
+import TvPage from "@/app/(mainapp)/tv/page";
+import MyTvPage from "@/app/(mainapp)/tv/my/page";
+import TvSuccessPage from "@/app/(mainapp)/tv/success/page";
+import TvAdminPage from "@/app/(mainapp)/tv-admin/page";
 
 export default function App() {
   return (
@@ -33,6 +37,10 @@ export default function App() {
             <Route path="/orders" element={<OrdersPage />} />
             <Route path="/payments" element={<PaymentsPage />} />
             <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/tv" element={<TvPage />} />
+            <Route path="/tv/my" element={<MyTvPage />} />
+            <Route path="/tv/success" element={<TvSuccessPage />} />
+            <Route path="/tv-admin" element={<TvAdminPage />} />
           </Route>
 
           {/* Catch-all 404 */}
