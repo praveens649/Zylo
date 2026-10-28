@@ -13,6 +13,7 @@ import EditUserPage from "@/app/(mainapp)/users/[userId]/edit/page";
 import OrdersPage from "@/app/(mainapp)/orders/page";
 import PaymentsPage from "@/app/(mainapp)/payments/page";
 import PlansPage from "@/app/(mainapp)/plans/page";
+import RechargePage from "@/app/(mainapp)/recharge/page";
 import ProfilePage from "@/app/(mainapp)/profile/page";
 
 export default function App() {
@@ -27,6 +28,7 @@ export default function App() {
           {/* Authenticated / Main App routes wrapped in DashboardLayout */}
           <Route element={<DashboardLayout />}>
             <Route path="/plans" element={<PlansPage />} />
+            <Route path="/recharge" element={<RechargePage />} />
             <Route path="/users" element={<UsersPage />} />
             <Route path="/sims" element={<SimsPage />} />
             <Route path="/users/:userId/edit" element={<EditUserPage />} />
