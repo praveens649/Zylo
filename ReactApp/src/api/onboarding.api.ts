@@ -94,8 +94,25 @@ export interface CompleteOnboardingResponse {
   };
 }
 
+export interface CreateCheckoutResponse {
+  sessionId?: string;
+  url?: string | null;
+  activated?: boolean;
+  success?: boolean;
+  message?: string;
+  data?: CompleteOnboardingResponse["data"];
+}
+
 export const onboardingApi = {
   getStatus: () => api.get<OnboardingStatus>("/api/v1/onboarding/status"),
+
+  createCheckout: (payload: CompleteOnboardingPayload) =>
+    api.post<CreateCheckoutResponse>("/api/v1/onboarding/checkout", payload),
+
+  verifyCheckout: (sessionId: string) =>
+    api.get<CompleteOnboardingResponse>(
+      `/api/v1/onboarding/checkout/verify?session_id=${encodeURIComponent(sessionId)}`
+    ),
 
   submitKyc: (payload: SubmitKycPayload) =>
     api.post<{ message: string; kyc: KycVerification }>(

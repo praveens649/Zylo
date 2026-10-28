@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard.js';
@@ -47,7 +48,33 @@ export class OnboardingController {
   }
 
   /**
+   * Create a Stripe Checkout session for the SIM onboarding payment.
+   * Returns the hosted-checkout URL to redirect the customer to.
+   */
+  @Post('checkout')
+  async createCheckout(
+    @CurrentUser() user: UserWithRole,
+    @Body() dto: CompleteOnboardingDto,
+  ) {
+    const data = await this.onboarding.createCheckout(user.id, dto);
+    return { data };
+  }
+
+  /**
+   * Verify a Stripe checkout session after redirect and activate the SIM.
+   */
+  @Get('checkout/verify')
+  async verifyCheckout(
+    @CurrentUser() user: UserWithRole,
+    @Query('session_id') sessionId: string,
+  ) {
+    const data = await this.onboarding.verifyCheckout(user.id, sessionId);
+    return { data };
+  }
+
+  /**
    * Complete onboarding: assign number, activate SIM, and provision plan.
+   * Development-only fallback used when Stripe is not configured.
    */
   @Post('complete')
   async completeOnboarding(
