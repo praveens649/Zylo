@@ -8,3 +8,4 @@ export * from "./auth.api";
 export * from "./payments.api";
 export * from "./subscriptions.api";
 export * from "./users.api";
+export * from "./numbers.api";
