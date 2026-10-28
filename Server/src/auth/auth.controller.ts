@@ -83,9 +83,11 @@ export class AuthController {
       );
     }
 
+    const defaultName = dto.name?.trim() || dto.email.split('@')[0];
+
     const user = await this.prisma.user.create({
       data: {
-        name: dto.name,
+        name: defaultName,
         email: dto.email,
         passwordHash: await bcrypt.hash(dto.password, 12),
         image: dto.image,

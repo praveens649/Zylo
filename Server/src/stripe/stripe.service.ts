@@ -67,7 +67,7 @@ export class StripeService {
     return this._stripe;
   }
 
-  private get frontendUrl(): string {
+  get frontendUrl(): string {
     const raw =
       process.env.FRONTEND_URL ??
       process.env.CLIENT_URL ??
@@ -146,6 +146,68 @@ export class StripeService {
     });
 
     return { sessionId: session.id, url: session.url };
+  }
+
+  /**
+   * Create a one-time Stripe Checkout session with caller-supplied metadata.
+   * Unlike createCheckoutSession, this does not write a Payment record —
+   * the caller persists its own order/payment state.
+   */
+  async createPaymentCheckoutSession(
+    user: { id: string; email: string },
+    opts: {
+      amount: number;
+      currency?: string;
+      name: string;
+      description?: string;
+      metadata: Record<string, string>;
+      successUrl: string;
+      cancelUrl: string;
+      expiresInMinutes?: number;
+    },
+  ) {
+    const currency = (opts.currency || 'inr').toLowerCase();
+    const amountInCents = Math.round(opts.amount * 100);
+
+    if (amountInCents <= 0) {
+      throw new ApiException(
+        400,
+        'INVALID_AMOUNT',
+        'Amount must be greater than zero',
+      );
+    }
+
+    const session = await this.stripe.checkout.sessions.create({
+      mode: 'payment',
+      customer_email: user.email,
+      client_reference_id: user.id,
+      line_items: [
+        {
+          price_data: {
+            currency,
+            unit_amount: amountInCents,
+            product_data: {
+              name: opts.name,
+              description: opts.description,
+            },
+          },
+          quantity: 1,
+        },
+      ],
+      metadata: opts.metadata,
+      payment_intent_data: { metadata: opts.metadata },
+      success_url: opts.successUrl,
+      cancel_url: opts.cancelUrl,
+      expires_at:
+        Math.floor(Date.now() / 1000) + (opts.expiresInMinutes ?? 30) * 60,
+    });
+
+    return { sessionId: session.id, url: session.url };
+  }
+
+  /** Retrieve a checkout session directly from Stripe. */
+  async retrieveCheckoutSession(sessionId: string) {
+    return this.stripe.checkout.sessions.retrieve(sessionId);
   }
 
   // -----------------------------------------------------------------------

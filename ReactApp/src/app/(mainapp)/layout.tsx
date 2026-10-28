@@ -1,11 +1,9 @@
-"use client";
-
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 
 import { authService, AUTH_ME_KEY } from "@/api/auth.api";
+import { onboardingApi, ONBOARDING_STATUS_KEY } from "@/api/onboarding.api";
 import { ApiRequestError, authToken } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,7 +20,8 @@ export default function DashboardLayout({
 }: {
   children?: React.ReactNode;
 }) {
-  const router = useRouter();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const { data, error, isPending, refetch } = useQuery({
     queryKey: AUTH_ME_KEY,
@@ -30,12 +29,31 @@ export default function DashboardLayout({
     retry: false,
   });
 
+  const isCustomer = data?.user?.role === "CUSTOMER";
+  const isOnboardingRoute = location.pathname === "/onboarding";
+
+  // Check onboarding completion for customers
+  const { data: onboardingData, isPending: isOnboardingPending } = useQuery({
+    queryKey: ONBOARDING_STATUS_KEY,
+    queryFn: onboardingApi.getStatus,
+    enabled: !!data?.user && isCustomer,
+  });
+
   useEffect(() => {
     if (error instanceof ApiRequestError && error.status === 401) {
       authToken.clear();
-      router.replace("/login");
+      navigate("/login", { replace: true });
     }
-  }, [error, router]);
+  }, [error, navigate]);
+
+  // Enforce Onboarding: Customers must complete onboarding before entering the dashboard
+  useEffect(() => {
+    if (isCustomer && onboardingData && !isOnboardingPending) {
+      if (!onboardingData.isComplete && !isOnboardingRoute) {
+        navigate("/onboarding", { replace: true });
+      }
+    }
+  }, [isCustomer, onboardingData, isOnboardingPending, isOnboardingRoute, navigate]);
 
   if (error) {
     if (!(error instanceof ApiRequestError && error.status === 401)) {
@@ -52,7 +70,7 @@ export default function DashboardLayout({
               <Button variant="outline" onClick={() => refetch()}>
                 Retry
               </Button>
-              <Button variant="ghost" onClick={() => router.replace("/login")}>
+              <Button variant="ghost" onClick={() => navigate("/login", { replace: true })}>
                 Back to login
               </Button>
             </CardContent>
@@ -62,10 +80,15 @@ export default function DashboardLayout({
     }
   }
 
-  if (isPending || !data) {
+  if (isPending || !data || (isCustomer && isOnboardingPending)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background p-6" />
     );
+  }
+
+  // When on the onboarding portal, render full-screen without sidebar
+  if (isOnboardingRoute) {
+    return children || <Outlet />;
   }
 
   return (
