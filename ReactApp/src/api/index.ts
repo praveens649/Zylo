@@ -6,5 +6,6 @@
 
 export * from "./auth.api";
 export * from "./payments.api";
+export * from "./plans.api";
 export * from "./subscriptions.api";
 export * from "./users.api";
