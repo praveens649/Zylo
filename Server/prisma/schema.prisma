@@ -65,6 +65,8 @@ enum OrderType {
   SIM_PURCHASE
   PLAN_PURCHASE
   RECHARGE
+  SET_TOP_BOX_ORDER
+  TV_PACK_PURCHASE
 }
 
 enum OrderStatus {
@@ -147,6 +149,7 @@ enum SupportCategory {
   PAYMENT
   SIM_REPLACEMENT
   BUSINESS_SIM
+  SET_TOP_BOX
   OTHER
 }
 
@@ -239,15 +242,16 @@ model User {
   mustChangePassword Boolean  @default(false)
   isActive           Boolean  @default(true)
 
-  sims                Sim[]
-  orders              Order[]
-  payments            Payment[]
-  stripeSubscriptions StripeSubscription[]
-  supportTickets      SupportTicket[]
-  notifications       Notification[]
-  dataLoans           DataLoan[]
-  userQuests          UserQuest[]
-  travelEsimOrders    TravelEsimOrder[]
+  sims                 Sim[]
+  orders               Order[]
+  payments             Payment[]
+  stripeSubscriptions  StripeSubscription[]
+  supportTickets       SupportTicket[]
+  notifications        Notification[]
+  dataLoans            DataLoan[]
+  userQuests           UserQuest[]
+  travelEsimOrders     TravelEsimOrder[]
+  setTopBoxConnections SetTopBoxConnection[]
 
   ownedOrganizations      BusinessOrganization[] @relation("OrganizationOwner")
   organizationMemberships OrganizationMember[]
@@ -434,6 +438,8 @@ model Sim {
 
   dataLoans DataLoan[]
 
+  setTopBoxConnections SetTopBoxConnection[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -532,6 +538,10 @@ model Order {
   planId         String?
   organizationId String?
 
+  setTopBoxModelId      String?
+  tvPlanId              String?
+  setTopBoxConnectionId String?
+
   user User @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   sim Sim? @relation(fields: [simId], references: [id], onDelete: Restrict)
@@ -542,8 +552,13 @@ model Order {
 
   organization BusinessOrganization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
 
+  setTopBoxModel      SetTopBoxModel?      @relation(fields: [setTopBoxModelId], references: [id], onDelete: Restrict)
+  tvPlan              TvPlan?              @relation(fields: [tvPlanId], references: [id], onDelete: Restrict)
+  setTopBoxConnection SetTopBoxConnection? @relation(fields: [setTopBoxConnectionId], references: [id], onDelete: Restrict)
+
   payment          Payment?
   planSubscription PlanSubscription?
+  tvSubscription   TvSubscription?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -552,6 +567,7 @@ model Order {
   @@index([status, createdAt])
   @@index([type])
   @@index([organizationId])
+  @@index([setTopBoxConnectionId])
 }
 
 // ======================================================
@@ -635,9 +651,13 @@ model SupportTicket {
   adminReply   String?
   resolvedAt   DateTime?
 
+  setTopBoxConnectionId String?
+
   user User @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   sim Sim? @relation(fields: [simId], references: [id], onDelete: SetNull)
+
+  setTopBoxConnection SetTopBoxConnection? @relation(fields: [setTopBoxConnectionId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -971,4 +991,235 @@ model StoredFile {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// ======================================================
+// ZYLO SET-TOP BOX
+// ======================================================
+
+enum SetTopBoxResolution {
+  HD
+  UHD_4K
+}
+
+enum SetTopBoxUnitStatus {
+  IN_STOCK
+  RESERVED
+  ASSIGNED
+  INSTALLED
+  FAULTY
+  RETURNED
+  RETIRED
+}
+
+enum BoxOwnership {
+  PURCHASE
+  RENTAL
+}
+
+enum TvConnectionStatus {
+  PENDING_INSTALLATION
+  ACTIVE
+  PAUSED
+  GRACE_PERIOD
+  SUSPENDED
+  DISCONNECTED
+  CANCELLED
+}
+
+enum TvPlanType {
+  BASE
+  ADD_ON
+}
+
+enum TvSubscriptionStatus {
+  PENDING
+  ACTIVE
+  PAUSED
+  EXPIRED
+  CANCELLED
+}
+
+enum InstallationType {
+  TECHNICIAN
+  SELF_INSTALL
+}
+
+enum InstallationSlot {
+  MORNING
+  AFTERNOON
+  EVENING
+}
+
+enum InstallationStatus {
+  REQUESTED
+  SCHEDULED
+  RESCHEDULED
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+model SetTopBoxModel {
+  id           String              @id @default(uuid())
+  name         String              @unique
+  sku          String              @unique
+  description  String?
+  resolution   SetTopBoxResolution @default(HD)
+  isSmart      Boolean             @default(false)
+  hasRecording Boolean             @default(false)
+  storageGb    Int?
+  imageFileId  String?
+
+  // A null price means that option is not offered.
+  purchasePrice   Decimal? @db.Decimal(10, 2)
+  rentalPerMonth  Decimal? @db.Decimal(10, 2)
+  securityDeposit Decimal? @db.Decimal(10, 2)
+
+  isActive   Boolean @default(true)
+  isFeatured Boolean @default(false)
+
+  units       SetTopBoxUnit[]
+  connections SetTopBoxConnection[]
+  orders      Order[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, resolution])
+}
+
+model SetTopBoxUnit {
+  id              String              @id @default(uuid())
+  modelId         String
+  serialNumber    String              @unique
+  macAddress      String              @unique
+  smartCardNumber String              @unique
+  status          SetTopBoxUnitStatus @default(IN_STOCK)
+  warrantyEndsAt  DateTime?
+  notes           String?
+
+  model      SetTopBoxModel       @relation(fields: [modelId], references: [id], onDelete: Restrict)
+  connection SetTopBoxConnection?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([modelId, status])
+}
+
+model SetTopBoxConnection {
+  id               String @id @default(uuid())
+  connectionNumber String @unique
+  userId           String
+  modelId          String
+
+  simId  String?
+  unitId String? @unique
+
+  ownership BoxOwnership       @default(PURCHASE)
+  status    TvConnectionStatus @default(PENDING_INSTALLATION)
+
+  addressLine  String
+  city         String
+  state        String
+  postalCode   String
+  contactPhone String
+
+  activatedAt       DateTime?
+  planExpiredAt     DateTime?
+  gracePeriodEndsAt DateTime?
+  pausedAt          DateTime?
+  pauseEndsAt       DateTime?
+  disconnectedAt    DateTime?
+  returnDueAt       DateTime?
+
+  user  User           @relation(fields: [userId], references: [id], onDelete: Restrict)
+  model SetTopBoxModel @relation(fields: [modelId], references: [id], onDelete: Restrict)
+  sim   Sim?           @relation(fields: [simId], references: [id], onDelete: SetNull)
+  unit  SetTopBoxUnit? @relation(fields: [unitId], references: [id], onDelete: Restrict)
+
+  subscriptions  TvSubscription[]
+  installations  InstallationRequest[]
+  orders         Order[]
+  supportTickets SupportTicket[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([status, planExpiredAt])
+  @@index([simId])
+}
+
+model TvPlan {
+  id             String     @id @default(uuid())
+  name           String     @unique
+  description    String?
+  type           TvPlanType @default(BASE)
+  price          Decimal    @db.Decimal(10, 2)
+  currency       String     @default("inr")
+  validityDays   Int        @default(30)
+  channelCount   Int
+  hdChannelCount Int        @default(0)
+  languages      String[]
+  requires4kBox  Boolean    @default(false)
+  isActive       Boolean    @default(true)
+  isFeatured     Boolean    @default(false)
+
+  subscriptions TvSubscription[]
+  orders        Order[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([type, isActive])
+  @@index([price])
+}
+
+model TvSubscription {
+  id           String               @id @default(uuid())
+  connectionId String
+  tvPlanId     String
+  orderId      String?              @unique
+  status       TvSubscriptionStatus @default(PENDING)
+  startDate    DateTime?
+  endDate      DateTime?
+  autoRenew    Boolean              @default(false)
+
+  connection SetTopBoxConnection @relation(fields: [connectionId], references: [id], onDelete: Restrict)
+  tvPlan     TvPlan              @relation(fields: [tvPlanId], references: [id], onDelete: Restrict)
+  order      Order?              @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([connectionId, status])
+  @@index([status, endDate])
+}
+
+model InstallationRequest {
+  id           String             @id @default(uuid())
+  reference    String             @unique @default(uuid())
+  connectionId String
+  type         InstallationType   @default(TECHNICIAN)
+  status       InstallationStatus @default(REQUESTED)
+
+  preferredDate DateTime
+  preferredSlot InstallationSlot @default(MORNING)
+  scheduledAt   DateTime?
+  customerNotes String?
+
+  technicianName  String?
+  technicianPhone String?
+  completedAt     DateTime?
+  failureReason   String?
+
+  connection SetTopBoxConnection @relation(fields: [connectionId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([connectionId, status])
+  @@index([status, scheduledAt])
 }
