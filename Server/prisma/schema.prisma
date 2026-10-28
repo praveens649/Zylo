@@ -228,6 +228,20 @@ enum TravelEsimOrderStatus {
   REFUNDED
 }
 
+enum KycStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum KycDocumentType {
+  AADHAAR
+  PAN
+  PASSPORT
+  DRIVING_LICENSE
+  VOTER_ID
+}
+
 // ======================================================
 // USERS
 // ======================================================
@@ -252,6 +266,7 @@ model User {
   userQuests           UserQuest[]
   travelEsimOrders     TravelEsimOrder[]
   setTopBoxConnections SetTopBoxConnection[]
+  kyc                 KycVerification?
 
   ownedOrganizations      BusinessOrganization[] @relation("OrganizationOwner")
   organizationMemberships OrganizationMember[]
@@ -976,6 +991,39 @@ model TravelEsimOrder {
   @@index([userId, createdAt])
   @@index([status, createdAt])
   @@index([destinationCountry, departureDate])
+}
+
+// ======================================================
+// KYC VERIFICATION
+// Customers submit identity details before buying a SIM.
+// ======================================================
+
+model KycVerification {
+  id     String @id @default(uuid())
+  userId String @unique
+
+  fullName    String
+  dateOfBirth DateTime?
+
+  address    String
+  city       String
+  state      String
+  postalCode String
+
+  documentType            KycDocumentType
+  documentNumberEncrypted String
+
+  status          KycStatus @default(PENDING)
+  rejectionReason String?
+  submittedAt     DateTime  @default(now())
+  verifiedAt      DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, submittedAt])
 }
 
 // ======================================================
