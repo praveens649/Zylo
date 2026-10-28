@@ -1,12 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   AlertCircle,
   CalendarClock,
   Check,
   CircleDashed,
+  Clock,
+  CreditCard,
   LifeBuoy,
   Loader2,
   MapPin,
@@ -41,7 +44,7 @@ function Tracker({ c }: { c: TvConnection }) {
   const inst = c.installations[0];
   const steps = [
     { label: "Order placed", done: true },
-    { label: "Payment confirmed", done: c.orders[0]?.status === "COMPLETED" },
+    { label: "Payment confirmed", done: c.orders.find((o) => o.type === "SET_TOP_BOX_ORDER")?.status === "COMPLETED" },
     { label: "Box assigned", done: !!c.unit },
     { label: "Visit scheduled", done: !!inst && ["SCHEDULED", "RESCHEDULED", "COMPLETED"].includes(inst.status) },
     { label: "Installed", done: inst?.status === "COMPLETED" },
@@ -163,6 +166,55 @@ function SupportDialog({ c, onClose }: { c: TvConnection; onClose: () => void })
   );
 }
 
+/** Unpaid orders: pay again, re-check with Stripe, or cancel. */
+function PendingPayments({ c }: { c: TvConnection }) {
+  const pending = c.orders.filter((o) => o.status === "PENDING");
+  const pay = useTvAction(
+    (id: string) => tvApi.payOrder(id),
+    (r) => (r.alreadyPaid ? "Payment already received" : "Redirecting to payment…"),
+    (r) => !r.alreadyPaid && goToCheckout(r.url)
+  );
+  const check = useTvAction(
+    (id: string) => tvApi.syncOrder(id),
+    (r) => (r.paid ? "Payment confirmed — thank you!" : "Payment not completed yet")
+  );
+  const cancel = useTvAction((id: string) => tvApi.cancelOrder(id), "Order cancelled");
+
+  if (pending.length === 0) return null;
+  return (
+    <div className="space-y-2">
+      {pending.map((o) => (
+        <div key={o.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3">
+          <div className="flex items-start gap-2">
+            <Clock className="mt-0.5 h-4 w-4 text-amber-600" />
+            <div className="text-sm">
+              <p className="font-semibold">
+                Payment pending · {formatINR(o.amount)}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {o.type === "SET_TOP_BOX_ORDER" ? "Box and first pack" : o.tvPlan?.name ?? "Pack"} — complete the payment to continue.
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" disabled={pay.isPending} onClick={() => pay.mutate(o.id)}>
+              {pay.isPending ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <CreditCard className="mr-1.5 h-3.5 w-3.5" />}
+              Pay now
+            </Button>
+            <Button size="sm" variant="outline" disabled={check.isPending} onClick={() => check.mutate(o.id)}>
+              {check.isPending ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="mr-1.5 h-3.5 w-3.5" />}
+              I've paid — check
+            </Button>
+            <Button size="sm" variant="ghost" className="text-destructive" disabled={cancel.isPending} onClick={() => confirm("Cancel this unpaid order?") && cancel.mutate(o.id)}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function ConnectionCard({ c }: { c: TvConnection }) {
   const [dialog, setDialog] = useState<Dialog>(null);
   const renew = useTvAction(() => tvApi.renew(c.id), "Redirecting to payment…", (r) => goToCheckout(r.url));
@@ -191,6 +243,8 @@ function ConnectionCard({ c }: { c: TvConnection }) {
             <ConnectionStatusBadge status={c.status} />
           </div>
         </div>
+
+        <PendingPayments c={c} />
 
         {c.status === "PENDING_INSTALLATION" && <Tracker c={c} />}
 
@@ -285,7 +339,25 @@ function ConnectionCard({ c }: { c: TvConnection }) {
 
 export function MyTv() {
   const q = useTvConnections();
+  const qc = useQueryClient();
+  const [params] = useSearchParams();
   const list = (q.data ?? []).filter((c) => c.status !== "CANCELLED");
+  const checked = useRef(new Set<string>());
+
+  // Opening My TV re-checks unpaid orders with Stripe, so a payment that finished
+  // (but whose webhook/redirect never arrived) is picked up automatically.
+  useEffect(() => {
+    const ids = (q.data ?? [])
+      .flatMap((c) => c.orders.filter((o) => o.status === "PENDING").map((o) => o.id))
+      .filter((id) => !checked.current.has(id));
+    if (ids.length === 0) return;
+    ids.forEach((id) => checked.current.add(id));
+    void Promise.allSettled(ids.map((id) => tvApi.syncOrder(id))).then((rs) => {
+      if (rs.some((r) => r.status === "fulfilled" && r.value.paid)) {
+        qc.invalidateQueries({ queryKey: ["tv", "connections"] });
+      }
+    });
+  }, [q.data, qc]);
 
   return (
     <div className="flex flex-col gap-6 pb-10">
@@ -295,6 +367,11 @@ export function MyTv() {
         subtitle="Track your installation, renew packs, add extra channels or pause while you travel."
         right={<Button asChild className="shrink-0"><Link to="/tv"><Plus className="mr-2 h-4 w-4" />New connection</Link></Button>}
       />
+      {params.get("payment") === "cancelled" && (
+        <p className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+          Payment wasn't completed. Your order is saved below — press <strong>Pay now</strong> whenever you're ready.
+        </p>
+      )}
       {q.isPending && <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>}
       {q.isError && (
         <Card className="border-destructive/30 bg-destructive/5">

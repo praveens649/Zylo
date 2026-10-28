@@ -20,7 +20,12 @@ const CONNECTION_INCLUDE = {
   unit: { select: { serialNumber: true, smartCardNumber: true, status: true } },
   subscriptions: { include: { tvPlan: true }, orderBy: { createdAt: 'desc' } },
   installations: { orderBy: { createdAt: 'desc' } },
-  orders: { where: { type: 'SET_TOP_BOX_ORDER' }, select: { id: true, status: true }, take: 1 },
+  // The box order (for the tracker) plus any unpaid orders (for "Pay now").
+  orders: {
+    where: { OR: [{ type: 'SET_TOP_BOX_ORDER' }, { status: 'PENDING', type: 'TV_PACK_PURCHASE' }] },
+    select: { id: true, type: true, status: true, amount: true, createdAt: true, tvPlan: { select: { name: true } } },
+    orderBy: { createdAt: 'desc' },
+  },
 } satisfies Prisma.SetTopBoxConnectionInclude;
 
 type ConnectionRow = Prisma.SetTopBoxConnectionGetPayload<{ include: typeof CONNECTION_INCLUDE }>;

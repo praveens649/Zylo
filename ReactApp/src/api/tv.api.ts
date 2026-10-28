@@ -88,6 +88,15 @@ export interface TvInstallation {
   failureReason: string | null;
 }
 
+export interface TvConnectionOrder {
+  id: string;
+  type: "SET_TOP_BOX_ORDER" | "TV_PACK_PURCHASE";
+  status: string;
+  amount: Money;
+  createdAt: string;
+  tvPlan: { name: string } | null;
+}
+
 export interface TvConnection {
   id: string;
   connectionNumber: string;
@@ -109,7 +118,7 @@ export interface TvConnection {
   unit: { serialNumber: string; smartCardMasked: string | null; status: UnitStatus } | null;
   subscriptions: TvSubscription[];
   installations: TvInstallation[];
-  orders: { id: string; status: string }[];
+  orders: TvConnectionOrder[];
   currentPack: TvPack | null;
   daysLeft: number;
   pauseDaysRemaining: number;
@@ -144,6 +153,12 @@ export const tvApi = {
   checkout: (input: TvCheckoutInput) =>
     api.post<CheckoutResult & { connectionNumber: string }>("/api/v1/tv/checkout", input),
   connections: () => api.get<TvConnection[]>("/api/v1/tv/connections"),
+  syncOrder: (orderId: string) =>
+    api.post<{ status: string; paid: boolean }>(`/api/v1/tv/orders/${orderId}/sync`),
+  payOrder: (orderId: string) =>
+    api.post<{ alreadyPaid: boolean; url: string | null }>(`/api/v1/tv/orders/${orderId}/pay`),
+  cancelOrder: (orderId: string) =>
+    api.post<{ status: string }>(`/api/v1/tv/orders/${orderId}/cancel`),
   renew: (id: string, tvPlanId?: string) =>
     api.post<CheckoutResult>(`/api/v1/tv/connections/${id}/renew`, { tvPlanId }),
   addOn: (id: string, tvPlanId: string) =>

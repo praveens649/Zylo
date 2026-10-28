@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { RequirePasswordChangedGuard } from '../auth/require-password-changed.guard.js';
 import { CurrentUser } from '../auth/current-user.decorator.js';
@@ -35,8 +35,24 @@ export class TvController {
   }
 
   @Post('checkout')
-  async doCheckout(@Body() dto: TvCheckoutDto, @CurrentUser() user: UserModel) {
-    return { data: await this.checkout.checkout(user, dto) };
+  async doCheckout(@Body() dto: TvCheckoutDto, @CurrentUser() user: UserModel, @Headers('origin') origin?: string) {
+    return { data: await this.checkout.checkout(user, dto, origin) };
+  }
+
+  // Pending payments: verify with Stripe, pay again, or give up on an unpaid order.
+  @Post('orders/:id/sync')
+  async syncOrder(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: UserModel) {
+    return { data: await this.checkout.syncOrder(user, id) };
+  }
+
+  @Post('orders/:id/pay')
+  async payOrder(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: UserModel, @Headers('origin') origin?: string) {
+    return { data: await this.checkout.retryPayment(user, id, origin) };
+  }
+
+  @Post('orders/:id/cancel')
+  async cancelOrder(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: UserModel) {
+    return { data: await this.checkout.cancelPending(user, id) };
   }
 
   @Get('connections')
@@ -50,13 +66,13 @@ export class TvController {
   }
 
   @Post('connections/:id/renew')
-  async renew(@Param('id', ParseUUIDPipe) id: string, @Body() dto: RenewDto, @CurrentUser() user: UserModel) {
-    return { data: await this.checkout.renew(user, id, dto) };
+  async renew(@Param('id', ParseUUIDPipe) id: string, @Body() dto: RenewDto, @CurrentUser() user: UserModel, @Headers('origin') origin?: string) {
+    return { data: await this.checkout.renew(user, id, dto, origin) };
   }
 
   @Post('connections/:id/add-on')
-  async addOn(@Param('id', ParseUUIDPipe) id: string, @Body() dto: AddOnDto, @CurrentUser() user: UserModel) {
-    return { data: await this.checkout.addOn(user, id, dto) };
+  async addOn(@Param('id', ParseUUIDPipe) id: string, @Body() dto: AddOnDto, @CurrentUser() user: UserModel, @Headers('origin') origin?: string) {
+    return { data: await this.checkout.addOn(user, id, dto, origin) };
   }
 
   @Post('connections/:id/pause')
