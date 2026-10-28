@@ -1,22 +1,19 @@
 "use client";
 
-import { ArrowRight, Eye, EyeOff, Loader2, Lock, Mail, User } from "lucide-react";
+import { ArrowRight, Eye, EyeOff, Loader2, Lock, Mail } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 import { useSignup } from "../_hooks/use-signup";
-import { AvatarUpload } from "./avatar-upload";
 
 const FIELD_INPUT =
   "h-11 rounded-lg border-input bg-background pl-10 text-foreground placeholder:text-muted-foreground transition-all focus-visible:ring-2 focus-visible:ring-ring";
 
-/** The signup form in clean light theme. */
+/** Clean, streamlined signup form: Email and Password only (Identity & KYC gathered during onboarding). */
 export function SignupForm() {
   const {
-    name,
-    setName,
     email,
     setEmail,
     password,
@@ -25,38 +22,14 @@ export function SignupForm() {
     setConfirm,
     showPassword,
     setShowPassword,
-    image,
-    setImage,
-    isUploadingImage,
     formError,
-    fileInputRef,
     isBusy,
     isSubmitting,
     handleSubmit,
-    handleFileUpload,
   } = useSignup();
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-      <div className="space-y-1.5">
-        <Label htmlFor="name" className="text-xs font-medium text-foreground">
-          Full name
-        </Label>
-        <div className="relative">
-          <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            id="name"
-            type="text"
-            autoComplete="name"
-            placeholder="Jane Doe"
-            className={FIELD_INPUT}
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            disabled={isSubmitting}
-          />
-        </div>
-      </div>
-
       <div className="space-y-1.5">
         <Label htmlFor="email" className="text-xs font-medium text-foreground">
           Email address
@@ -125,16 +98,6 @@ export function SignupForm() {
           />
         </div>
       </div>
-
-      <AvatarUpload
-        image={image}
-        name={name}
-        isUploading={isUploadingImage}
-        isBusy={isBusy}
-        fileInputRef={fileInputRef}
-        onFileChange={handleFileUpload}
-        onRemove={() => setImage("")}
-      />
 
       {formError && (
         <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive">
