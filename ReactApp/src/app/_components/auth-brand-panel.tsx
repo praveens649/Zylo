@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Layers, type LucideIcon } from "lucide-react";
+import { Zap, type LucideIcon } from "lucide-react";
 
 export interface AuthFeature {
   icon: LucideIcon;
@@ -8,9 +8,9 @@ export interface AuthFeature {
 }
 
 const STATS = [
-  { value: "100%", label: "Secure sessions" },
-  { value: "RBAC", label: "Access control" },
-  { value: "24/7", label: "System uptime" },
+  { value: "10 GB", label: "Data Bank Cap" },
+  { value: "Instant", label: "P2P Data Sharing" },
+  { value: "Rewards", label: "Data Quests & XP" },
 ];
 
 interface AuthBrandPanelProps {
@@ -19,7 +19,7 @@ interface AuthBrandPanelProps {
   features: AuthFeature[];
 }
 
-/** Left brand panel shared by login & signup screens in clean light theme. */
+/** Left brand panel shared by login & signup screens highlighting Zylo innovations. */
 export function AuthBrandPanel({
   headline,
   subtitle,
@@ -30,21 +30,23 @@ export function AuthBrandPanel({
       {/* Brand */}
       <div className="flex items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-          <Layers className="h-5 w-5" />
+          <Zap className="h-5 w-5" />
         </div>
-        <span className="font-display text-lg font-bold tracking-tight text-foreground">
-          DoodleBlue
-        </span>
-        <span className="rounded-md border border-border bg-background px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Admin Console
-        </span>
+        <div className="flex flex-col">
+          <span className="font-display text-xl font-bold tracking-tight text-foreground">
+            Zylo
+          </span>
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Smart Mobile Network
+          </span>
+        </div>
       </div>
 
       {/* Headline + features */}
       <div className="max-w-md space-y-8">
         <div>
           <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            Platform Management
+            Next-Gen Telecom
           </span>
           <h1 className="mt-3 font-display text-4xl font-bold leading-tight tracking-tight text-foreground xl:text-5xl">
             {headline}
