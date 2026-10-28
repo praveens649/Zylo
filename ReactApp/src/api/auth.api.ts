@@ -38,15 +38,14 @@ export const authApi = {
     }),
 
   signUp: (
-    name: string,
     email: string,
     password: string,
-    opts?: { image?: string }
+    opts?: { name?: string; image?: string }
   ) =>
     api.post<{ user: AuthUser; token: string }>("/api/v1/auth/register", {
-      name,
       email,
       password,
+      name: opts?.name,
       image: opts?.image,
     }),
 

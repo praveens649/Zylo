@@ -7,6 +7,8 @@ import SignupPage from "@/app/signup/page";
 import NotFoundPage from "@/app/not-found";
 
 import DashboardLayout from "@/app/(mainapp)/layout";
+import OnboardingPage from "@/app/(mainapp)/onboarding/page";
+import CustomerDashboardPage from "@/app/(mainapp)/dashboard/page";
 import UsersPage from "@/app/(mainapp)/users/page";
 import SimsPage from "@/app/(mainapp)/sims/page";
 import EditUserPage from "@/app/(mainapp)/users/[userId]/edit/page";
@@ -27,6 +29,8 @@ export default function App() {
           {/* Authenticated / Main App routes wrapped in DashboardLayout */}
           <Route element={<DashboardLayout />}>
             <Route path="/plans" element={<PlansPage />} />
+            <Route path="/onboarding" element={<OnboardingPage />} />
+            <Route path="/dashboard" element={<CustomerDashboardPage />} />
             <Route path="/users" element={<UsersPage />} />
             <Route path="/sims" element={<SimsPage />} />
             <Route path="/users/:userId/edit" element={<EditUserPage />} />
