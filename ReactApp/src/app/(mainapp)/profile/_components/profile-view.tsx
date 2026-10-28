@@ -66,14 +66,16 @@ function ProfileHero({
           {/* Avatar */}
           <div className="relative">
             {imageUrl ? (
-              <img
-                src={imageUrl}
-                alt={user.name}
-                className="h-20 w-20 shrink-0 rounded-2xl border border-primary/20 object-cover"
-                onError={() => setImgFailed(true)}
-              />
+              <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-full border-2 border-primary/25 shadow-sm">
+                <img
+                  src={imageUrl}
+                  alt={user.name}
+                  className="h-full w-full object-cover"
+                  onError={() => setImgFailed(true)}
+                />
+              </div>
             ) : (
-              <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-primary/15 text-2xl font-bold text-primary">
+              <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-primary text-2xl font-bold text-primary-foreground shadow-md ring-4 ring-primary/20">
                 {initials(user.name)}
               </div>
             )}
@@ -111,9 +113,8 @@ function ProfileHero({
         </div>
 
         <Button
-          variant="outline"
           size="sm"
-          className="h-9 shrink-0 gap-1.5 text-xs"
+          className="h-9 shrink-0 gap-1.5 bg-primary text-xs text-primary-foreground shadow-md shadow-primary/25 hover:bg-primary/90"
           onClick={onEdit}
         >
           <Pencil className="h-3.5 w-3.5" />
@@ -186,9 +187,8 @@ function SecurityCard({ onChangePassword }: { onChangePassword: () => void }) {
             </p>
           </div>
           <Button
-            variant="outline"
             size="sm"
-            className="h-9 shrink-0 gap-1.5 text-xs"
+            className="h-9 shrink-0 gap-1.5 bg-primary text-xs text-primary-foreground shadow-md shadow-primary/25 hover:bg-primary/90"
             onClick={onChangePassword}
           >
             <KeyRound className="h-3.5 w-3.5" />
