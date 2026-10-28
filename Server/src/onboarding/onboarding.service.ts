@@ -604,6 +604,7 @@ export class OnboardingService {
       data: {
         status: PhoneNumberStatus.ASSIGNED,
         reservedUntil: null,
+        reservedByUserId: null,
       },
     });
 

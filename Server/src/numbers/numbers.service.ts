@@ -6,6 +6,7 @@ import {
   PhoneNumberStatus,
   PhoneNumberType,
 } from '../generated/prisma/enums.js';
+import type { UserModel } from '../generated/prisma/models.js';
 import {
   GenerateNumbersDto,
   ListAvailableNumbersDto,
@@ -326,62 +327,86 @@ export class NumbersService {
 
   /**
    * Reserves a number for 15 minutes during customer onboarding/checkout.
+   *
+   * Holds are owned by the reserving user:
+   * - Re-selecting a number you already hold just renews the hold.
+   * - Reserving a different number releases your previous hold, so a
+   *   customer can change their pick without waiting for expiry.
+   * - A number held by someone else still returns 409 until it expires.
    */
-  async reserveNumber(dto: ReserveNumberDto) {
+  async reserveNumber(dto: ReserveNumberDto, userId: string) {
     await this.releaseExpiredReservations();
 
-    const phoneNumber = await this.prisma.phoneNumber.findUnique({
-      where: { id: dto.numberId },
-    });
-
-    if (!phoneNumber) {
-      throw new ApiException(
-        404,
-        'PHONE_NUMBER_NOT_FOUND',
-        'Phone number not found',
-      );
-    }
-
     const now = new Date();
-    const isCurrentlyReserved =
-      phoneNumber.status === PhoneNumberStatus.RESERVED &&
-      phoneNumber.reservedUntil &&
-      phoneNumber.reservedUntil > now;
 
-    if (
-      phoneNumber.status === PhoneNumberStatus.ASSIGNED ||
-      isCurrentlyReserved
-    ) {
-      throw new ApiException(
-        409,
-        'NUMBER_NOT_AVAILABLE',
-        'This phone number is already reserved or assigned',
-      );
-    }
+    return this.prisma.$transaction(async (tx) => {
+      const phoneNumber = await tx.phoneNumber.findUnique({
+        where: { id: dto.numberId },
+      });
 
-    const holdMinutes = dto.holdMinutes ?? 15;
-    const reservedUntil = new Date(Date.now() + holdMinutes * 60 * 1000);
+      if (!phoneNumber) {
+        throw new ApiException(
+          404,
+          'PHONE_NUMBER_NOT_FOUND',
+          'Phone number not found',
+        );
+      }
 
-    const updated = await this.prisma.phoneNumber.update({
-      where: { id: dto.numberId },
-      data: {
-        status: PhoneNumberStatus.RESERVED,
+      const heldByOther =
+        phoneNumber.status === PhoneNumberStatus.RESERVED &&
+        phoneNumber.reservedUntil &&
+        phoneNumber.reservedUntil > now &&
+        phoneNumber.reservedByUserId !== userId;
+
+      if (phoneNumber.status === PhoneNumberStatus.ASSIGNED || heldByOther) {
+        throw new ApiException(
+          409,
+          'NUMBER_NOT_AVAILABLE',
+          'This phone number is already reserved or assigned',
+        );
+      }
+
+      // One number per checkout — release this customer's other active holds.
+      await tx.phoneNumber.updateMany({
+        where: {
+          status: PhoneNumberStatus.RESERVED,
+          reservedByUserId: userId,
+          reservedUntil: { gt: now },
+          id: { not: dto.numberId },
+        },
+        data: {
+          status: PhoneNumberStatus.AVAILABLE,
+          reservedUntil: null,
+          reservedByUserId: null,
+        },
+      });
+
+      const holdMinutes = dto.holdMinutes ?? 15;
+      const reservedUntil = new Date(Date.now() + holdMinutes * 60 * 1000);
+
+      const updated = await tx.phoneNumber.update({
+        where: { id: dto.numberId },
+        data: {
+          status: PhoneNumberStatus.RESERVED,
+          reservedUntil,
+          reservedByUserId: userId,
+        },
+      });
+
+      return {
+        message: `Phone number held for ${holdMinutes} minutes`,
+        number: updated.number,
+        numberId: updated.id,
         reservedUntil,
-      },
+      };
     });
-
-    return {
-      message: `Phone number held for ${holdMinutes} minutes`,
-      number: updated.number,
-      numberId: updated.id,
-      reservedUntil,
-    };
   }
 
   /**
    * Releases a held number back to AVAILABLE.
+   * Only the customer who holds it (or an admin) may release it.
    */
-  async releaseNumber(dto: ReleaseNumberDto) {
+  async releaseNumber(dto: ReleaseNumberDto, user: UserModel) {
     const phoneNumber = await this.prisma.phoneNumber.findUnique({
       where: { id: dto.numberId },
     });
@@ -402,11 +427,25 @@ export class NumbersService {
       );
     }
 
+    const heldByOther =
+      phoneNumber.status === PhoneNumberStatus.RESERVED &&
+      phoneNumber.reservedByUserId &&
+      phoneNumber.reservedByUserId !== user.id;
+
+    if (heldByOther && user.role !== 'SUPER_ADMIN') {
+      throw new ApiException(
+        403,
+        'FORBIDDEN',
+        'This number is held by another customer',
+      );
+    }
+
     const updated = await this.prisma.phoneNumber.update({
       where: { id: dto.numberId },
       data: {
         status: PhoneNumberStatus.AVAILABLE,
         reservedUntil: null,
+        reservedByUserId: null,
       },
     });
 
@@ -517,6 +556,7 @@ export class NumbersService {
       data: {
         status: PhoneNumberStatus.AVAILABLE,
         reservedUntil: null,
+        reservedByUserId: null,
       },
     });
   }

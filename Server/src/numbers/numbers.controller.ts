@@ -12,6 +12,8 @@ import {
 import { AuthGuard } from '../auth/auth.guard.js';
 import { AdminGuard } from '../auth/admin.guard.js';
 import { RequirePasswordChangedGuard } from '../auth/require-password-changed.guard.js';
+import { CurrentUser } from '../auth/current-user.decorator.js';
+import type { UserModel } from '../generated/prisma/models.js';
 import { NumbersService } from './numbers.service.js';
 import {
   GenerateNumbersDto,
@@ -53,8 +55,11 @@ export class NumbersController {
    */
   @Post('reserve')
   @UseGuards(AuthGuard, RequirePasswordChangedGuard)
-  async reserveNumber(@Body() dto: ReserveNumberDto) {
-    const result = await this.numbersService.reserveNumber(dto);
+  async reserveNumber(
+    @Body() dto: ReserveNumberDto,
+    @CurrentUser() user: UserModel,
+  ) {
+    const result = await this.numbersService.reserveNumber(dto, user.id);
     return { data: result };
   }
 
@@ -64,8 +69,11 @@ export class NumbersController {
    */
   @Post('release')
   @UseGuards(AuthGuard, RequirePasswordChangedGuard)
-  async releaseNumber(@Body() dto: ReleaseNumberDto) {
-    const result = await this.numbersService.releaseNumber(dto);
+  async releaseNumber(
+    @Body() dto: ReleaseNumberDto,
+    @CurrentUser() user: UserModel,
+  ) {
+    const result = await this.numbersService.releaseNumber(dto, user);
     return { data: result };
   }
 

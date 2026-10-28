@@ -276,6 +276,7 @@ model User {
 
   ownedOrganizations      BusinessOrganization[] @relation("OrganizationOwner")
   organizationMemberships OrganizationMember[]
+  reservedPhoneNumbers    PhoneNumber[]          @relation("NumberReserver")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -402,8 +403,13 @@ model PhoneNumber {
   status        PhoneNumberStatus @default(AVAILABLE)
   reservedUntil DateTime?
 
+  // Which customer currently holds this number during checkout.
+  reservedByUserId String?
+
   organizationId String?
   organization   BusinessOrganization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  reservedBy User? @relation("NumberReserver", fields: [reservedByUserId], references: [id], onDelete: SetNull)
 
   sim    Sim?
   orders Order[]
