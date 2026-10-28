@@ -7,6 +7,8 @@ export type NavItem = {
   icon: typeof Users;
   /** Show only to SUPER_ADMIN users. Omit for items every user can see. */
   adminOnly?: boolean;
+  /** Hide from SUPER_ADMIN users (customer-only actions such as buying). */
+  customerOnly?: boolean;
 };
 
 /**
@@ -20,7 +22,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/orders", label: "Order History", icon: ShoppingBag },
   { href: "/payments", label: "Payment History", icon: CreditCard },
   { href: "/sims", label: "SIMs", icon: Smartphone, adminOnly: true },
-  { href: "/tv", label: "Zylo TV", icon: Tv },
-  { href: "/tv/my", label: "My TV", icon: MonitorPlay },
+  { href: "/tv", label: "Zylo TV", icon: Tv, customerOnly: true },
+  { href: "/tv/my", label: "My TV", icon: MonitorPlay, customerOnly: true },
   { href: "/tv-admin", label: "TV Console", icon: Radio, adminOnly: true },
 ];

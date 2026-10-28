@@ -3,6 +3,7 @@ import { AuthGuard } from '../auth/auth.guard.js';
 import { RequirePasswordChangedGuard } from '../auth/require-password-changed.guard.js';
 import { CurrentUser } from '../auth/current-user.decorator.js';
 import type { UserModel } from '../generated/prisma/models.js';
+import { CustomerOnlyGuard } from './customer-only.guard.js';
 import { TvCustomerService } from './tv-customer.service.js';
 import { TvCheckoutService } from './tv-checkout.service.js';
 import {
@@ -35,6 +36,7 @@ export class TvController {
   }
 
   @Post('checkout')
+  @UseGuards(CustomerOnlyGuard)
   async doCheckout(@Body() dto: TvCheckoutDto, @CurrentUser() user: UserModel, @Headers('origin') origin?: string) {
     return { data: await this.checkout.checkout(user, dto, origin) };
   }
@@ -46,6 +48,7 @@ export class TvController {
   }
 
   @Post('orders/:id/pay')
+  @UseGuards(CustomerOnlyGuard)
   async payOrder(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: UserModel, @Headers('origin') origin?: string) {
     return { data: await this.checkout.retryPayment(user, id, origin) };
   }
@@ -66,11 +69,13 @@ export class TvController {
   }
 
   @Post('connections/:id/renew')
+  @UseGuards(CustomerOnlyGuard)
   async renew(@Param('id', ParseUUIDPipe) id: string, @Body() dto: RenewDto, @CurrentUser() user: UserModel, @Headers('origin') origin?: string) {
     return { data: await this.checkout.renew(user, id, dto, origin) };
   }
 
   @Post('connections/:id/add-on')
+  @UseGuards(CustomerOnlyGuard)
   async addOn(@Param('id', ParseUUIDPipe) id: string, @Body() dto: AddOnDto, @CurrentUser() user: UserModel, @Headers('origin') origin?: string) {
     return { data: await this.checkout.addOn(user, id, dto, origin) };
   }
