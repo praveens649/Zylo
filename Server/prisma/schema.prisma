@@ -200,8 +200,11 @@ enum DataLoanTransactionType {
 enum QuestMetric {
   DATA_BANK_SAVED_MB
   DATA_TRANSFERRED_MB
+  DATA_BANK_REDEEMED_MB
   DAILY_CHECK_IN
   QUESTS_COMPLETED
+  PLAN_RECHARGED
+  STREAK_DAYS
 }
 
 enum QuestFrequency {
@@ -220,6 +223,28 @@ enum QuestStatus {
 enum QuestRewardType {
   DATA_BANK_MB
   RECHARGE_DISCOUNT
+  XP_ONLY
+}
+
+enum XpSource {
+  QUEST
+  ACHIEVEMENT
+  STREAK
+  BONUS
+  ADMIN
+}
+
+enum RewardType {
+  DATA_MB
+  BADGE
+  TITLE
+  COUPON
+}
+
+enum RewardRedemptionStatus {
+  PENDING
+  SUCCESS
+  FAILED
 }
 
 enum TravelEsimOrderStatus {
@@ -270,6 +295,10 @@ model User {
   notifications        Notification[]
   dataLoans            DataLoan[]
   userQuests           UserQuest[]
+  gameProfile          UserGameProfile?
+  userAchievements     UserAchievement[]
+  xpLedgerEntries      XpLedger[]
+  rewardRedemptions    RewardRedemption[]
   travelEsimOrders     TravelEsimOrder[]
   setTopBoxConnections SetTopBoxConnection[]
   kyc                  KycVerification?
@@ -925,8 +954,26 @@ model UsageSimulation {
 }
 
 // ======================================================
-// ZYLO QUESTS
+// ZYLO DATA QUEST & GAMIFICATION
 // ======================================================
+
+model UserGameProfile {
+  id             String    @id @default(uuid())
+  userId         String    @unique
+  level          Int       @default(1)
+  totalXp        Int       @default(0)
+  currentXp      Int       @default(0)
+  streakDays     Int       @default(0)
+  lastActiveDate DateTime? @db.Date
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([level])
+  @@index([totalXp])
+}
 
 model Quest {
   id          String         @id @default(uuid())
@@ -935,8 +982,9 @@ model Quest {
   metric      QuestMetric
   frequency   QuestFrequency @default(DAILY)
   targetValue Int
+  xpReward    Int            @default(100)
 
-  rewardType          QuestRewardType
+  rewardType          QuestRewardType @default(XP_ONLY)
   rewardAmountMb      Int?
   rewardDiscountPaise Int?
 
@@ -995,6 +1043,92 @@ model RewardCoupon {
   createdAt DateTime @default(now())
 
   @@index([userId, expiresAt])
+}
+
+model Achievement {
+  id             String   @id @default(uuid())
+  name           String   @unique
+  description    String
+  iconUrl        String?
+  badgeTier      String   @default("BRONZE")
+  conditionType  String
+  conditionValue Int
+  xpReward       Int      @default(50)
+  isHidden       Boolean  @default(false)
+  isActive       Boolean  @default(true)
+
+  userAchievements UserAchievement[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([conditionType, conditionValue])
+  @@index([isActive])
+}
+
+model UserAchievement {
+  id            String   @id @default(uuid())
+  userId        String
+  achievementId String
+  unlockedAt    DateTime @default(now())
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, achievementId])
+  @@index([userId, unlockedAt])
+}
+
+model XpLedger {
+  id          String   @id @default(uuid())
+  userId      String
+  source      XpSource
+  sourceId    String?
+  xpAmount    Int
+  description String
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([source, sourceId])
+}
+
+model RewardCatalog {
+  id            String     @id @default(uuid())
+  name          String     @unique
+  description   String?
+  type          RewardType
+  valueMb       Int?
+  requiredXp    Int        @default(0)
+  requiredLevel Int        @default(1)
+  isActive      Boolean    @default(true)
+
+  redemptions RewardRedemption[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, requiredLevel])
+}
+
+model RewardRedemption {
+  id         String                 @id @default(uuid())
+  userId     String
+  rewardId   String
+  status     RewardRedemptionStatus @default(PENDING)
+  reference  String                 @unique @default(uuid())
+  redeemedAt DateTime               @default(now())
+
+  user   User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reward RewardCatalog @relation(fields: [rewardId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, status])
 }
 
 // ======================================================

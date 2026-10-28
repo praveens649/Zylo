@@ -19,7 +19,9 @@ import { RechargeModule } from './recharge/recharge.module.js';
 import { NumbersModule } from './numbers/numbers.module.js';
 import { OnboardingModule } from './onboarding/onboarding.module.js';
 import { UsageSimulationModule } from './usage-simulation/usage-simulation.module.js';
+import { ScheduleModule } from '@nestjs/schedule';
 import { DataBankModule } from './data-bank/data-bank.module.js';
+import { DataQuestModule } from './data-quest/data-quest.module.js';
 import { ApiExceptionFilter } from './common/api-exception.filter.js';
 import { EnvelopeInterceptor } from './common/envelope.interceptor.js';
 
@@ -29,6 +31,7 @@ import { EnvelopeInterceptor } from './common/envelope.interceptor.js';
       isGlobal: true,
       envFilePath: ['.env.local', '.env'],
     }),
+    ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([
       {
         name: 'default',
@@ -53,6 +56,7 @@ import { EnvelopeInterceptor } from './common/envelope.interceptor.js';
     OnboardingModule,
     UsageSimulationModule,
     DataBankModule,
+    DataQuestModule,
   ],
   controllers: [AppController],
   providers: [

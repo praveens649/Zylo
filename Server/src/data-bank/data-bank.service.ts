@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ApiException } from '../common/api-error.js';
 import type { PlanModel } from '../generated/prisma/models.js';
+import { QuestRulesEngine } from '../data-quest/quest-rules.engine.js';
 
 /** Business timezone for determining the daily cycle boundary. */
 const TIME_ZONE = 'Asia/Kolkata';
@@ -14,7 +15,10 @@ const DEFAULT_ROLLOVER_EXPIRY_DAYS = 90;
 export class DataBankService {
   private readonly logger = new Logger(DataBankService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly questEngine: QuestRulesEngine,
+  ) {}
 
   // -----------------------------------------------------------------------
   // Internal helpers
@@ -181,7 +185,7 @@ export class DataBankService {
       );
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       // Today's usage record — create an unused (0 MB) one so the save can
       // still happen on days the customer never ran the simulation.
       const daily = await tx.dailyDataUsage.upsert({
@@ -260,6 +264,20 @@ export class DataBankService {
         expiresAt: transaction.expiresAt,
       };
     });
+
+    // Asynchronously trigger verified quest event
+    this.questEngine
+      .processVerifiedEvent({
+        type: 'DATA_SAVED',
+        userId,
+        amount: result.savedMb,
+        reference: result.reference,
+      })
+      .catch((err) =>
+        this.logger.error(`Quest processing error on DATA_SAVED: ${err.message}`),
+      );
+
+    return result;
   }
 
   /**
@@ -281,7 +299,7 @@ export class DataBankService {
       );
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const account = await tx.dataBankAccount.findUnique({
         where: { simId },
       });
@@ -348,5 +366,19 @@ export class DataBankService {
         reference: transaction.reference,
       };
     });
+
+    // Asynchronously trigger verified quest event
+    this.questEngine
+      .processVerifiedEvent({
+        type: 'DATA_REDEEMED',
+        userId,
+        amount: result.redeemedMb,
+        reference: result.reference,
+      })
+      .catch((err) =>
+        this.logger.error(`Quest processing error on DATA_REDEEMED: ${err.message}`),
+      );
+
+    return result;
   }
 }
