@@ -8,10 +8,12 @@ import NotFoundPage from "@/app/not-found";
 
 import DashboardLayout from "@/app/(mainapp)/layout";
 import UsersPage from "@/app/(mainapp)/users/page";
+import SimsPage from "@/app/(mainapp)/sims/page";
 import EditUserPage from "@/app/(mainapp)/users/[userId]/edit/page";
 import OrdersPage from "@/app/(mainapp)/orders/page";
 import PaymentsPage from "@/app/(mainapp)/payments/page";
 import PlansPage from "@/app/(mainapp)/plans/page";
+import ProfilePage from "@/app/(mainapp)/profile/page";
 
 export default function App() {
   return (
@@ -26,9 +28,11 @@ export default function App() {
           <Route element={<DashboardLayout />}>
             <Route path="/plans" element={<PlansPage />} />
             <Route path="/users" element={<UsersPage />} />
+            <Route path="/sims" element={<SimsPage />} />
             <Route path="/users/:userId/edit" element={<EditUserPage />} />
             <Route path="/orders" element={<OrdersPage />} />
             <Route path="/payments" element={<PaymentsPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
           </Route>
 
           {/* Catch-all 404 */}

@@ -12,6 +12,13 @@ export interface AuthUser {
   image?: string;
   mustChangePassword: boolean;
   isActive: boolean;
+  createdAt?: string;
+}
+
+/** Fields a user may update on their own account via PATCH /auth/me. */
+export interface UpdateProfileInput {
+  name?: string;
+  image?: string;
 }
 
 /** Display label for the fixed role set. */
@@ -56,6 +63,20 @@ export const authApi = {
   signOut: () => api.post<{ message: string }>("/api/v1/auth/logout"),
 
   me: () => api.get<{ user: AuthUser }>("/api/v1/auth/me"),
+
+  /** Self-service profile update (name / avatar only). */
+  updateProfile: (input: UpdateProfileInput) =>
+    api.patch<{ user: AuthUser }>("/api/v1/auth/me", input),
+
+  /** Authenticated avatar upload for the profile page. */
+  uploadProfileAvatar: (file: File) => {
+    const formData = new FormData();
+    formData.append("avatar", file);
+    return api.postFormData<{ url: string; filename: string }>(
+      "/api/v1/auth/me/avatar",
+      formData
+    );
+  },
 
   changePassword: (currentPassword: string, newPassword: string) =>
     api.patch<{ message: string; token: string }>(

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Crown, UserCog } from "lucide-react";
 
 import { AuthUser, getRoleLabel } from "@/api/auth.api";
@@ -25,23 +26,27 @@ export function SidebarUserFooter({ user: initialUser }: { user: AuthUser }) {
 
   return (
     <SidebarFooter className="mt-auto border-t border-sidebar-border/60 px-3 py-3 group-data-[collapsible=icon]:p-2">
-      <div
-        title={user.name}
-        className="mb-2 flex items-center gap-3 rounded-lg border border-sidebar-border/50 bg-sidebar-accent/50 p-2.5 group-data-[collapsible=icon]:border-transparent group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:p-1.5 group-data-[collapsible=icon]:justify-center"
+      <Link
+        href="/profile"
+        title={`${user.name} — view profile`}
+        className="mb-2 flex items-center gap-3 rounded-lg border border-sidebar-border/50 bg-sidebar-accent/50 p-2.5 transition-colors hover:bg-sidebar-accent group-data-[collapsible=icon]:border-transparent group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:p-1.5 group-data-[collapsible=icon]:justify-center"
       >
         {imageUrl ? (
-
-          <img
-            src={imageUrl}
-            alt={user.name}
+          <div
             title={user.name}
-            className="h-9 w-9 shrink-0 rounded-lg border border-sidebar-primary/40 object-cover"
-            onError={() => setImgFailed(true)}
-          />
+            className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full border border-sidebar-primary/40"
+          >
+            <img
+              src={imageUrl}
+              alt={user.name}
+              className="h-full w-full object-cover"
+              onError={() => setImgFailed(true)}
+            />
+          </div>
         ) : (
           <div
             title={user.name}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary/20 text-sm font-bold text-sidebar-primary"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sidebar-primary/20 text-sm font-bold text-sidebar-primary"
           >
             {initials(user.name)}
           </div>
@@ -54,8 +59,8 @@ export function SidebarUserFooter({ user: initialUser }: { user: AuthUser }) {
             {user.email}
           </p>
         </div>
-      </div>
-      <div className="flex items-center gap-2 group-data-[collapsible=icon]:flex-col">
+      </Link>
+      <div className="flex items-center gap-2 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:items-center">
         <Badge
           className={
             isSuper
