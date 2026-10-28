@@ -48,6 +48,16 @@ export class CreatePlanDto {
   @Min(0)
   dataAllowanceGb?: number;
 
+  /**
+   * Optional explicit override. When omitted, it is derived automatically:
+   * dataAllowanceGb × 1024 for non-postpaid, non-validity-only plans.
+   */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  dailyDataAllowanceMb?: number;
+
   @IsOptional()
   @Transform(trim)
   @IsString()
@@ -140,6 +150,16 @@ export class UpdatePlanDto {
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   dataAllowanceGb?: number | null;
+
+  /**
+   * Optional explicit override (null clears it). When omitted while
+   * dataAllowanceGb/type/isValidityOnly change, it is re-derived.
+   */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  dailyDataAllowanceMb?: number | null;
 
   @IsOptional()
   @Transform(trim)

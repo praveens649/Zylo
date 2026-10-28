@@ -181,6 +181,28 @@ async function main() {
   }
 
   console.log(`Done! Seeded ${created} plans, backfilled ${updated}.`);
+
+  // Second pass: derive dailyDataAllowanceMb on ANY plan still missing it —
+  // covers plans created through the admin UI before this field existed.
+  // Same rule as the server: dataAllowanceGb × 1024 for per-day plans;
+  // POSTPAID pools and validity-only packs stay null.
+  const missing = await prisma.plan.findMany({
+    where: { dailyDataAllowanceMb: null },
+  });
+  let derived = 0;
+  for (const plan of missing) {
+    if (plan.type === 'POSTPAID' || plan.isValidityOnly) continue;
+    const gb = plan.dataAllowanceGb ? Number(plan.dataAllowanceGb) : null;
+    if (gb == null || gb <= 0) continue;
+    const mb = Math.round(gb * 1024);
+    await prisma.plan.update({
+      where: { id: plan.id },
+      data: { dailyDataAllowanceMb: mb },
+    });
+    console.log(`~ Derived dailyDataAllowanceMb=${mb} (${gb} GB/day): ${plan.name}`);
+    derived++;
+  }
+  console.log(`Derived dailyDataAllowanceMb on ${derived} existing plans.`);
 }
 
 main()

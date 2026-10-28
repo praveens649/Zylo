@@ -128,7 +128,11 @@ export function PlanDetailsSheet({
               <p className="mt-2 text-base font-bold text-foreground">
                 {plan.dataAllowanceGb ? `${plan.dataAllowanceGb} GB / day` : "None"}
               </p>
-              <p className="text-[11px] text-muted-foreground">High-speed 4G/5G</p>
+              <p className="text-[11px] text-muted-foreground">
+                {plan.dailyDataAllowanceMb
+                  ? `Daily sim pool: ${plan.dailyDataAllowanceMb} MB`
+                  : "No daily sim pool"}
+              </p>
             </div>
 
             <div className="rounded-xl border border-border/60 bg-muted/20 p-3">
