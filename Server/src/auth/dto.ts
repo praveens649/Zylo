@@ -20,12 +20,11 @@ export class LoginDto {
 }
 
 export class RegisterDto {
+  @IsOptional()
   @Transform(trim)
   @IsString()
-  @IsNotEmpty()
-  @MinLength(2)
   @MaxLength(80)
-  name!: string;
+  name?: string;
 
   @Transform(normalizeEmail)
   @IsEmail()
