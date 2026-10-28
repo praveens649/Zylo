@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import Stripe from 'stripe';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ApiException } from '../common/api-error.js';
+import { RechargeService } from '../recharge/recharge.service.js';
 import type { SubscriptionStatus } from '../generated/prisma/enums.js';
 import type { UserModel } from '../generated/prisma/models.js';
 import { TvFulfilmentService } from '../set-top-box/tv-fulfilment.service.js';
@@ -78,6 +79,7 @@ export class StripeService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly tvFulfilment: TvFulfilmentService,
+    private readonly rechargeService: RechargeService,
   ) {}
 
   // -----------------------------------------------------------------------
@@ -422,24 +424,30 @@ export class StripeService {
           },
         });
       }
-      return;
+    } else {
+      if (payment.status !== 'SUCCEEDED') {
+        await this.prisma.payment.update({
+          where: { id: payment.id },
+          data: {
+            status: 'SUCCEEDED',
+            paidAt: new Date(),
+            stripePaymentIntentId: idOf(session.payment_intent),
+          },
+        });
+      }
+
+      // Zylo TV orders: idempotent, so a redelivered webhook (or a retry after a
+      // failure below) is safe. Runs even when the payment was already marked paid.
+      if (payment.orderId && session.payment_status === 'paid') {
+        await this.tvFulfilment.onOrderPaid(payment.orderId);
+      }
     }
 
-    if (payment.status !== 'SUCCEEDED') {
-      await this.prisma.payment.update({
-        where: { id: payment.id },
-        data: {
-          status: 'SUCCEEDED',
-          paidAt: new Date(),
-          stripePaymentIntentId: idOf(session.payment_intent),
-        },
-      });
-    }
-
-    // Zylo TV orders: idempotent, so a redelivered webhook (or a retry after a
-    // failure below) is safe. Runs even when the payment was already marked paid.
-    if (payment.orderId && session.payment_status === 'paid') {
-      await this.tvFulfilment.onOrderPaid(payment.orderId);
+    // Recharge checkouts create/queue the plan subscription only after
+    // payment is confirmed (idempotent — safe to call from both the
+    // webhook and the session-verify fallback).
+    if (session.metadata?.type === 'recharge') {
+      await this.rechargeService.fulfillFromCheckoutSession(session);
     }
   }
 

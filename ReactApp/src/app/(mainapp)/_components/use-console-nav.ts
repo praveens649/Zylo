@@ -16,7 +16,8 @@ export function useConsoleNav(user: AuthUser | null): NavItem[] {
   return useMemo(
     () =>
       NAV_ITEMS.filter(
-        (item) => (!item.adminOnly || admin) && (!item.customerOnly || !admin)
+        (item) =>
+          (!item.adminOnly || admin) && (!item.customerOnly || !admin)
       ),
     [admin]
   );

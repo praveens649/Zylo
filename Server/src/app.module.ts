@@ -15,6 +15,7 @@ import { PaymentsModule } from './payments/payments.module.js';
 import { StripeModule } from './stripe/stripe.module.js';
 import { PlansModule } from './plans/plans.module.js';
 import { SetTopBoxModule } from './set-top-box/set-top-box.module.js';
+import { RechargeModule } from './recharge/recharge.module.js';
 import { NumbersModule } from './numbers/numbers.module.js';
 import { OnboardingModule } from './onboarding/onboarding.module.js';
 import { ApiExceptionFilter } from './common/api-exception.filter.js';
@@ -45,6 +46,7 @@ import { EnvelopeInterceptor } from './common/envelope.interceptor.js';
     StripeModule,
     PlansModule,
     SetTopBoxModule,
+    RechargeModule,
     NumbersModule,
     OnboardingModule,
   ],
