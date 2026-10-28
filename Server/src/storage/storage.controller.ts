@@ -5,12 +5,15 @@ import {
   Post,
   Res,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { StorageService } from './storage.service.js';
 import { avatarMulterOptions } from '../common/avatar-upload.js';
+import { documentMulterOptions } from '../common/document-upload.js';
+import { AuthGuard } from '../auth/auth.guard.js';
 import { Throttle } from '@nestjs/throttler';
 
 @Controller('storage')
@@ -43,6 +46,18 @@ export class StorageController {
   @Throttle({ default: { limit: 20, ttl: 900_000 } })
   @UseInterceptors(FileInterceptor('file', avatarMulterOptions))
   async uploadFile(@UploadedFile() file?: Express.Multer.File) {
+    const saved = await this.storageService.saveFile(file!);
+    return { data: saved };
+  }
+
+  /**
+   * Authenticated upload for business verification documents (PDF/images).
+   */
+  @Post('upload-document')
+  @UseGuards(AuthGuard)
+  @Throttle({ default: { limit: 10, ttl: 900_000 } })
+  @UseInterceptors(FileInterceptor('file', documentMulterOptions))
+  async uploadDocument(@UploadedFile() file?: Express.Multer.File) {
     const saved = await this.storageService.saveFile(file!);
     return { data: saved };
   }

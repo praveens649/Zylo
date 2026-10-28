@@ -11,6 +11,7 @@ export interface ActivationData {
   simTechnology: string;
   orderId: string;
   dataBankBalanceMb: number;
+  organizationName?: string | null;
 }
 
 interface ActivationSuccessProps {
@@ -32,7 +33,9 @@ export function ActivationSuccess({
         Welcome to the Zylo Network!
       </h2>
       <p className="mt-2 text-muted-foreground max-w-md mx-auto text-sm">
-        Your new Personal SIM line has been verified and activated with all benefits provisioned.
+        {data.organizationName
+          ? `Your new Business SIM line for ${data.organizationName} has been verified and activated with all benefits provisioned.`
+          : "Your new Personal SIM line has been verified and activated with all benefits provisioned."}
       </p>
 
       <div className="my-8 grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-2xl mx-auto text-left">

@@ -10,7 +10,11 @@ import { AuthGuard } from '../auth/auth.guard.js';
 import { CurrentUser } from '../auth/current-user.decorator.js';
 import type { UserWithRole } from '../auth/auth.service.js';
 import { OnboardingService } from './onboarding.service.js';
-import { CompleteOnboardingDto, SubmitKycDto } from './dto.js';
+import {
+  CompleteOnboardingDto,
+  RegisterBusinessDto,
+  SubmitKycDto,
+} from './dto.js';
 
 @Controller('onboarding')
 @UseGuards(AuthGuard)
@@ -44,6 +48,28 @@ export class OnboardingController {
   @Get('starter-plans')
   async getStarterPlans() {
     const data = await this.onboarding.getStarterPlans();
+    return { data };
+  }
+
+  /**
+   * Business onboarding — register & verify the organization, activate its
+   * 4-digit number prefix, and stock the first batch of corporate numbers.
+   */
+  @Post('business')
+  async registerBusiness(
+    @CurrentUser() user: UserWithRole,
+    @Body() dto: RegisterBusinessDto,
+  ) {
+    const data = await this.onboarding.registerBusiness(user.id, dto);
+    return { data };
+  }
+
+  /**
+   * Business-only plans available during business SIM onboarding.
+   */
+  @Get('business-plans')
+  async getBusinessPlans() {
+    const data = await this.onboarding.getBusinessPlans();
     return { data };
   }
 
