@@ -72,32 +72,54 @@ export function StepSimType({
         </div>
 
         {/* Business SIM Card */}
-        <div className="opacity-75 rounded-2xl border border-dashed border-border bg-card/60 p-6 relative">
+        <div
+          onClick={() => setSimCategory("BUSINESS")}
+          className={`cursor-pointer rounded-2xl border p-6 transition-all relative ${
+            simCategory === "BUSINESS"
+              ? "border-primary bg-primary/5 ring-2 ring-primary/20 shadow-md"
+              : "border-border bg-card hover:border-muted-foreground/40"
+          }`}
+        >
           <div className="flex items-start justify-between">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
               <Globe className="h-6 w-6" />
             </div>
-            <Badge variant="outline" className="text-muted-foreground">
-              Enterprise
-            </Badge>
+            {simCategory === "BUSINESS" ? (
+              <Badge className="bg-primary text-primary-foreground">Selected</Badge>
+            ) : (
+              <Badge variant="outline" className="text-muted-foreground">
+                Enterprise
+              </Badge>
+            )}
           </div>
 
           <h3 className="text-lg font-bold text-foreground mt-4">Business SIM</h3>
           <p className="text-xs text-muted-foreground mt-1">
-            For registered organizations. Requires GST/Business certificate verification and 4-digit prefix.
+            For registered organizations. Requires GST/business details and a dedicated 4-digit corporate prefix.
           </p>
 
-          <div className="mt-4 pt-4 border-t border-border/70 text-xs text-muted-foreground">
-            <span className="italic">
-              We are currently onboarding Personal SIM lines. Business SIM onboarding available in the Business portal.
-            </span>
+          <div className="mt-4 pt-4 border-t border-border/70 space-y-2 text-xs text-muted-foreground">
+            <div className="flex items-center gap-2 text-foreground font-medium">
+              <Check className="h-4 w-4 text-emerald-500" />
+              <span>Corporate prefix numbers for your team</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Database className="h-4 w-4 text-primary" />
+              <span>Business-only plans with bigger data pools</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-amber-500" />
+              <span>Organization-linked SIM management</span>
+            </div>
           </div>
         </div>
       </div>
 
       <div className="flex justify-end pt-4">
         <Button size="lg" className="font-semibold px-6" onClick={onNext}>
-          Proceed to KYC Verification
+          {simCategory === "BUSINESS"
+            ? "Proceed to Business Verification"
+            : "Proceed to KYC Verification"}
           <ChevronRight className="h-4 w-4 ml-2" />
         </Button>
       </div>

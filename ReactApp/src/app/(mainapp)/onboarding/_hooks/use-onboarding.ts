@@ -7,7 +7,10 @@ import {
   onboardingApi,
   ONBOARDING_STATUS_KEY,
   STARTER_PLANS_KEY,
+  BUSINESS_PLANS_KEY,
   SubmitKycPayload,
+  RegisterBusinessPayload,
+  BusinessOrganization,
 } from "@/api/onboarding.api";
 import {
   numbersApi,
@@ -22,6 +25,7 @@ import {
   completeOnboardingAction,
   reserveNumberAction,
   generateNumbersAction,
+  registerBusinessAction,
 } from "../_actions/onboarding.actions";
 import { OnboardingStep } from "../_components/onboarding-stepper";
 import { ActivationData } from "../_components/activation-success";
@@ -44,7 +48,13 @@ export function useAvailableNumbers(
   enabled = true
 ) {
   return useQuery({
-    queryKey: [NUMBERS_AVAILABLE_KEY, params.search, params.type, params.category],
+    queryKey: [
+      NUMBERS_AVAILABLE_KEY,
+      params.search,
+      params.type,
+      params.category,
+      params.organizationId,
+    ],
     queryFn: () => numbersApi.getAvailable(params),
     enabled,
   });
@@ -62,6 +72,17 @@ export function useStarterPlans(enabled = true) {
 }
 
 /**
+ * Hook to fetch business-only plans for Business SIM onboarding.
+ */
+export function useBusinessPlans(enabled = true) {
+  return useQuery({
+    queryKey: BUSINESS_PLANS_KEY,
+    queryFn: onboardingApi.getBusinessPlans,
+    enabled,
+  });
+}
+
+/**
  * Master hook orchestrating the 5-step customer onboarding lifecycle,
  * state persistence, KYC verification, number reservation, and atomic Stripe activation.
  */
@@ -73,6 +94,11 @@ export function useOnboarding() {
 
   // Step 1: SIM Category
   const [simCategory, setSimCategory] = useState<"PERSONAL" | "BUSINESS">("PERSONAL");
+  const isBusiness = simCategory === "BUSINESS";
+
+  // Step 2 (business): registered organization — from status (resume) or the
+  // register mutation response.
+  const [registeredOrg, setRegisteredOrg] = useState<BusinessOrganization | null>(null);
 
   // Step 3: Number Selection State
   const [selectedNumber, setSelectedNumber] = useState<PhoneNumber | null>(null);
@@ -97,25 +123,34 @@ export function useOnboarding() {
     }
   }, [statusData?.isComplete, isActivated, navigate]);
 
-  // Fetch Available Numbers for Step 3
+  const organization = registeredOrg ?? statusData?.organization ?? null;
+
+  // Fetch Available Numbers for Step 3 — business uses the org prefix pool.
   const {
     data: numbersData,
     isLoading: isNumbersLoading,
     refetch: refetchNumbers,
   } = useAvailableNumbers(
     {
-      category: "PERSONAL",
+      category: simCategory,
       type: numberFilter === "ALL" ? undefined : numberFilter,
       search: numberSearch.trim() || undefined,
+      organizationId: isBusiness ? organization?.id : undefined,
       limit: 20,
     },
-    currentStep === 3
+    currentStep === 3 && (!isBusiness || !!organization)
   );
 
-  // Fetch Starter Plans for Step 4 & 5
-  const { data: plansData, isLoading: isPlansLoading } = useStarterPlans(
-    currentStep === 4 || currentStep === 5
-  );
+  // Fetch Plans for Step 4 & 5 — business-only plans for Business SIMs.
+  const { data: personalPlans, isLoading: isPersonalPlansLoading } =
+    useStarterPlans((currentStep === 4 || currentStep === 5) && !isBusiness);
+  const { data: businessPlans, isLoading: isBusinessPlansLoading } =
+    useBusinessPlans((currentStep === 4 || currentStep === 5) && isBusiness);
+
+  const plansData = isBusiness ? businessPlans : personalPlans;
+  const isPlansLoading = isBusiness
+    ? isBusinessPlansLoading
+    : isPersonalPlansLoading;
 
   // Derived active selected plan
   const selectedPlan =
@@ -146,6 +181,29 @@ export function useOnboarding() {
     },
   });
 
+  // Mutation: Register & verify business organization (business step 2)
+  const registerBusinessMutation = useMutation({
+    mutationFn: (payload: RegisterBusinessPayload) =>
+      registerBusinessAction(payload),
+    onSuccess: (res) => {
+      setRegisteredOrg(res.organization);
+      queryClient.invalidateQueries({ queryKey: ONBOARDING_STATUS_KEY });
+      toast({
+        title: "Business Verified!",
+        description: `${res.organization.name} approved — prefix ${res.organization.numberPrefix} activated.`,
+      });
+      setCurrentStep(3);
+    },
+    onError: (err: any) => {
+      toast({
+        title: "Verification Failed",
+        description:
+          err?.message || "Could not verify the organization. Check the details.",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Mutation: Complete Onboarding Action
   const completeMutation = useMutation({
     mutationFn: () =>
@@ -154,6 +212,7 @@ export function useOnboarding() {
         simTechnology: "PHYSICAL",
         phoneNumberId: selectedNumber!.id,
         planId: selectedPlan!.id,
+        organizationId: isBusiness ? organization?.id : undefined,
       }),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ONBOARDING_STATUS_KEY });
@@ -222,12 +281,19 @@ export function useOnboarding() {
     // Step 1: SIM Type
     simCategory,
     setSimCategory,
+    isBusiness,
 
     // Step 2: KYC
     statusData,
     isStatusLoading,
     isSubmittingKyc: submitKycMutation.isPending,
     submitKyc: (payload: SubmitKycPayload) => submitKycMutation.mutate(payload),
+
+    // Step 2 (business): Organization registration
+    organization,
+    isSubmittingBusiness: registerBusinessMutation.isPending,
+    submitBusiness: (payload: RegisterBusinessPayload) =>
+      registerBusinessMutation.mutate(payload),
 
     // Step 3: Number Selection
     numbers: numbersData?.data || [],

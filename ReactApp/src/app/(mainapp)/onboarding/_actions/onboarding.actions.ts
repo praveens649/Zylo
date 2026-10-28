@@ -2,6 +2,7 @@ import {
   onboardingApi,
   SubmitKycPayload,
   CompleteOnboardingPayload,
+  RegisterBusinessPayload,
 } from "@/api/onboarding.api";
 import {
   numbersApi,
@@ -13,6 +14,14 @@ import {
  */
 export async function submitKycAction(payload: SubmitKycPayload) {
   return onboardingApi.submitKyc(payload);
+}
+
+/**
+ * Business onboarding — registers the organization and activates its
+ * 4-digit corporate number prefix.
+ */
+export async function registerBusinessAction(payload: RegisterBusinessPayload) {
+  return onboardingApi.registerBusiness(payload);
 }
 
 /**

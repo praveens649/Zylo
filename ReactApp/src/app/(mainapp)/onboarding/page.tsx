@@ -3,6 +3,7 @@ import { OnboardingHeader } from "./_components/onboarding-header";
 import { OnboardingStepper } from "./_components/onboarding-stepper";
 import { StepSimType } from "./_components/step-sim-type";
 import { StepKyc } from "./_components/step-kyc";
+import { StepBusinessDetails } from "./_components/step-business-details";
 import { StepNumberSelection } from "./_components/step-number-selection";
 import { StepStarterPlan } from "./_components/step-starter-plan";
 import { StepPaymentActivation } from "./_components/step-payment-activation";
@@ -16,10 +17,14 @@ export default function OnboardingPage() {
     goToDashboard,
     simCategory,
     setSimCategory,
+    isBusiness,
     statusData,
     isStatusLoading,
     isSubmittingKyc,
     submitKyc,
+    organization,
+    isSubmittingBusiness,
+    submitBusiness,
     numbers,
     isNumbersLoading,
     selectedNumber,
@@ -51,7 +56,11 @@ export default function OnboardingPage() {
     <div className="min-h-screen bg-background">
       <OnboardingHeader />
 
-      <OnboardingStepper currentStep={currentStep} isActivated={isActivated} />
+      <OnboardingStepper
+        currentStep={currentStep}
+        isActivated={isActivated}
+        simCategory={simCategory}
+      />
 
       <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
         {isActivated && activationResult ? (
@@ -70,20 +79,28 @@ export default function OnboardingPage() {
               />
             )}
 
-            {/* Step 2: KYC Verification */}
-            {currentStep === 2 && (
-              <StepKyc
-                initialFullName={statusData?.kyc?.fullName || ""}
-                initialAddress={statusData?.kyc?.address || ""}
-                initialCity={statusData?.kyc?.city || ""}
-                initialState={statusData?.kyc?.state || ""}
-                initialPostalCode={statusData?.kyc?.postalCode || ""}
-                initialDocumentType={statusData?.kyc?.documentType || "AADHAAR"}
-                isSubmitting={isSubmittingKyc}
-                onBack={() => setCurrentStep(1)}
-                onSubmit={submitKyc}
-              />
-            )}
+            {/* Step 2: KYC (personal) or Business verification (business) */}
+            {currentStep === 2 &&
+              (isBusiness ? (
+                <StepBusinessDetails
+                  existingOrg={organization}
+                  isSubmitting={isSubmittingBusiness}
+                  onBack={() => setCurrentStep(1)}
+                  onSubmit={submitBusiness}
+                />
+              ) : (
+                <StepKyc
+                  initialFullName={statusData?.kyc?.fullName || ""}
+                  initialAddress={statusData?.kyc?.address || ""}
+                  initialCity={statusData?.kyc?.city || ""}
+                  initialState={statusData?.kyc?.state || ""}
+                  initialPostalCode={statusData?.kyc?.postalCode || ""}
+                  initialDocumentType={statusData?.kyc?.documentType || "AADHAAR"}
+                  isSubmitting={isSubmittingKyc}
+                  onBack={() => setCurrentStep(1)}
+                  onSubmit={submitKyc}
+                />
+              ))}
 
             {/* Step 3: Number Selection */}
             {currentStep === 3 && (
@@ -99,6 +116,7 @@ export default function OnboardingPage() {
                 onSearchChange={setNumberSearch}
                 filter={numberFilter}
                 onFilterChange={setNumberFilter}
+                isBusiness={isBusiness}
               />
             )}
 
@@ -122,6 +140,8 @@ export default function OnboardingPage() {
                 isActivating={isActivating}
                 onBack={() => setCurrentStep(4)}
                 onActivate={activateSim}
+                simCategory={simCategory}
+                organizationName={organization?.name}
               />
             )}
           </>

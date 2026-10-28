@@ -10,6 +10,8 @@ interface StepPaymentActivationProps {
   isActivating: boolean;
   onBack: () => void;
   onActivate: () => void;
+  simCategory?: "PERSONAL" | "BUSINESS";
+  organizationName?: string | null;
 }
 
 export function StepPaymentActivation({
@@ -18,6 +20,8 @@ export function StepPaymentActivation({
   isActivating,
   onBack,
   onActivate,
+  simCategory = "PERSONAL",
+  organizationName,
 }: StepPaymentActivationProps) {
   const planPrice = Number(selectedPlan?.price || 0);
   const numberPrice = Number(selectedNumber?.price || 0);
@@ -43,9 +47,18 @@ export function StepPaymentActivation({
           <div className="flex justify-between py-2 border-b border-border/70">
             <span className="text-muted-foreground">SIM Category & Type</span>
             <span className="font-semibold text-foreground">
-              Personal (Physical SIM)
+              {simCategory === "BUSINESS" ? "Business" : "Personal"} (Physical SIM)
             </span>
           </div>
+
+          {simCategory === "BUSINESS" && organizationName && (
+            <div className="flex justify-between py-2 border-b border-border/70">
+              <span className="text-muted-foreground">Organization</span>
+              <span className="font-semibold text-foreground">
+                {organizationName}
+              </span>
+            </div>
+          )}
 
           <div className="flex justify-between py-2 border-b border-border/70">
             <span className="text-muted-foreground">Allocated Mobile Number</span>

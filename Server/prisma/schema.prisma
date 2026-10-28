@@ -290,7 +290,6 @@ model BusinessOrganization {
   businessType       String?
   registrationNumber String? @unique
   businessEmail      String
-  businessPhone      String
   address            String
   city               String
   state              String
@@ -303,6 +302,10 @@ model BusinessOrganization {
   status          OrganizationStatus @default(PENDING)
   rejectionReason String?
   verifiedAt      DateTime?
+
+  // Uploaded GST/business certificate used during verification.
+  verificationDocumentId String?
+  verificationDocument   StoredFile? @relation(fields: [verificationDocumentId], references: [id], onDelete: SetNull)
 
   ownerUserId String
   owner       User   @relation("OrganizationOwner", fields: [ownerUserId], references: [id], onDelete: Restrict)
@@ -1036,6 +1039,8 @@ model StoredFile {
   mimeType String
   size     Int
   data     Bytes
+
+  businessOrganizations BusinessOrganization[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

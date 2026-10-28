@@ -4,6 +4,7 @@ import { PhoneNumber } from "./numbers.api";
 
 export const ONBOARDING_STATUS_KEY = ["onboarding", "status"] as const;
 export const STARTER_PLANS_KEY = ["onboarding", "starter-plans"] as const;
+export const BUSINESS_PLANS_KEY = ["onboarding", "business-plans"] as const;
 
 export type KycDocumentType =
   | "AADHAAR"
@@ -48,6 +49,38 @@ export interface StarterPlan {
   transferLimitMb?: number | null;
 }
 
+export type OrganizationStatus =
+  | "PENDING"
+  | "APPROVED"
+  | "REJECTED"
+  | "SUSPENDED";
+
+export interface BusinessOrganization {
+  id: string;
+  name: string;
+  businessType?: string | null;
+  registrationNumber?: string | null;
+  businessEmail: string;
+  address: string;
+  city: string;
+  state: string;
+  postalCode?: string | null;
+  numberPrefix?: string | null;
+  verificationDocumentId?: string | null;
+  status: OrganizationStatus;
+  ownerUserId: string;
+  createdAt: string;
+}
+
+export interface OrganizationMembership {
+  id: string;
+  organizationId: string;
+  userId: string;
+  employeeId: string;
+  role: "OWNER" | "ADMIN" | "EMPLOYEE";
+  status: "PENDING" | "ACTIVE" | "REJECTED" | "SUSPENDED" | "REMOVED";
+}
+
 export interface OnboardingStatus {
   isComplete: boolean;
   currentStep: number;
@@ -60,6 +93,8 @@ export interface OnboardingStatus {
     technology: string;
     status: string;
   } | null;
+  organization: BusinessOrganization | null;
+  membership: OrganizationMembership | null;
 }
 
 export interface SubmitKycPayload {
@@ -73,11 +108,33 @@ export interface SubmitKycPayload {
   documentNumber: string;
 }
 
+export interface RegisterBusinessPayload {
+  name: string;
+  businessType?: string;
+  registrationNumber?: string;
+  businessEmail: string;
+  address: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  numberPrefix: string;
+  employeeId?: string;
+  verificationDocumentId?: string;
+}
+
+export interface RegisterBusinessResponse {
+  message: string;
+  organization: BusinessOrganization;
+  membership: OrganizationMembership | null;
+  numbersGenerated: number;
+}
+
 export interface CompleteOnboardingPayload {
   simCategory: "PERSONAL" | "BUSINESS";
   simTechnology: "PHYSICAL" | "ESIM";
   phoneNumberId: string;
   planId: string;
+  organizationId?: string;
 }
 
 export interface CompleteOnboardingResponse {
@@ -91,6 +148,7 @@ export interface CompleteOnboardingResponse {
     simTechnology: string;
     orderId: string;
     dataBankBalanceMb: number;
+    organizationName: string | null;
   };
 }
 
@@ -105,6 +163,15 @@ export const onboardingApi = {
 
   getStarterPlans: () =>
     api.get<StarterPlan[]>("/api/v1/onboarding/starter-plans"),
+
+  getBusinessPlans: () =>
+    api.get<StarterPlan[]>("/api/v1/onboarding/business-plans"),
+
+  registerBusiness: (payload: RegisterBusinessPayload) =>
+    api.post<RegisterBusinessResponse>(
+      "/api/v1/onboarding/business",
+      payload
+    ),
 
   complete: (payload: CompleteOnboardingPayload) =>
     api.post<CompleteOnboardingResponse>(

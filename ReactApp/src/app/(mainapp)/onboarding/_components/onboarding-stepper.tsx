@@ -2,23 +2,33 @@ import { Check } from "lucide-react";
 
 export type OnboardingStep = 1 | 2 | 3 | 4 | 5;
 
-const ONBOARDING_STEPS = [
-  { step: 1, title: "SIM Type", desc: "Category" },
-  { step: 2, title: "KYC Verification", desc: "Identity Check" },
-  { step: 3, title: "Choose Number", desc: "Pick Mobile Number" },
-  { step: 4, title: "Starter Plan", desc: "Select 5G Pack" },
-  { step: 5, title: "Activation", desc: "Stripe & Go Live" },
-] as const;
+function stepsFor(simCategory: "PERSONAL" | "BUSINESS") {
+  const business = simCategory === "BUSINESS";
+  return [
+    { step: 1, title: "SIM Type", desc: "Category" },
+    business
+      ? { step: 2, title: "Business Details", desc: "Verification" }
+      : { step: 2, title: "KYC Verification", desc: "Identity Check" },
+    { step: 3, title: "Choose Number", desc: "Pick Mobile Number" },
+    business
+      ? { step: 4, title: "Business Plan", desc: "Select Team Pack" }
+      : { step: 4, title: "Starter Plan", desc: "Select 5G Pack" },
+    { step: 5, title: "Activation", desc: "Stripe & Go Live" },
+  ];
+}
 
 interface OnboardingStepperProps {
   currentStep: OnboardingStep;
   isActivated: boolean;
+  simCategory: "PERSONAL" | "BUSINESS";
 }
 
 export function OnboardingStepper({
   currentStep,
   isActivated,
+  simCategory,
 }: OnboardingStepperProps) {
+  const ONBOARDING_STEPS = stepsFor(simCategory);
   return (
     <div className="border-b border-border bg-background/50 px-4 py-4 sm:px-8">
       <div className="mx-auto max-w-4xl">
