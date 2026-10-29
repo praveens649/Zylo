@@ -19,7 +19,6 @@ const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000; // fixed +05:30, no DST
  * settings, so every Data Bank–enabled plan shares these values.
  */
 export const LOAN_LIMIT_MB = 500;
-export const LOAN_MAX_PER_MONTH = 2;
 export const LOAN_DUE_DAYS = 7;
 export const LOAN_MIN_MB = 100;
 export const LOAN_STEP_MB = 50;

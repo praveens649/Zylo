@@ -9,13 +9,14 @@ simulated — no real network data is used.
 
 ### Rules
 
-- One open loan per SIM (`ACTIVE`, `PARTIALLY_REPAID` or `DUE`).
+- One open loan per SIM (`ACTIVE`, `PARTIALLY_REPAID` or `DUE`). No monthly
+  cap — once a loan is repaid, settled or cancelled, the SIM can borrow again.
 - A SIM needs an `ACTIVE` plan subscription with `dataBankEnabled = true`
   (plans that can save data are the ones that can repay a loan).
 - Limits are server-side constants in `Server/src/loans/loan-rules.ts`:
-  max **500 MB** per loan, **2** loans per calendar month (IST), due in **7** days.
-- Borrowed data is the loan record itself — it is *not* credited into the Data
-  Bank balance (otherwise repayment would immediately take it back).
+  max **500 MB** per loan, due in **7** days, amounts in 50 MB steps ≥ 100 MB.
+- Borrowed MB is merged into the day's `DailyDataUsage.allowanceMb` — it shows
+  and consumes as ordinary daily data. The `DataLoan` record tracks the debt.
 
 ### Setup
 

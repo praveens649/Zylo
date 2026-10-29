@@ -13,7 +13,7 @@ import { RequirePasswordChangedGuard } from '../auth/require-password-changed.gu
 import { CurrentUser } from '../auth/current-user.decorator.js';
 import type { UserModel } from '../generated/prisma/models.js';
 import { LoansService } from './loans.service.js';
-import { BorrowLoanDto } from './dto.js';
+import { BorrowLoanDto, RepayLoanDto } from './dto.js';
 
 /**
  * Zylo Data Loan — customer endpoints, always scoped to the caller's own SIMs.
@@ -59,5 +59,11 @@ export class LoansController {
     @CurrentUser() user: UserModel,
   ) {
     return { data: await this.loans.borrow(user, dto, idempotencyKey) };
+  }
+
+  /** "Repay now" — moves Data Bank balance into the open loan. */
+  @Post('repay')
+  async repay(@Body() dto: RepayLoanDto, @CurrentUser() user: UserModel) {
+    return { data: await this.loans.repayFromBankNow(dto.simId, user.id) };
   }
 }

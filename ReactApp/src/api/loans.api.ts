@@ -69,6 +69,13 @@ export interface LoanSummary {
   demoJobsEnabled: boolean;
 }
 
+export interface LoanRepayResult {
+  repaidMb: number;
+  outstandingMb: number;
+  bankBalanceMb: number;
+  status: DataLoanStatus;
+}
+
 export interface NightlyRunResult {
   asOf: string;
   scanned: number;
@@ -95,6 +102,10 @@ export const loansApi = {
       { simId, amountMb },
       { headers: { "Idempotency-Key": idempotencyKey } }
     ),
+
+  /** "Repay now" — drains Data Bank balance into the open loan (partial ok). */
+  repay: (simId: string) =>
+    api.post<LoanRepayResult>("/api/v1/loans/repay", { simId }),
 
   admin: {
     list: (params: {

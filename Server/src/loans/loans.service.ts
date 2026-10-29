@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ApiException } from '../common/api-error.js';
@@ -12,7 +13,6 @@ import {
   isUniqueViolation,
   LOAN_DUE_DAYS,
   LOAN_LIMIT_MB,
-  LOAN_MAX_PER_MONTH,
   LOAN_MIN_MB,
   LOAN_STEP_MB,
   loanRefs,
@@ -131,21 +131,9 @@ export class LoansService {
       };
     }
 
-    const monthCount = await db.dataLoan.count({
-      where: {
-        simId,
-        borrowedAt: { gte: istMonthStart(now) },
-        status: { not: 'CANCELLED' },
-      },
-    });
-    if (monthCount >= LOAN_MAX_PER_MONTH) {
-      return {
-        ok: false,
-        status: 409,
-        code: 'MONTHLY_LIMIT_REACHED',
-        message: `You can borrow at most ${LOAN_MAX_PER_MONTH} times a month on this number.`,
-      };
-    }
+    // No monthly cap — a SIM may borrow again as soon as the previous loan
+    // is repaid/settled/cancelled. The single open-loan rule above is the
+    // only frequency limit.
 
     return { ok: true, sim, plan };
   }
@@ -452,6 +440,113 @@ export class LoansService {
     );
 
     return { repaidMb, outstandingMb: outstanding };
+  }
+
+  // -----------------------------------------------------------------------
+  // Manual repay (POST /loans/repay) — drain the Data Bank into the open loan
+  // -----------------------------------------------------------------------
+
+  /**
+   * Customer-triggered "Repay now": moves min(bank balance, outstanding)
+   * from the SIM's Data Bank into the open loan — partial or full. Unlike
+   * the nightly sweep this works for any open loan, not only DUE ones.
+   * Each click is a distinct real repayment, so the references get a fresh
+   * uuid; the loan-row lock still serializes concurrent clicks.
+   */
+  async repayFromBankNow(simId: string, userId: string, now = new Date()) {
+    const sim = await this.prisma.sim.findFirst({
+      where: { id: simId, userId },
+    });
+    if (!sim) {
+      throw new ApiException(404, 'SIM_NOT_FOUND', 'SIM not found.');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const loan = await tx.dataLoan.findFirst({
+        where: { simId, status: { in: OPEN_LOAN_STATUSES } },
+      });
+      if (!loan) {
+        throw new ApiException(
+          409,
+          'NO_OPEN_LOAN',
+          'There is no open loan on this number.',
+        );
+      }
+      await tx.$queryRaw`SELECT id FROM "DataLoan" WHERE id = ${loan.id} FOR UPDATE`;
+
+      const account = await tx.dataBankAccount.findUnique({
+        where: { simId },
+      });
+      const repaidMb = Math.min(
+        account?.balanceMb ?? 0,
+        loan.outstandingAmountMb,
+      );
+      if (!account || repaidMb <= 0) {
+        return {
+          repaidMb: 0,
+          outstandingMb: loan.outstandingAmountMb,
+          bankBalanceMb: account?.balanceMb ?? 0,
+          status: loan.status,
+        };
+      }
+
+      const outstanding = loan.outstandingAmountMb - repaidMb;
+      const bankAfter = account.balanceMb - repaidMb;
+      const status =
+        outstanding === 0
+          ? 'REPAID'
+          : loan.dueAt && loan.dueAt < now
+            ? 'DUE'
+            : 'PARTIALLY_REPAID';
+
+      const bankTxn = await tx.dataBankTransaction.create({
+        data: {
+          dataBankId: account.id,
+          type: 'ADJUSTMENT',
+          amountMb: repaidMb,
+          balanceAfterMb: bankAfter,
+          description: 'Data Loan repayment',
+          reference: `bank-manual-repay:${loan.id}:${randomUUID()}`,
+        },
+      });
+      await tx.dataBankAccount.update({
+        where: { id: account.id },
+        data: { balanceMb: bankAfter },
+      });
+      await tx.dataLoanTransaction.create({
+        data: {
+          loanId: loan.id,
+          type: 'BANK_REPAYMENT',
+          amountMb: repaidMb,
+          balanceAfterMb: outstanding,
+          reference: loanRefs.bankRepay(loan.id, bankTxn.id),
+          description: 'Repaid from Data Bank',
+        },
+      });
+      await tx.dataLoan.update({
+        where: { id: loan.id },
+        data: {
+          outstandingAmountMb: outstanding,
+          status,
+          ...(status === 'REPAID' ? { repaidAt: now } : {}),
+        },
+      });
+      await notify(
+        tx,
+        loan.userId,
+        status === 'REPAID' ? 'Data Loan repaid' : 'Loan repayment applied',
+        status === 'REPAID'
+          ? `${repaidMb} MB repaid from your Data Bank — your Data Loan is fully settled.`
+          : `${repaidMb} MB repaid from your Data Bank. ${outstanding} MB remaining.`,
+      );
+
+      return {
+        repaidMb,
+        outstandingMb: outstanding,
+        bankBalanceMb: bankAfter,
+        status,
+      };
+    });
   }
 
   // -----------------------------------------------------------------------

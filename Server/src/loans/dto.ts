@@ -23,6 +23,11 @@ export class BorrowLoanDto {
   amountMb: number;
 }
 
+export class RepayLoanDto {
+  @IsUUID()
+  simId: string;
+}
+
 export class ListAdminLoansQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsEnum(DataLoanStatus)

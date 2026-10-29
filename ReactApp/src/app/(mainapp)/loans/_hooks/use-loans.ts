@@ -62,3 +62,22 @@ export function useBorrowLoan(simId: string | null | undefined) {
     },
   });
 }
+
+/**
+ * "Repay now" — pulls Data Bank balance into the open loan.
+ * Works for any open loan (ACTIVE/PARTIALLY_REPAID/DUE); repaidMb may be
+ * 0 when the bank is empty or the balance smaller than the outstanding.
+ */
+export function useRepayLoan(simId: string | null | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => loansApi.repay(simId!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: loanActiveKey(simId ?? "") });
+      queryClient.invalidateQueries({ queryKey: loanHistoryKey(simId ?? "") });
+      queryClient.invalidateQueries({
+        queryKey: dataBankStatusKey(simId ?? ""),
+      });
+    },
+  });
+}

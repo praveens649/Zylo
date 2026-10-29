@@ -6,6 +6,7 @@ import {
   CalendarClock,
   HandCoins,
   Loader2,
+  RefreshCw,
   Wallet,
 } from "lucide-react";
 
@@ -29,6 +30,7 @@ import {
   useActiveLoan,
   useBorrowLoan,
   useLoanEligibility,
+  useRepayLoan,
 } from "../_hooks/use-loans";
 
 function formatMb(mb: number): string {
@@ -58,7 +60,7 @@ const ERROR_HINTS: Record<string, string> = {
   NO_ACTIVE_PLAN: "Recharge this SIM first — loans need an active plan.",
   PLAN_NOT_ELIGIBLE: "Your plan doesn't include Zylo Data Loan.",
   OPEN_LOAN_EXISTS: "You already have an open loan on this number.",
-  MONTHLY_LIMIT_REACHED: "You've reached this month's borrow limit.",
+  NO_OPEN_LOAN: "There's no open loan on this number.",
   AMOUNT_INVALID: "Pick one of the suggested amounts.",
   AMOUNT_TOO_HIGH: "That amount is above your plan's borrow limit.",
   IDEMPOTENCY_KEY_REQUIRED: "Something went wrong — please try again.",
@@ -79,6 +81,7 @@ export function DataLoanCard({ simId }: DataLoanCardProps) {
   const eligibility = useLoanEligibility(simId);
   const activeLoan = useActiveLoan(simId);
   const borrow = useBorrowLoan(simId);
+  const repay = useRepayLoan(simId);
 
   const [amountMb, setAmountMb] = useState<number>(250);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -109,6 +112,33 @@ export function DataLoanCard({ simId }: DataLoanCardProps) {
       );
     }
     setConfirmOpen(true);
+  };
+
+  const handleRepay = () => {
+    repay.mutate(undefined, {
+      onSuccess: (r) => {
+        toast({
+          title: r.repaidMb ? "Repayment applied" : "Nothing to repay with",
+          description: r.repaidMb
+            ? `${formatMb(r.repaidMb)} moved from your Data Bank${
+                r.outstandingMb
+                  ? ` — ${formatMb(r.outstandingMb)} still left`
+                  : " — loan fully repaid"
+              }.`
+            : "Your Data Bank is empty. Save unused data or recharge to settle.",
+        });
+      },
+      onError: (err) => {
+        toast({
+          variant: "destructive",
+          title: "Couldn't repay",
+          description:
+            err instanceof ApiRequestError
+              ? (ERROR_HINTS[err.code] ?? err.message)
+              : "Please try again.",
+        });
+      },
+    });
   };
 
   const handleBorrow = () => {
@@ -204,6 +234,20 @@ export function DataLoanCard({ simId }: DataLoanCardProps) {
                   ? "This loan is due — repaid automatically from new Data Bank savings, or settled on your next recharge."
                   : "Repaid automatically when you save data into your Data Bank. Recharging also settles it."}
               </p>
+
+              <Button
+                variant="outline"
+                className="h-10 w-full gap-1.5 rounded-xl text-sm font-bold"
+                disabled={repay.isPending}
+                onClick={handleRepay}
+              >
+                {repay.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+                Repay now from Data Bank
+              </Button>
             </>
           ) : info?.eligible ? (
             /* ------------------------- eligible -------------------------- */

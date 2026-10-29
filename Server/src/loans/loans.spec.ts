@@ -138,13 +138,14 @@ describe('borrow', () => {
     });
   });
 
-  it('rejects a second open loan and loans past the monthly cap', async () => {
+  it('rejects a second open loan but allows borrowing once it is repaid', async () => {
     const withOpen = eligibleSeed({ dataLoan: [openLoan()] });
     await expect(borrow(new LoansService(withOpen))).rejects.toMatchObject({
       code: 'OPEN_LOAN_EXISTS',
     });
 
-    const capped = eligibleSeed({
+    // No monthly cap — resolved loans never block the next borrow.
+    const repaidHistory = eligibleSeed({
       dataLoan: [
         openLoan({
           id: 'old1',
@@ -154,15 +155,15 @@ describe('borrow', () => {
         }),
         openLoan({
           id: 'old2',
-          status: 'REPAID',
+          status: 'SETTLED',
           outstandingAmountMb: 0,
           borrowedAt: new Date('2026-10-10T00:00:00Z'),
         }),
       ],
     });
-    await expect(borrow(new LoansService(capped))).rejects.toMatchObject({
-      code: 'MONTHLY_LIMIT_REACHED',
-    });
+    const loan = await borrow(new LoansService(repaidHistory));
+    expect(loan!.status).toBe('ACTIVE');
+    expect(repaidHistory.dataLoan.rows).toHaveLength(3);
   });
 
   it('validates amount rules', async () => {
@@ -280,6 +281,70 @@ describe('repay from Data Bank deposit', () => {
     expect(r.repaidMb).toBe(0);
     expect(prisma.dataBankAccount.rows[0].balanceMb).toBe(300);
     expect(prisma.dataLoanTransaction.rows).toHaveLength(0);
+  });
+});
+
+describe('manual repay from Data Bank (POST /loans/repay)', () => {
+  const seed = () =>
+    eligibleSeed({
+      dataLoan: [openLoan()], // 500 outstanding, ACTIVE
+      dataBankAccount: [{ id: 'bank1', simId: 'sim1', balanceMb: 300 }],
+    });
+
+  it('repays min(bank balance, outstanding) — partial then full', async () => {
+    const prisma = seed();
+    const svc = new LoansService(prisma);
+
+    const r1 = await svc.repayFromBankNow('sim1', 'u1', now);
+    expect(r1).toMatchObject({
+      repaidMb: 300,
+      outstandingMb: 200,
+      bankBalanceMb: 0,
+      status: 'PARTIALLY_REPAID',
+    });
+    expect(prisma.dataBankAccount.rows[0].balanceMb).toBe(0);
+
+    prisma.dataBankAccount.rows[0].balanceMb = 400;
+    const r2 = await svc.repayFromBankNow('sim1', 'u1', now);
+    expect(r2).toMatchObject({
+      repaidMb: 200,
+      outstandingMb: 0,
+      bankBalanceMb: 200,
+      status: 'REPAID',
+    });
+    expect(prisma.dataLoan.rows[0]).toMatchObject({
+      status: 'REPAID',
+      outstandingAmountMb: 0,
+    });
+    expect(prisma.dataBankAccount.rows[0].balanceMb).toBe(200); // never negative
+    expect(
+      prisma.dataLoanTransaction.rows.filter(
+        (t: any) => t.type === 'BANK_REPAYMENT',
+      ),
+    ).toHaveLength(2);
+  });
+
+  it('reports zero repayment when the bank is empty', async () => {
+    const prisma = eligibleSeed({
+      dataLoan: [openLoan()],
+      dataBankAccount: [{ id: 'bank1', simId: 'sim1', balanceMb: 0 }],
+    });
+    const r = await new LoansService(prisma).repayFromBankNow('sim1', 'u1', now);
+    expect(r).toMatchObject({ repaidMb: 0, outstandingMb: 500 });
+    expect(prisma.dataLoanTransaction.rows).toHaveLength(0);
+  });
+
+  it('rejects when there is no open loan or the SIM is foreign', async () => {
+    const noLoan = eligibleSeed();
+    await expect(
+      new LoansService(noLoan).repayFromBankNow('sim1', 'u1', now),
+    ).rejects.toMatchObject({ code: 'NO_OPEN_LOAN', status: 409 });
+
+    const prisma = seed();
+    prisma.sim.rows.push({ id: 'sim2', userId: 'u2', status: 'ACTIVE' });
+    await expect(
+      new LoansService(prisma).repayFromBankNow('sim2', 'u1', now),
+    ).rejects.toMatchObject({ code: 'SIM_NOT_FOUND', status: 404 });
   });
 });
 
