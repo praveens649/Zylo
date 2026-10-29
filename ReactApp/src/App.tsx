@@ -8,6 +8,7 @@ import NotFoundPage from "@/app/not-found";
 
 import DashboardLayout from "@/app/(mainapp)/layout";
 import OnboardingPage from "@/app/(mainapp)/onboarding/page";
+import OrganizationPage from "@/app/(mainapp)/organization/page";
 import CustomerDashboardPage from "@/app/(mainapp)/dashboard/page";
 import UsersPage from "@/app/(mainapp)/users/page";
 import SimsPage from "@/app/(mainapp)/sims/page";
@@ -18,11 +19,15 @@ import PlansPage from "@/app/(mainapp)/plans/page";
 import RechargePage from "@/app/(mainapp)/recharge/page";
 import DataBankPage from "@/app/(mainapp)/data-bank/page";
 import QuestsPage from "@/app/(mainapp)/quests/page";
+import EsimPage from "@/app/(mainapp)/esim/page";
+import EsimPlansPage from "@/app/(mainapp)/esim-plans/page";
 import ProfilePage from "@/app/(mainapp)/profile/page";
 import TvPage from "@/app/(mainapp)/tv/page";
 import MyTvPage from "@/app/(mainapp)/tv/my/page";
 import TvSuccessPage from "@/app/(mainapp)/tv/success/page";
 import TvAdminPage from "@/app/(mainapp)/tv-admin/page";
+import SupportPage from "@/app/(mainapp)/support/page";
+import SupportAdminPage from "@/app/(mainapp)/support-admin/page";
 
 export default function App() {
   return (
@@ -41,16 +46,21 @@ export default function App() {
             <Route path="/recharge" element={<RechargePage />} />
             <Route path="/data-bank" element={<DataBankPage />} />
             <Route path="/quests" element={<QuestsPage />} />
+            <Route path="/esim" element={<EsimPage />} />
+            <Route path="/esim-plans" element={<EsimPlansPage />} />
             <Route path="/users" element={<UsersPage />} />
             <Route path="/sims" element={<SimsPage />} />
             <Route path="/users/:userId/edit" element={<EditUserPage />} />
-            <Route path="/orders" element={<OrdersPage />} />
+            <Route path="/organization" element={<OrganizationPage />} />
+          <Route path="/orders" element={<OrdersPage />} />
             <Route path="/payments" element={<PaymentsPage />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/tv" element={<TvPage />} />
             <Route path="/tv/my" element={<MyTvPage />} />
             <Route path="/tv/success" element={<TvSuccessPage />} />
             <Route path="/tv-admin" element={<TvAdminPage />} />
+            <Route path="/support" element={<SupportPage />} />
+            <Route path="/support-admin" element={<SupportAdminPage />} />
           </Route>
 
           {/* Catch-all 404 */}

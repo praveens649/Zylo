@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import {
   Building2,
   Loader2,
@@ -31,6 +32,7 @@ import { useSims } from "../_hooks/use-sims";
 
 const STATUS_STYLES: Record<SimStatus, string> = {
   ACTIVE: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+  READY_TO_INSTALL: "bg-indigo-500/10 text-indigo-600 border-indigo-500/20",
   PENDING_ACTIVATION: "bg-amber-500/10 text-amber-600 border-amber-500/20",
   GRACE_PERIOD: "bg-orange-500/10 text-orange-600 border-orange-500/20",
   SUSPENDED: "bg-muted text-muted-foreground border-border/40",
@@ -40,12 +42,22 @@ const STATUS_STYLES: Record<SimStatus, string> = {
 
 const STATUS_LABELS: Record<SimStatus, string> = {
   ACTIVE: "Active",
+  READY_TO_INSTALL: "Ready to install",
   PENDING_ACTIVATION: "Pending activation",
   GRACE_PERIOD: "Grace period",
   SUSPENDED: "Suspended",
   DEACTIVATED: "Deactivated",
   CANCELLED: "Cancelled",
 };
+
+type SimFilter = "ALL" | "ESIM" | "PHYSICAL" | "BUSINESS";
+
+const FILTERS: { value: SimFilter; label: string }[] = [
+  { value: "ALL", label: "All SIMs" },
+  { value: "ESIM", label: "eSIMs" },
+  { value: "PHYSICAL", label: "Physical" },
+  { value: "BUSINESS", label: "Business" },
+];
 
 function StatusBadge({ status }: { status: SimStatus }) {
   return (
@@ -110,7 +122,19 @@ function CustomerCell({ user }: { user: AdminSim["user"] }) {
 export function SimsView() {
   const { data, isPending, isError, error, refetch, isRefetching } =
     useSims();
-  const sims = data?.sims ?? [];
+  const [filter, setFilter] = useState<SimFilter>("ALL");
+  const allSims = useMemo(() => data?.sims ?? [], [data]);
+
+  const sims = useMemo(
+    () =>
+      allSims.filter((s) => {
+        if (filter === "ESIM") return s.technology === "ESIM";
+        if (filter === "PHYSICAL") return s.technology === "PHYSICAL";
+        if (filter === "BUSINESS") return s.category === "BUSINESS";
+        return true;
+      }),
+    [allSims, filter]
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -137,6 +161,36 @@ export function SimsView() {
           />
           Refresh
         </Button>
+      </div>
+
+      {/* Type filters */}
+      <div className="flex flex-wrap items-center gap-2">
+        {FILTERS.map((f) => (
+          <button
+            key={f.value}
+            onClick={() => setFilter(f.value)}
+            className={`rounded-full px-4 py-1.5 text-xs font-semibold transition-all border ${
+              filter === f.value
+                ? "bg-primary text-primary-foreground border-primary shadow-md shadow-primary/25"
+                : "bg-card text-muted-foreground border-border hover:bg-muted"
+            }`}
+          >
+            {f.label}
+            <span className="ml-1.5 opacity-70">
+              {
+                allSims.filter((s) =>
+                  f.value === "ESIM"
+                    ? s.technology === "ESIM"
+                    : f.value === "PHYSICAL"
+                      ? s.technology === "PHYSICAL"
+                      : f.value === "BUSINESS"
+                        ? s.category === "BUSINESS"
+                        : true
+                ).length
+              }
+            </span>
+          </button>
+        ))}
       </div>
 
       {/* Table card */}
@@ -188,12 +242,20 @@ export function SimsView() {
                         <CustomerCell user={sim.user} />
                       </TableCell>
                       <TableCell>
-                        <p className="font-mono text-sm">
-                          {sim.phoneNumber.number}
-                        </p>
-                        {sim.phoneNumber.type === "PREMIUM" && (
-                          <span className="text-[10px] font-semibold uppercase tracking-wide text-amber-600">
-                            Premium
+                        {sim.phoneNumber ? (
+                          <>
+                            <p className="font-mono text-sm">
+                              {sim.phoneNumber.number}
+                            </p>
+                            {sim.phoneNumber.type === "PREMIUM" && (
+                              <span className="text-[10px] font-semibold uppercase tracking-wide text-amber-600">
+                                Premium
+                              </span>
+                            )}
+                          </>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">
+                            No number picked
                           </span>
                         )}
                       </TableCell>
@@ -206,7 +268,21 @@ export function SimsView() {
                         )}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
-                        {sim.technology === "ESIM" ? "eSIM" : "Physical"}
+                        {sim.technology === "ESIM" ? (
+                          <span className="flex items-center gap-1.5">
+                            eSIM
+                            {sim.destinationCountry && (
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] border-sky-500/30 text-sky-500"
+                              >
+                                {sim.destinationCountry}
+                              </Badge>
+                            )}
+                          </span>
+                        ) : (
+                          "Physical"
+                        )}
                       </TableCell>
                       <TableCell>
                         <StatusBadge status={sim.status} />
@@ -221,6 +297,11 @@ export function SimsView() {
                               {formatINR(sim.activePlan.price)} ·{" "}
                               {sim.activePlan.validityDays}d
                             </p>
+                            {sim.reference && (
+                              <p className="font-mono text-[10px] text-muted-foreground/70">
+                                ref {sim.reference.slice(0, 8).toUpperCase()}
+                              </p>
+                            )}
                           </div>
                         ) : (
                           <span className="text-xs text-muted-foreground">

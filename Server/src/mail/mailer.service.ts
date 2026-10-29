@@ -64,6 +64,9 @@ export class MailerService {
       return { success: false, error: error.message };
     }
 
+    this.logger.log(
+      `Email sent to ${opts.to} — subject "${opts.subject}" (id: ${data?.id})`,
+    );
     return { success: true, id: data?.id };
   }
 
@@ -95,14 +98,11 @@ export class MailerService {
         <h2 style="margin:0 0 8px">Welcome, ${opts.name}</h2>
         <p style="color:#555">An account has been created for you. Sign in with these credentials:</p>
         <div style="background:#f5f5f7;border:1px solid #e2e2e8;border-radius:12px;padding:16px;margin:16px 0">
-          <p style="margin:0 0 8px"><strong>Email:</strong> ${opts.to}</p>
-          <p style="margin:0"><strong>Temporary password:</strong>
-            <code style="background:#ececf1;padding:2px 8px;border-radius:6px;font-size:15px">${opts.password}</code>
-          </p>
+          <p style="margin:0"><strong>Email:</strong> ${opts.to}</p>
         </div>
         <a href="${loginUrl}" style="display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;padding:10px 20px;border-radius:10px;font-weight:600">Log in</a>
         <p style="color:#555;font-size:13px;margin-top:16px">
-          For security, you will be required to set a new password the first time you log in.
+          Your password was shared with you by your organization owner.
         </p>
       </div>
     `,

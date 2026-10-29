@@ -3,6 +3,7 @@ import Stripe from 'stripe';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ApiException } from '../common/api-error.js';
 import { RechargeService } from '../recharge/recharge.service.js';
+import { TravelEsimService } from '../travel-esim/travel-esim.service.js';
 import type { SubscriptionStatus } from '../generated/prisma/enums.js';
 import type { UserModel } from '../generated/prisma/models.js';
 import { TvFulfilmentService } from '../set-top-box/tv-fulfilment.service.js';
@@ -80,6 +81,7 @@ export class StripeService {
     private readonly prisma: PrismaService,
     private readonly tvFulfilment: TvFulfilmentService,
     private readonly rechargeService: RechargeService,
+    private readonly travelEsimService: TravelEsimService,
   ) {}
 
   // -----------------------------------------------------------------------
@@ -448,6 +450,11 @@ export class StripeService {
     // webhook and the session-verify fallback).
     if (session.metadata?.type === 'recharge') {
       await this.rechargeService.fulfillFromCheckoutSession(session);
+    }
+
+    // Travel eSIM checkouts issue the eSIM credentials after payment.
+    if (session.metadata?.type === 'travel_esim') {
+      await this.travelEsimService.fulfillFromCheckoutSession(session);
     }
   }
 

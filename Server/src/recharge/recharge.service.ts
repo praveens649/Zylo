@@ -82,19 +82,29 @@ export class RechargeService {
 
     const now = new Date();
 
-    // Lazy status transitions — ACTIVE subs past their end date expire and
-    // queued PENDING subs whose start date has arrived become ACTIVE.
-    const expiredIds: string[] = [];
+    // Date-driven lazy transitions — a sub's real state is decided by its
+    // start/end dates, so wrong stored statuses are healed on every read:
+    //   • end date passed          → EXPIRED
+    //   • start date in the future → PENDING (queued)
+    //   • window contains now      → ACTIVE
+    const expireIds: string[] = [];
+    const queueIds: string[] = [];
     const activateIds: string[] = [];
     for (const sim of sims) {
       for (const sub of sim.planSubscriptions) {
-        if (sub.status === 'ACTIVE' && sub.endDate && sub.endDate <= now) {
-          expiredIds.push(sub.id);
+        const endsInPast = !!sub.endDate && sub.endDate <= now;
+        const startsInFuture = !!sub.startDate && sub.startDate > now;
+
+        if (endsInPast) {
+          expireIds.push(sub.id);
           sub.status = 'EXPIRED';
+        } else if (startsInFuture && sub.status !== 'PENDING') {
+          queueIds.push(sub.id);
+          sub.status = 'PENDING';
         } else if (
-          sub.status === 'PENDING' &&
+          !startsInFuture &&
           sub.startDate &&
-          sub.startDate <= now
+          sub.status === 'PENDING'
         ) {
           activateIds.push(sub.id);
           sub.status = 'ACTIVE';
@@ -102,11 +112,15 @@ export class RechargeService {
       }
     }
 
-    if (expiredIds.length || activateIds.length) {
+    if (expireIds.length || queueIds.length || activateIds.length) {
       await this.prisma.$transaction([
         this.prisma.planSubscription.updateMany({
-          where: { id: { in: expiredIds } },
+          where: { id: { in: expireIds } },
           data: { status: 'EXPIRED' },
+        }),
+        this.prisma.planSubscription.updateMany({
+          where: { id: { in: queueIds } },
+          data: { status: 'PENDING' },
         }),
         this.prisma.planSubscription.updateMany({
           where: { id: { in: activateIds } },
@@ -122,9 +136,19 @@ export class RechargeService {
         );
         const currentPlan =
           live.find(
-            (s) => s.status === 'ACTIVE' && (!s.endDate || s.endDate > now),
+            (s) =>
+              s.status === 'ACTIVE' &&
+              (!s.startDate || s.startDate <= now) &&
+              (!s.endDate || s.endDate > now),
           ) ?? null;
-        const upcomingPlans = live.filter((s) => s.status === 'PENDING');
+        // Everything live that isn't the current plan waits in the queue —
+        // future-start subs are queued even if stored with the wrong status.
+        const upcomingPlans = live
+          .filter((s) => s.id !== currentPlan?.id)
+          .sort(
+            (a, b) =>
+              (a.startDate?.getTime() ?? 0) - (b.startDate?.getTime() ?? 0),
+          );
 
         return {
           id: sim.id,
@@ -370,7 +394,14 @@ export class RechargeService {
   private async claimPhoneNumber(tx: Prisma.TransactionClient) {
     for (const type of ['STANDARD', 'PREMIUM'] as const) {
       const candidates = await tx.phoneNumber.findMany({
-        where: { status: 'AVAILABLE', type },
+        where: {
+          status: 'AVAILABLE',
+          type,
+          // Domestic pool only — never claim a travel eSIM destination
+          // number or a corporate-prefixed business number for a SIM.
+          countryCode: 'IN',
+          organizationId: null,
+        },
         orderBy: { createdAt: 'asc' },
         take: 5,
         select: { id: true },

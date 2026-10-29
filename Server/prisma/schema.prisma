@@ -410,6 +410,8 @@ model BusinessInvite {
   acceptedAt     DateTime?
 
   organization BusinessOrganization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  phoneNumber  PhoneNumber?         @relation(fields: [phoneNumberId], references: [id], onDelete: SetNull)
+  phoneNumberId String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -437,6 +439,10 @@ model PhoneNumber {
   // Which customer currently holds this number during checkout.
   reservedByUserId String?
 
+  // ISO country code the number belongs to (IN, SG, AE, ...) — travel
+  // eSIMs get a number from their destination country.
+  countryCode String @default("IN")
+
   organizationId String?
   organization   BusinessOrganization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
 
@@ -444,6 +450,10 @@ model PhoneNumber {
 
   sim    Sim?
   orders Order[]
+  
+  businessInvites BusinessInvite[]
+
+  travelEsimOrders TravelEsimOrder[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1172,7 +1182,10 @@ model InternationalPlan {
   callMinutes     Int?
   smsCount        Int?
 
-  // All plans are data-only; no phone number, voice or SMS.
+  // Optional voice/SMS bundle — null means the pack is data-only.
+  callMinutes Int?
+  smsCount    Int?
+
   pricePaise Int
   currency   String @default("INR")
 
@@ -1225,6 +1238,10 @@ model TravelEsimOrder {
   // Provider fulfilment
   providerOrderId String? @unique
   failureReason   String?
+
+  // Optional local number for the destination (held 10 min, assigned on payment)
+  phoneNumberId String?
+  phoneNumber   PhoneNumber? @relation(fields: [phoneNumberId], references: [id], onDelete: SetNull)
 
   user              User              @relation(fields: [userId], references: [id], onDelete: Restrict)
   internationalPlan InternationalPlan @relation(fields: [internationalPlanId], references: [id], onDelete: Restrict)

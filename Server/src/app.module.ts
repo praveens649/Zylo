@@ -16,12 +16,14 @@ import { StripeModule } from './stripe/stripe.module.js';
 import { PlansModule } from './plans/plans.module.js';
 import { SetTopBoxModule } from './set-top-box/set-top-box.module.js';
 import { RechargeModule } from './recharge/recharge.module.js';
+import { TravelEsimModule } from './travel-esim/travel-esim.module.js';
 import { NumbersModule } from './numbers/numbers.module.js';
 import { OnboardingModule } from './onboarding/onboarding.module.js';
 import { UsageSimulationModule } from './usage-simulation/usage-simulation.module.js';
 import { ScheduleModule } from '@nestjs/schedule';
 import { DataBankModule } from './data-bank/data-bank.module.js';
 import { DataQuestModule } from './data-quest/data-quest.module.js';
+import { SupportModule } from './support/support.module.js';
 import { ApiExceptionFilter } from './common/api-exception.filter.js';
 import { EnvelopeInterceptor } from './common/envelope.interceptor.js';
 
@@ -52,11 +54,13 @@ import { EnvelopeInterceptor } from './common/envelope.interceptor.js';
     PlansModule,
     SetTopBoxModule,
     RechargeModule,
+    TravelEsimModule,
     NumbersModule,
     OnboardingModule,
     UsageSimulationModule,
     DataBankModule,
     DataQuestModule,
+    SupportModule,
   ],
   controllers: [AppController],
   providers: [

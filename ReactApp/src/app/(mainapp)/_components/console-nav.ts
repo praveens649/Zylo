@@ -1,5 +1,5 @@
-import { CreditCard, Database, ShoppingBag, LayoutDashboard, Users, Zap, Trophy } from "lucide-react";
-import { MonitorPlay, Radio, Smartphone, Tv, SmartphoneCharging } from "lucide-react";
+import { Building2, CreditCard, Database, Globe, Plane, ShoppingBag, LayoutDashboard, Users, Zap, Trophy } from "lucide-react";
+import { LifeBuoy, MonitorPlay, Radio, Smartphone, Tv, SmartphoneCharging } from "lucide-react";
 
 export type NavItem = {
   href: string;
@@ -36,13 +36,23 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Trophy,
     customerOnly: true,
   },
+  {
+    href: "/esim",
+    label: "Travel eSIM",
+    icon: Plane,
+    customerOnly: true,
+  },
   { href: "/plans", label: "Recharge Plans", icon: Zap, adminOnly: true },
+  { href: "/esim-plans", label: "eSIM Plans", icon: Globe, adminOnly: true },
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/users", label: "Users", icon: Users, adminOnly: true },
+  { href: "/organization", label: "My Organization", icon: Building2, customerOnly: true },
   { href: "/orders", label: "Order History", icon: ShoppingBag },
   { href: "/payments", label: "Payment History", icon: CreditCard },
   { href: "/sims", label: "SIMs", icon: Smartphone, adminOnly: true },
   { href: "/tv", label: "Zylo TV", icon: Tv, customerOnly: true },
   { href: "/tv/my", label: "My TV", icon: MonitorPlay, customerOnly: true },
   { href: "/tv-admin", label: "TV Console", icon: Radio, adminOnly: true },
+  { href: "/support", label: "Support", icon: LifeBuoy, customerOnly: true },
+  { href: "/support-admin", label: "Support Desk", icon: LifeBuoy, adminOnly: true },
 ];

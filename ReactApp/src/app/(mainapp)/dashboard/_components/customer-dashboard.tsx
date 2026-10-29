@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { OnboardingStatus } from "@/api/onboarding.api";
+import { PendingInviteCard } from "./pending-invite-card";
 
 interface CustomerDashboardProps {
   statusData?: OnboardingStatus | null;
@@ -23,6 +24,7 @@ export function CustomerDashboard({ statusData }: CustomerDashboardProps) {
 
   return (
     <div className="space-y-6 animate-fade-up">
+      <PendingInviteCard />
       {/* Welcome Hero */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-6 sm:p-8">
         <div>
@@ -38,6 +40,14 @@ export function CustomerDashboard({ statusData }: CustomerDashboardProps) {
           <h1 className="text-2xl sm:text-3xl font-display font-bold tracking-tight text-foreground">
             Welcome back, {user?.name || "Zylo Member"}!
           </h1>
+          {statusData?.organization && (
+            <p className="mt-1 text-sm font-medium text-primary">
+              Member of {statusData.organization.name}
+              {statusData.membership?.role
+                ? ` · ${statusData.membership.role.toLowerCase()}`
+                : ""}
+            </p>
+          )}
           <p className="text-sm text-muted-foreground mt-1 max-w-xl">
             Your personal Zylo connection is active. Manage your Data Bank reserves, transfer data to friends, or level up with daily Data Quests.
           </p>

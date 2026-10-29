@@ -20,6 +20,11 @@ function daysLeft(endDate: string | null) {
   );
 }
 
+function daysUntil(startDate: string | null) {
+  if (!startDate) return null;
+  return Math.ceil((new Date(startDate).getTime() - Date.now()) / 86_400_000);
+}
+
 export function CurrentPlanCard({ sim }: { sim: RechargeSim }) {
   const current = sim.currentPlan;
   const remaining = daysLeft(current?.endDate ?? null);
@@ -163,35 +168,104 @@ export function CurrentPlanCard({ sim }: { sim: RechargeSim }) {
 
         {/* Queued plans — start after the current plan ends */}
         {sim.upcomingPlans.length > 0 && (
-          <div className="mt-4 border-t border-border/40 pt-4">
-            <p className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
-              <Hourglass className="h-3.5 w-3.5" />
-              Queued — activates automatically
-            </p>
-            <div className="mt-2.5 flex flex-col gap-2">
-              {sim.upcomingPlans.map((sub) => (
-                <div
-                  key={sub.id}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-indigo-500/25 bg-indigo-500/5 px-3.5 py-2.5"
-                >
-                  <div className="flex min-w-0 items-center gap-2.5">
-                    <BadgeCheck className="h-4 w-4 shrink-0 text-indigo-400" />
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-foreground">
-                        {sub.plan.name}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground">
-                        {formatDate(sub.startDate)} →{" "}
-                        {formatDate(sub.endDate)}
-                      </p>
+          <div className="mt-5 border-t border-border/40 pt-4">
+            <div className="flex items-center justify-between gap-2">
+              <p className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                <Hourglass className="h-3.5 w-3.5" />
+                Queued — activates automatically
+              </p>
+              <Badge
+                variant="outline"
+                className="border-indigo-500/30 bg-indigo-500/10 text-indigo-400 text-[11px] font-semibold"
+              >
+                {sim.upcomingPlans.length}{" "}
+                {sim.upcomingPlans.length === 1 ? "plan" : "plans"} in line
+              </Badge>
+            </div>
+
+            {/* Queue timeline */}
+            <div className="relative mt-4 flex flex-col gap-3">
+              <div className="absolute bottom-4 left-[15px] top-4 w-px bg-gradient-to-b from-indigo-500/60 via-indigo-500/25 to-transparent" />
+
+              {sim.upcomingPlans.map((sub, index) => {
+                const startsIn = daysUntil(sub.startDate);
+                return (
+                  <div key={sub.id} className="relative flex gap-3">
+                    {/* Timeline node */}
+                    <div
+                      className={`z-10 mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border ${
+                        index === 0
+                          ? "border-indigo-500/50 bg-indigo-500/20 text-indigo-400"
+                          : "border-border/70 bg-muted/50 text-muted-foreground"
+                      }`}
+                    >
+                      {index === 0 ? (
+                        <Zap className="h-3.5 w-3.5" />
+                      ) : (
+                        <span className="text-[11px] font-bold">
+                          {index + 1}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Queued plan card */}
+                    <div
+                      className={`flex-1 overflow-hidden rounded-xl border transition-all ${
+                        index === 0
+                          ? "border-indigo-500/30 bg-gradient-to-r from-indigo-500/10 via-indigo-500/5 to-transparent shadow-sm"
+                          : "border-border/50 bg-muted/20"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-3 px-4 py-3">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <p className="truncate text-sm font-semibold text-foreground">
+                              {sub.plan.name}
+                            </p>
+                            {index === 0 && (
+                              <Badge className="bg-indigo-500/15 text-indigo-400 border-indigo-500/30 text-[10px] font-bold px-1.5 py-0">
+                                NEXT UP
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                            <Calendar className="h-3 w-3 shrink-0" />
+                            {formatDate(sub.startDate)} →{" "}
+                            {formatDate(sub.endDate)}
+                            <span className="text-muted-foreground/70">
+                              • {sub.plan.validityDays} days
+                            </span>
+                          </p>
+                          {startsIn != null && (
+                            <p className="mt-1 text-[11px] font-medium text-indigo-400/90">
+                              {index === 0
+                                ? startsIn > 0
+                                  ? `Activates in ${startsIn} day${startsIn === 1 ? "" : "s"}`
+                                  : "Activating now"
+                                : `Begins ${formatDate(sub.startDate)}`}
+                            </p>
+                          )}
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <div className="font-display text-base font-black text-foreground">
+                            {formatINR(sub.plan.price)}
+                          </div>
+                          <div className="flex items-center justify-end gap-1 text-[10px] font-semibold text-indigo-400/80">
+                            <BadgeCheck className="h-3 w-3" />
+                            Paid
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <span className="shrink-0 font-display text-sm font-bold text-foreground">
-                    {formatINR(sub.plan.price)}
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
+
+            <p className="mt-3 text-[11px] text-muted-foreground">
+              No days lost — each queued plan starts the moment the previous
+              one ends.
+            </p>
           </div>
         )}
       </div>

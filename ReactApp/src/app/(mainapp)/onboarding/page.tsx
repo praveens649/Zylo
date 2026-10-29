@@ -1,4 +1,9 @@
 import { Loader2 } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
+import { ONBOARDING_STATUS_KEY } from "@/api/onboarding.api";
+import { InviteAccept } from "./_components/invite-accept";
+import { PendingInviteCard } from "../dashboard/_components/pending-invite-card";
 import { OnboardingHeader } from "./_components/onboarding-header";
 import { OnboardingStepper } from "./_components/onboarding-stepper";
 import { StepSimType } from "./_components/step-sim-type";
@@ -31,7 +36,6 @@ export default function OnboardingPage() {
     isReserving,
     reservingNumberId,
     handleSelectNumber,
-    handleGenerateNumbers,
     numberFilter,
     setNumberFilter,
     setNumberSearch,
@@ -44,6 +48,26 @@ export default function OnboardingPage() {
     isActivated,
     activationResult,
   } = useOnboarding();
+
+  const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const inviteToken = searchParams.get("invite");
+
+  if (inviteToken) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background px-4">
+        <InviteAccept
+          token={inviteToken}
+          onAccepted={() => {
+            setSimCategory("BUSINESS");
+            queryClient.invalidateQueries({ queryKey: ONBOARDING_STATUS_KEY });
+            setSearchParams({}, { replace: true });
+          }}
+          onDone={() => setSearchParams({}, { replace: true })}
+        />
+      </div>
+    );
+  }
 
   if (isStatusLoading) {
     return (
@@ -64,6 +88,7 @@ export default function OnboardingPage() {
       />
 
       <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
+        <PendingInviteCard />
         {isActivated && activationResult ? (
           <ActivationSuccess
             data={activationResult}
@@ -112,7 +137,6 @@ export default function OnboardingPage() {
                 isReserving={isReserving}
                 reservingNumberId={reservingNumberId}
                 onSelectNumber={handleSelectNumber}
-                onGenerateNumbers={handleGenerateNumbers}
                 onBack={() => setCurrentStep(2)}
                 onNext={() => setCurrentStep(4)}
                 onSearchChange={setNumberSearch}

@@ -267,6 +267,10 @@ export class NumbersService {
 
     const now = new Date();
     const where: Prisma.PhoneNumberWhereInput = {
+      // Domestic SIM onboarding only offers Indian numbers — travel eSIM
+      // destination numbers (countryCode != 'IN') are stocked for the
+      // eSIM checkout and must never leak into this picker.
+      countryCode: 'IN',
       OR: [
         { status: PhoneNumberStatus.AVAILABLE },
         {
@@ -460,7 +464,9 @@ export class NumbersService {
    * Admin Inventory View with statistics.
    */
   async getAdminInventory(query: ListAvailableNumbersDto) {
-    const where: Prisma.PhoneNumberWhereInput = {};
+    // SIM-fleet inventory is Indian numbers only; travel eSIM stock is
+    // managed per-country in the admin eSIM console.
+    const where: Prisma.PhoneNumberWhereInput = { countryCode: 'IN' };
 
     if (query.category === 'PERSONAL') {
       where.organizationId = null;
