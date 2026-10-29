@@ -1,5 +1,8 @@
 import type { ReactNode } from "react";
+import { Loader2, ShieldAlert } from "lucide-react";
+import { AppDialog } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import type { BoxResolution, TvConnectionStatus, UnitStatus } from "@/api/tv.api";
 
 export const fieldCls =
@@ -106,4 +109,46 @@ export function isoDay(offsetDays = 0) {
   const d = new Date();
   d.setDate(d.getDate() + offsetDays);
   return d.toISOString().slice(0, 10);
+}
+
+/** Styled replacement for window.confirm(). Stays open while `pending` is true. */
+export function ConfirmDialog({
+  open,
+  onOpenChange,
+  title,
+  description,
+  icon,
+  confirmLabel = "Confirm",
+  pending = false,
+  onConfirm,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: ReactNode;
+  description?: ReactNode;
+  icon?: ReactNode;
+  confirmLabel?: string;
+  pending?: boolean;
+  onConfirm: () => void;
+}) {
+  return (
+    <AppDialog
+      open={open}
+      onOpenChange={(o) => !pending && onOpenChange(o)}
+      size="sm"
+      title={title}
+      icon={icon ?? <ShieldAlert className="h-5 w-5 text-destructive" />}
+      description={description}
+    >
+      <div className="flex items-center justify-end gap-2 pt-2">
+        <Button variant="outline" size="sm" disabled={pending} onClick={() => onOpenChange(false)}>
+          Cancel
+        </Button>
+        <Button variant="destructive" size="sm" disabled={pending} onClick={onConfirm}>
+          {pending && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+          {confirmLabel}
+        </Button>
+      </div>
+    </AppDialog>
+  );
 }

@@ -29,6 +29,7 @@ import TvSuccessPage from "@/app/(mainapp)/tv/success/page";
 import TvAdminPage from "@/app/(mainapp)/tv-admin/page";
 import SupportPage from "@/app/(mainapp)/support/page";
 import SupportAdminPage from "@/app/(mainapp)/support-admin/page";
+import LoansAdminPage from "@/app/(mainapp)/loans-admin/page";
 
 export default function App() {
   return (
@@ -63,6 +64,7 @@ export default function App() {
             <Route path="/tv-admin" element={<TvAdminPage />} />
             <Route path="/support" element={<SupportPage />} />
             <Route path="/support-admin" element={<SupportAdminPage />} />
+            <Route path="/loans-admin" element={<LoansAdminPage />} />
           </Route>
 
           {/* Catch-all 404 */}

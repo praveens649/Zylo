@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ApiException } from '../common/api-error.js';
+import { LoansService } from '../loans/loans.service.js';
 import type { PlanModel } from '../generated/prisma/models.js';
 import { QuestRulesEngine } from '../data-quest/quest-rules.engine.js';
 
@@ -16,8 +17,10 @@ export class DataBankService {
   private readonly logger = new Logger(DataBankService.name);
 
   constructor(
+    
     private readonly prisma: PrismaService,
     private readonly questEngine: QuestRulesEngine,
+    private readonly loans: LoansService,
   ) {}
 
   // -----------------------------------------------------------------------
@@ -252,16 +255,32 @@ export class DataBankService {
         }),
       ]);
 
+      // An open Data Loan is repaid first from newly banked data — the
+      // surplus stays in the vault. Same transaction, deterministic refs.
+      const repayment = await this.loans.repayFromDeposit(
+        tx,
+        simId,
+        saveMb,
+        transaction.id,
+      );
+
+      const finalBalanceMb = newBalanceMb - repayment.repaidMb;
       this.logger.log(
         `Banked ${saveMb} MB for SIM ${simId} ` +
-          `(balance now ${newBalanceMb} MB)`,
+          `(balance now ${finalBalanceMb} MB` +
+          (repayment.repaidMb
+            ? `, ${repayment.repaidMb} MB repaid toward loan`
+            : '') +
+          ')',
       );
 
       return {
         savedMb: saveMb,
-        balanceMb: newBalanceMb,
+        balanceMb: finalBalanceMb,
         reference: transaction.reference,
         expiresAt: transaction.expiresAt,
+        loanRepaidMb: repayment.repaidMb,
+        loanOutstandingMb: repayment.outstandingMb,
       };
     });
 

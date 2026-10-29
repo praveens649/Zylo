@@ -11,7 +11,7 @@ import GenericTable from "@/components/ui/generic-table";
 import { useQuery } from "@tanstack/react-query";
 import { formatINR } from "@/lib/format";
 import { useTvAction } from "../../_hooks/use-tv";
-import { FormField, ResolutionBadge, fieldCls } from "../tv-ui";
+import { ConfirmDialog, FormField, ResolutionBadge, fieldCls } from "../tv-ui";
 
 const num = (v: string) => (v.trim() === "" ? null : Number(v));
 
@@ -76,7 +76,12 @@ function BoxDialog({ box, onClose }: { box: TvBox | null; onClose: () => void })
 export function BoxesTab() {
   const q = useQuery({ queryKey: [...TV_KEYS.admin, "models"], queryFn: tvAdminApi.models });
   const [editing, setEditing] = useState<TvBox | null | undefined>(undefined);
-  const del = useTvAction(tvAdminApi.deleteModel, (r) => (r.deleted ? "Box deleted" : "Box has history — disabled instead"));
+  const [deleting, setDeleting] = useState<TvBox | null>(null);
+  const del = useTvAction(
+    tvAdminApi.deleteModel,
+    (r) => (r.deleted ? "Box deleted" : "Box has history — disabled instead"),
+    () => setDeleting(null)
+  );
 
   const columns = useMemo<ColumnDef<TvBox, unknown>[]>(
     () => [
@@ -91,7 +96,7 @@ export function BoxesTab() {
         cell: ({ row }) => (
           <div className="flex justify-end gap-1">
             <Button size="sm" variant="ghost" onClick={() => setEditing(row.original)}><Edit3 className="mr-1 h-3.5 w-3.5" />Edit</Button>
-            <Button size="sm" variant="ghost" className="text-destructive" onClick={() => confirm(`Delete ${row.original.name}?`) && del.mutate(row.original.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+            <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setDeleting(row.original)}><Trash2 className="h-3.5 w-3.5" /></Button>
           </div>
         ),
       },
@@ -104,6 +109,19 @@ export function BoxesTab() {
       <div className="flex justify-end"><Button onClick={() => setEditing(null)}><Plus className="mr-2 h-4 w-4" />New box model</Button></div>
       {q.isPending ? <Loader2 className="mx-auto h-5 w-5 animate-spin" /> : <GenericTable columns={columns} data={q.data ?? []} sort pagination />}
       {editing !== undefined && <BoxDialog box={editing} onClose={() => setEditing(undefined)} />}
+      <ConfirmDialog
+        open={!!deleting}
+        onOpenChange={(o) => !o && setDeleting(null)}
+        title={`Delete box ${deleting?.name}?`}
+        description={
+          (deleting?._count?.connections ?? 0) > 0 || (deleting?._count?.units ?? 0) > 0
+            ? `This model has ${deleting?._count?.units ?? 0} unit(s) and ${deleting?._count?.connections ?? 0} connection(s). It will be disabled and hidden, not deleted.`
+            : "The box model is permanently removed. This cannot be undone."
+        }
+        confirmLabel={(deleting?._count?.connections ?? 0) > 0 || (deleting?._count?.units ?? 0) > 0 ? "Disable box" : "Delete box"}
+        pending={del.isPending}
+        onConfirm={() => deleting && del.mutate(deleting.id)}
+      />
     </div>
   );
 }

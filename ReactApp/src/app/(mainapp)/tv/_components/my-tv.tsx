@@ -29,6 +29,7 @@ import { Input } from "@/components/ui/input";
 import { formatDate, formatDateTime, formatINR } from "@/lib/format";
 import { goToCheckout, useTvAction, useTvConnections, useTvPlans } from "../_hooks/use-tv";
 import {
+  ConfirmDialog,
   ConnectionStatusBadge,
   FormField,
   isoDay,
@@ -121,27 +122,39 @@ function PauseDialog({ c, onClose }: { c: TvConnection; onClose: () => void }) {
 function RescheduleDialog({ inst, onClose }: { inst: TvInstallation; onClose: () => void }) {
   const [date, setDate] = useState(inst.preferredDate.slice(0, 10) >= isoDay(1) ? inst.preferredDate.slice(0, 10) : isoDay(2));
   const [slot, setSlot] = useState<InstallationSlot>(inst.preferredSlot);
+  const [confirmCancel, setConfirmCancel] = useState(false);
   const save = useTvAction(() => tvApi.reschedule(inst.id, new Date(date).toISOString(), slot), "Installation rescheduled", onClose);
   const cancel = useTvAction(() => tvApi.cancelInstallation(inst.id), "Installation cancelled", onClose);
   return (
-    <AppDialog open onOpenChange={(o) => !o && onClose()} title="Reschedule installation">
-      <div className="space-y-4">
-        <FormField label="New date"><Input type="date" min={isoDay(1)} max={isoDay(60)} value={date} onChange={(e) => setDate(e.target.value)} /></FormField>
-        <FormField label="Time slot">
-          <select className={`${fieldCls} h-9`} value={slot} onChange={(e) => setSlot(e.target.value as InstallationSlot)}>
-            {Object.entries(SLOT_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-          </select>
-        </FormField>
-        <div className="flex justify-between gap-2">
-          <Button variant="ghost" className="text-destructive" disabled={cancel.isPending} onClick={() => confirm("Cancel this installation and your order?") && cancel.mutate(undefined)}>
-            Cancel installation
-          </Button>
-          <Button disabled={save.isPending} onClick={() => save.mutate(undefined)}>
-            {save.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save
-          </Button>
+    <>
+      <AppDialog open onOpenChange={(o) => !o && onClose()} title="Reschedule installation">
+        <div className="space-y-4">
+          <FormField label="New date"><Input type="date" min={isoDay(1)} max={isoDay(60)} value={date} onChange={(e) => setDate(e.target.value)} /></FormField>
+          <FormField label="Time slot">
+            <select className={`${fieldCls} h-9`} value={slot} onChange={(e) => setSlot(e.target.value as InstallationSlot)}>
+              {Object.entries(SLOT_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+          </FormField>
+          <div className="flex justify-between gap-2">
+            <Button variant="ghost" className="text-destructive" disabled={cancel.isPending} onClick={() => setConfirmCancel(true)}>
+              Cancel installation
+            </Button>
+            <Button disabled={save.isPending} onClick={() => save.mutate(undefined)}>
+              {save.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save
+            </Button>
+          </div>
         </div>
-      </div>
-    </AppDialog>
+      </AppDialog>
+      <ConfirmDialog
+        open={confirmCancel}
+        onOpenChange={setConfirmCancel}
+        title="Cancel installation and order?"
+        description="This cancels the visit and the whole TV order. If you already paid, our team will process your refund."
+        confirmLabel="Cancel order"
+        pending={cancel.isPending}
+        onConfirm={() => cancel.mutate(undefined)}
+      />
+    </>
   );
 }
 
@@ -169,6 +182,7 @@ function SupportDialog({ c, onClose }: { c: TvConnection; onClose: () => void })
 /** Unpaid orders: pay again, re-check with Stripe, or cancel. */
 function PendingPayments({ c }: { c: TvConnection }) {
   const pending = c.orders.filter((o) => o.status === "PENDING");
+  const [cancelling, setCancelling] = useState<string | null>(null);
   const pay = useTvAction(
     (id: string) => tvApi.payOrder(id),
     (r) => (r.alreadyPaid ? "Payment already received" : "Redirecting to payment…"),
@@ -178,7 +192,7 @@ function PendingPayments({ c }: { c: TvConnection }) {
     (id: string) => tvApi.syncOrder(id),
     (r) => (r.paid ? "Payment confirmed — thank you!" : "Payment not completed yet")
   );
-  const cancel = useTvAction((id: string) => tvApi.cancelOrder(id), "Order cancelled");
+  const cancel = useTvAction((id: string) => tvApi.cancelOrder(id), "Order cancelled", () => setCancelling(null));
 
   if (pending.length === 0) return null;
   return (
@@ -205,12 +219,21 @@ function PendingPayments({ c }: { c: TvConnection }) {
               {check.isPending ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="mr-1.5 h-3.5 w-3.5" />}
               I've paid — check
             </Button>
-            <Button size="sm" variant="ghost" className="text-destructive" disabled={cancel.isPending} onClick={() => confirm("Cancel this unpaid order?") && cancel.mutate(o.id)}>
+            <Button size="sm" variant="ghost" className="text-destructive" disabled={cancel.isPending} onClick={() => setCancelling(o.id)}>
               Cancel
             </Button>
           </div>
         </div>
       ))}
+      <ConfirmDialog
+        open={cancelling !== null}
+        onOpenChange={(o) => !o && setCancelling(null)}
+        title="Cancel this unpaid order?"
+        description="The order is cancelled and its checkout link stops working. You can place a fresh order anytime."
+        confirmLabel="Cancel order"
+        pending={cancel.isPending}
+        onConfirm={() => cancelling && cancel.mutate(cancelling)}
+      />
     </div>
   );
 }

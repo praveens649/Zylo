@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { dataBankApi, dataBankStatusKey } from "@/api/data-bank.api";
+import { loanActiveKey, loanHistoryKey } from "@/api/loans.api";
 import { usageStatusKey } from "@/api/usage.api";
 
 /** Data Bank status for one SIM: balance, limits, savable amount, ledger. */
@@ -19,8 +20,11 @@ export function useDataBankSave(simId: string | null | undefined) {
     mutationFn: () => dataBankApi.save(simId!),
     onSuccess: () => {
       // The banked amount came out of today's unused data — refresh both.
+      // A deposit also repays any open Data Loan first.
       queryClient.invalidateQueries({ queryKey: dataBankStatusKey(simId ?? "") });
       queryClient.invalidateQueries({ queryKey: usageStatusKey(simId ?? "") });
+      queryClient.invalidateQueries({ queryKey: loanActiveKey(simId ?? "") });
+      queryClient.invalidateQueries({ queryKey: loanHistoryKey(simId ?? "") });
     },
   });
 }

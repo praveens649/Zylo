@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { LoansModule } from '../loans/loans.module.js';
 import { DataBankController } from './data-bank.controller.js';
 import { DataBankService } from './data-bank.service.js';
 import { DataQuestModule } from '../data-quest/data-quest.module.js';
@@ -11,7 +12,7 @@ import { DataQuestModule } from '../data-quest/data-quest.module.js';
  *   POST /api/v1/sims/:simId/data-bank/redeem
  */
 @Module({
-  imports: [DataQuestModule],
+  imports: [DataQuestModule, LoansModule],
   controllers: [DataBankController],
   providers: [DataBankService],
   exports: [DataBankService],

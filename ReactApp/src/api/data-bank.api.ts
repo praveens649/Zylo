@@ -39,6 +39,9 @@ export interface DataBankSaveResult {
   balanceMb: number;
   reference: string;
   expiresAt: string | null;
+  /** Part of the deposit that repaid an open Data Loan instead. */
+  loanRepaidMb: number;
+  loanOutstandingMb: number;
 }
 
 export interface DataBankRedeemResult {

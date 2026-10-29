@@ -3,6 +3,7 @@ import Stripe from 'stripe';
 import { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ApiException } from '../common/api-error.js';
+import { LoansService } from '../loans/loans.service.js';
 import type { UserModel } from '../generated/prisma/models.js';
 import type { CreateRechargeCheckoutDto } from './dto.js';
 
@@ -44,7 +45,10 @@ export class RechargeService {
     return raw.split(',')[0].trim().replace(/\/+$/, '');
   }
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly loans: LoansService,
+  ) {}
 
   // -----------------------------------------------------------------------
   // Customer overview — their SIMs with current + queued plan subscriptions
@@ -471,44 +475,6 @@ export class RechargeService {
           where: { id: simId },
           data: { planExpiredAt: endDate },
         });
-
-        // Gift recharge — notify both sides: the recipient (someone paid
-        // for you) and the payer (you recharged them).
-        if (order.rechargedForUserId) {
-          const [payer, recipient, sim] = await Promise.all([
-            tx.user.findUnique({
-              where: { id: order.userId },
-              select: { name: true },
-            }),
-            tx.user.findUnique({
-              where: { id: order.rechargedForUserId },
-              select: { name: true },
-            }),
-            tx.sim.findUnique({
-              where: { id: simId },
-              select: { phoneNumber: { select: { number: true } } },
-            }),
-          ]);
-          const number = sim?.phoneNumber.number ?? '';
-          const starts =
-            startDate <= now
-              ? 'active now'
-              : `starts ${startDate.toDateString()}`;
-          await tx.notification.createMany({
-            data: [
-              {
-                userId: order.rechargedForUserId,
-                title: 'Recharge received',
-                message: `${payer?.name ?? 'Someone'} recharged your Zylo number ${number} with ${plan.name} (₹${Number(plan.price)} · ${plan.validityDays} days) — ${starts}.`,
-              },
-              {
-                userId: order.userId,
-                title: 'Gift recharge sent',
-                message: `You recharged ${recipient?.name ?? 'a customer'}'s Zylo number ${number} with ${plan.name} (₹${Number(plan.price)} · ${plan.validityDays} days) — ${starts}.`,
-              },
-            ],
-          });
-        }
       });
     } catch (err) {
       // Unique constraint on planSubscription.orderId — already fulfilled

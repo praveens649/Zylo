@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { OnboardingStatus } from "@/api/onboarding.api";
 import { PendingInviteCard } from "./pending-invite-card";
+import { LoanPanel } from "../../loans/_components/loan-panel";
 
 interface CustomerDashboardProps {
   statusData?: OnboardingStatus | null;
@@ -155,6 +156,11 @@ export function CustomerDashboard({ statusData }: CustomerDashboardProps) {
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Zylo Data Loan — borrow data when you run out */}
+      <div className="grid grid-cols-1 lg:grid-cols-2">
+        <LoanPanel />
       </div>
 
       {/* Differentiator Quick Actions */}

@@ -25,6 +25,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { DataBankModule } from './data-bank/data-bank.module.js';
 import { DataQuestModule } from './data-quest/data-quest.module.js';
 import { SupportModule } from './support/support.module.js';
+import { LoansModule } from './loans/loans.module.js';
 import { ApiExceptionFilter } from './common/api-exception.filter.js';
 import { EnvelopeInterceptor } from './common/envelope.interceptor.js';
 
@@ -60,6 +61,7 @@ import { EnvelopeInterceptor } from './common/envelope.interceptor.js';
     OnboardingModule,
     NotificationsModule,
     UsageSimulationModule,
+    LoansModule,
     DataBankModule,
     DataQuestModule,
     SupportModule,
