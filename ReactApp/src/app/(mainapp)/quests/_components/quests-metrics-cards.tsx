@@ -30,9 +30,16 @@ export function QuestsMetricsCards({
   profile,
 }: QuestsMetricsCardsProps) {
   const targetXp = wallet.packTargetXp || 1000;
-  const progressPercent = Math.min(
+  const availableXp = wallet.spendablePackXp ?? 0;
+  const totalEarned = wallet.packTotalEarned ?? 0;
+  const spentXp = Math.max(0, totalEarned - availableXp);
+  const spendablePercent = Math.min(
     100,
-    Math.round((wallet.packTotalEarned / targetXp) * 100)
+    Math.round((availableXp / targetXp) * 100)
+  );
+  const totalEarnedPercent = Math.min(
+    100,
+    Math.round((totalEarned / targetXp) * 100)
   );
 
   const unlockedSet = new Set(profile.unlockedBadges || []);
@@ -59,33 +66,61 @@ export function QuestsMetricsCards({
         </CardHeader>
 
         <CardContent className="space-y-3">
-          <div className="flex items-baseline gap-2">
-            <span className="text-3xl sm:text-4xl font-black tracking-tight text-foreground">
-              {wallet.spendablePackXp.toLocaleString()}
-            </span>
-            <span className="text-xs font-extrabold uppercase text-amber-600 dark:text-amber-400">
-              XP Ready
-            </span>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl sm:text-4xl font-black tracking-tight text-foreground">
+                {availableXp.toLocaleString()}
+              </span>
+              <span className="text-xs font-extrabold uppercase text-amber-600 dark:text-amber-400">
+                XP Ready
+              </span>
+            </div>
+
+            {/* Spent / Redeemed XP Indicator */}
+            {spentXp > 0 && (
+              <Badge
+                variant="outline"
+                className="border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[11px] font-bold px-2 py-0.5 flex items-center gap-1 shadow-2xs"
+              >
+                <Sparkles className="h-3 w-3" />
+                <span>{spentXp} XP Redeemed</span>
+              </Badge>
+            )}
           </div>
 
+          {/* Progress Bar tracking CURRENT AVAILABLE XP */}
           <div className="space-y-1.5 pt-1">
             <div className="flex justify-between text-xs text-muted-foreground font-medium">
-              <span>Earned in plan: <strong className="text-foreground">{wallet.packTotalEarned} XP</strong></span>
+              <span>
+                Available to spend: <strong className="text-foreground">{availableXp} XP</strong>
+              </span>
               <span>Goal: {targetXp} XP</span>
             </div>
             <div className="h-2.5 w-full overflow-hidden rounded-full bg-secondary/80">
               <div
-                className="h-full bg-gradient-to-r from-amber-500 via-orange-500 to-amber-400 transition-all duration-700 shadow-[0_0_8px_rgba(245,158,11,0.5)]"
-                style={{ width: `${progressPercent}%` }}
+                className={`h-full transition-all duration-700 ${
+                  availableXp > 0
+                    ? "bg-gradient-to-r from-amber-500 via-orange-500 to-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.5)]"
+                    : "bg-muted"
+                }`}
+                style={{ width: `${spendablePercent}%` }}
               />
             </div>
           </div>
 
+          {/* Card Footer: Clear differentiation between available balance and plan lifetime earned */}
           <div className="flex items-center justify-between border-t border-border/50 pt-2 text-[11px] text-muted-foreground">
             <span className="flex items-center gap-1">
-              <Zap className="h-3 w-3 text-amber-500" /> Spend before plan resets
+              <Zap className="h-3 w-3 text-amber-500" />
+              {availableXp === 0 && spentXp > 0
+                ? "All earned XP spent on perks!"
+                : "Spend before plan resets"}
             </span>
-            <span className="font-semibold text-foreground">{progressPercent}% of pack goal</span>
+            <span className="font-semibold text-foreground">
+              {availableXp === 0 && spentXp > 0
+                ? `Total Bounty: ${totalEarned} XP`
+                : `${spendablePercent}% of pack goal`}
+            </span>
           </div>
         </CardContent>
       </Card>
