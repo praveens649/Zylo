@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Check, Copy, MailPlus, XCircle } from "lucide-react";
+import { Check, Copy, Loader2, MailPlus, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -46,6 +46,7 @@ export function InvitePanel({ organizationId }: { organizationId: string }) {
   const [phoneNumberId, setPhoneNumberId] = useState("");
   const [lastLink, setLastLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [cancelTarget, setCancelTarget] = useState<BusinessInvite | null>(null);
 
   const { data: invites, isError } = useQuery({
     queryKey: INVITES_KEY,
@@ -84,7 +85,21 @@ export function InvitePanel({ organizationId }: { organizationId: string }) {
 
   const cancelMutation = useMutation({
     mutationFn: cancelInviteAction,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: INVITES_KEY }),
+    onSuccess: () => {
+      setCancelTarget(null);
+      queryClient.invalidateQueries({ queryKey: INVITES_KEY });
+      queryClient.invalidateQueries({
+        queryKey: ["org-numbers", organizationId],
+      });
+      toast({ title: "Invite revoked", description: "The allocated number is back in your pool." });
+    },
+    onError: (err: any) => {
+      toast({
+        title: "Revoke Failed",
+        description: err?.message || "Could not revoke the invite.",
+        variant: "destructive",
+      });
+    },
   });
 
   // Members (not owners) get 403 — hide the panel quietly.
@@ -158,7 +173,7 @@ export function InvitePanel({ organizationId }: { organizationId: string }) {
           <button
             type="button"
             className="text-muted-foreground hover:text-destructive"
-            onClick={() => cancelMutation.mutate(row.original.id)}
+            onClick={() => setCancelTarget(row.original)}
             aria-label="Cancel invite"
           >
             <XCircle className="h-4 w-4" />
@@ -254,7 +269,10 @@ export function InvitePanel({ organizationId }: { organizationId: string }) {
                   })
                 }
               >
-                Send Invite
+                {createMutation.isPending ? (
+                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                ) : null}
+                {createMutation.isPending ? "Sending…" : "Send Invite"}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -279,6 +297,50 @@ export function InvitePanel({ organizationId }: { organizationId: string }) {
         filterColumn="email"
         filterPlaceHolder="Search invite email..."
       />
+
+      {/* Revoke confirmation */}
+      <Dialog
+        open={!!cancelTarget}
+        onOpenChange={(o) => !o && setCancelTarget(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Revoke this invite?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            The invite to{" "}
+            <span className="font-semibold text-foreground">
+              {cancelTarget?.email}
+            </span>{" "}
+            will be cancelled and its allocated number{" "}
+            <span className="font-mono font-semibold text-foreground">
+              {cancelTarget?.phoneNumber?.number}
+            </span>{" "}
+            returns to your prefix pool.
+          </p>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setCancelTarget(null)}
+              disabled={cancelMutation.isPending}
+            >
+              Keep Invite
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={cancelMutation.isPending}
+              onClick={() =>
+                cancelTarget && cancelMutation.mutate(cancelTarget.id)
+              }
+            >
+              {cancelMutation.isPending ? (
+                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+              ) : null}
+              {cancelMutation.isPending ? "Revoking…" : "Revoke Invite"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
