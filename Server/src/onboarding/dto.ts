@@ -171,3 +171,36 @@ export class RegisterBusinessDto {
   @IsUUID('4', { message: 'verificationDocumentId must be a valid UUID' })
   verificationDocumentId?: string;
 }
+
+/**
+ * Organization owner/admin invites a member by email.
+ * The raw invite token is generated server-side and emailed — never trusted
+ * from the client.
+ */
+export class CreateBusinessInviteDto {
+  @IsString()
+  @IsEmail()
+  @MaxLength(255)
+  @Transform(normalizeEmail)
+  email!: string;
+
+  /**
+   * Prefix-pool number allocated to this member. The number is held
+   * (RESERVED) while the invite is open and released if it closes.
+   */
+  @IsUUID('4', { message: 'phoneNumberId must be a valid UUID' })
+  phoneNumberId!: string;
+
+  /** Optional employee ID assigned inside the organization. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  @Transform(trim)
+  employeeId?: string;
+}
+
+export class AcceptBusinessInviteDto {
+  @IsString()
+  @IsNotEmpty()
+  token!: string;
+}

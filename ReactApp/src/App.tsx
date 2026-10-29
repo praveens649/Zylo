@@ -8,6 +8,7 @@ import NotFoundPage from "@/app/not-found";
 
 import DashboardLayout from "@/app/(mainapp)/layout";
 import OnboardingPage from "@/app/(mainapp)/onboarding/page";
+import OrganizationPage from "@/app/(mainapp)/organization/page";
 import CustomerDashboardPage from "@/app/(mainapp)/dashboard/page";
 import UsersPage from "@/app/(mainapp)/users/page";
 import SimsPage from "@/app/(mainapp)/sims/page";
@@ -48,7 +49,8 @@ export default function App() {
             <Route path="/users" element={<UsersPage />} />
             <Route path="/sims" element={<SimsPage />} />
             <Route path="/users/:userId/edit" element={<EditUserPage />} />
-            <Route path="/orders" element={<OrdersPage />} />
+            <Route path="/organization" element={<OrganizationPage />} />
+          <Route path="/orders" element={<OrdersPage />} />
             <Route path="/payments" element={<PaymentsPage />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/tv" element={<TvPage />} />

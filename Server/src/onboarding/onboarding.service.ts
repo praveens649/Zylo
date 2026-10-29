@@ -1,13 +1,17 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { createHash, randomBytes } from 'node:crypto';
+import bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ApiException } from '../common/api-error.js';
 import { StripeService } from '../stripe/stripe.service.js';
+import { MailerService } from '../mail/mailer.service.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import type {
   PhoneNumberModel,
   PlanModel,
 } from '../generated/prisma/models.js';
 import {
+  InvitationStatus,
   KycDocumentType,
   KycStatus,
   MembershipStatus,
@@ -29,7 +33,9 @@ import {
   validateIndianMobileNumber,
 } from '../numbers/numbers-generator.engine.js';
 import {
+  AcceptBusinessInviteDto,
   CompleteOnboardingDto,
+  CreateBusinessInviteDto,
   RegisterBusinessDto,
   SubmitKycDto,
 } from './dto.js';
@@ -43,17 +49,20 @@ export class OnboardingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly stripeService: StripeService,
+    private readonly mailer: MailerService,
   ) {}
 
   /**
    * Get current user's onboarding progress.
    */
   async getStatus(userId: string) {
-    const [user, kyc, sims, organization, membership] = await Promise.all([
-      this.prisma.user.findUnique({
-        where: { id: userId },
-        select: { id: true, name: true, email: true, role: true },
-      }),
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, name: true, email: true, role: true },
+    });
+
+    const [kyc, sims, organization, membership, allocatedInvite] =
+      await Promise.all([
       this.prisma.kycVerification.findUnique({
         where: { id: undefined, userId },
       }),
@@ -74,6 +83,16 @@ export class OnboardingService {
       }),
       this.prisma.organizationMember.findFirst({
         where: { userId, status: MembershipStatus.ACTIVE },
+        include: { organization: true },
+      }),
+      this.prisma.businessInvite.findFirst({
+        where: {
+          email: user?.email ?? '',
+          status: InvitationStatus.ACCEPTED,
+          phoneNumberId: { not: null },
+        },
+        orderBy: { acceptedAt: 'desc' },
+        include: { phoneNumber: { select: { id: true, number: true } } },
       }),
     ]);
 
@@ -101,8 +120,9 @@ export class OnboardingService {
       kyc,
       sims,
       activeSim: sims.find((s) => s.status === SimStatus.ACTIVE) ?? sims[0] ?? null,
-      organization,
+      organization: organization ?? membership?.organization ?? null,
       membership,
+      allocatedNumber: allocatedInvite?.phoneNumber ?? null,
     };
   }
 
@@ -1075,6 +1095,497 @@ export class OnboardingService {
       result.dataBank.balanceMb,
       organization?.name,
     );
+  }
+
+  /**
+   * Resolve the organization the user owns; throws when it is missing or
+   * not approved — invites are owner-only.
+   */
+  private async requireOwnedOrganization(userId: string) {
+    const org = await this.prisma.businessOrganization.findFirst({
+      where: { ownerUserId: userId },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!org || org.status !== OrganizationStatus.APPROVED) {
+      throw new ApiException(
+        403,
+        'NOT_ORGANIZATION_OWNER',
+        'Only the owner of an approved organization can manage invites',
+      );
+    }
+    return org;
+  }
+
+  async listInvites(userId: string) {
+    const org = await this.requireOwnedOrganization(userId);
+    return this.prisma.businessInvite.findMany({
+      where: { organizationId: org.id },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        phoneNumber: { select: { id: true, number: true } },
+      },
+    });
+  }
+
+  /**
+   * Shared member login password for an org — derived from the corporate
+   * prefix so all invited members of an organization share one password
+   * (demo policy; members can change it after login).
+   */
+  private memberPassword(org: { numberPrefix: string | null }) {
+    return `Zylo@${org.numberPrefix ?? '0000'}`;
+  }
+
+  /**
+   * Owner invites a member by email and allocates a prefix-pool number.
+   * A Zylo account is auto-provisioned when the invitee doesn't have one —
+   * credentials are emailed via Resend. The number is held (RESERVED)
+   * while the invite is open; membership is created only on accept.
+   */
+  async createInvite(userId: string, dto: CreateBusinessInviteDto) {
+    const org = await this.requireOwnedOrganization(userId);
+
+    // Seat limit: active members + open invites cannot exceed 10.
+    const [activeMembers, openInvites] = await Promise.all([
+      this.prisma.organizationMember.count({
+        where: {
+          organizationId: org.id,
+          status: MembershipStatus.ACTIVE,
+        },
+      }),
+      this.prisma.businessInvite.count({
+        where: {
+          organizationId: org.id,
+          status: InvitationStatus.PENDING,
+          expiresAt: { gt: new Date() },
+        },
+      }),
+    ]);
+    if (activeMembers + openInvites >= 10) {
+      throw new ApiException(
+        409,
+        'SEAT_LIMIT_REACHED',
+        'This organization already has 10 members/invites — the maximum allowed',
+      );
+    }
+
+    // The allocated number must come from this org's prefix pool.
+    const phoneNumber = await this.prisma.phoneNumber.findUnique({
+      where: { id: dto.phoneNumberId },
+    });
+    if (!phoneNumber || phoneNumber.organizationId !== org.id) {
+      throw new ApiException(
+        400,
+        'NUMBER_NOT_IN_ORGANIZATION',
+        'The number must belong to your organization prefix pool',
+      );
+    }
+    if (phoneNumber.status !== PhoneNumberStatus.AVAILABLE) {
+      throw new ApiException(
+        409,
+        'NUMBER_UNAVAILABLE',
+        'This number is already allocated or reserved',
+      );
+    }
+
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
+    if (existingUser) {
+      const member = await this.prisma.organizationMember.findUnique({
+        where: {
+          organizationId_userId: {
+            organizationId: org.id,
+            userId: existingUser.id,
+          },
+        },
+      });
+      if (member?.status === MembershipStatus.ACTIVE) {
+        throw new ApiException(
+          409,
+          'ALREADY_MEMBER',
+          'This user is already a member of your organization',
+        );
+      }
+    }
+
+    const pending = await this.prisma.businessInvite.findFirst({
+      where: {
+        organizationId: org.id,
+        email: dto.email,
+        status: InvitationStatus.PENDING,
+        expiresAt: { gt: new Date() },
+      },
+    });
+    if (pending) {
+      throw new ApiException(
+        409,
+        'INVITE_PENDING',
+        'A pending invite already exists for this email',
+      );
+    }
+
+    const token = randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const password = this.memberPassword(org);
+
+    const invite = await this.prisma.$transaction(async (tx) => {
+      // Auto-provision the member account with the shared org password.
+      if (!existingUser) {
+        await tx.user.create({
+          data: {
+            email: dto.email,
+            name: dto.email.split('@')[0],
+            passwordHash: await bcrypt.hash(password, 12),
+          },
+        });
+      }
+
+      const created = await tx.businessInvite.create({
+        data: {
+          organizationId: org.id,
+          email: dto.email,
+          employeeId: dto.employeeId,
+          phoneNumberId: phoneNumber.id,
+          tokenHash: createHash('sha256').update(token).digest('hex'),
+          expiresAt,
+        },
+        include: { phoneNumber: { select: { id: true, number: true } } },
+      });
+
+      // Hold the allocated number while the invite is open.
+      await tx.phoneNumber.update({
+        where: { id: phoneNumber.id },
+        data: {
+          status: PhoneNumberStatus.RESERVED,
+          reservedUntil: expiresAt,
+        },
+      });
+
+      return created;
+    });
+
+    // Email credentials only to brand-new accounts — existing users see
+    // the invite on their dashboard.
+    if (!existingUser) {
+      const sent = await this.mailer.sendTempPasswordEmail({
+        to: dto.email,
+        name: dto.email.split('@')[0],
+        password,
+      });
+      this.logger.log(
+        sent
+          ? `Invite ${invite.id} for ${dto.email} — credentials email sent`
+          : `Invite ${invite.id} for ${dto.email} — credentials email NOT sent (see MailerService logs)`,
+      );
+    } else {
+      this.logger.log(
+        `Invite ${invite.id} for ${dto.email} — existing user, no credentials email`,
+      );
+    }
+
+    return { invite, token };
+  }
+
+  /** Pending invites addressed to the logged-in member (dashboard card). */
+  async myInvites(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true },
+    });
+    if (!user) {
+      throw new ApiException(404, 'USER_NOT_FOUND', 'User not found');
+    }
+    const invites = await this.prisma.businessInvite.findMany({
+      where: {
+        email: user.email,
+        status: InvitationStatus.PENDING,
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        organization: { select: { name: true, numberPrefix: true } },
+        phoneNumber: { select: { id: true, number: true } },
+      },
+    });
+    return invites;
+  }
+
+  /** Preview an invite by its raw token (no state change). */
+  async getInviteByToken(token: string) {
+    const invite = await this.prisma.businessInvite.findUnique({
+      where: {
+        tokenHash: createHash('sha256').update(token).digest('hex'),
+      },
+      include: {
+        organization: { select: { name: true, numberPrefix: true } },
+        phoneNumber: { select: { id: true, number: true } },
+      },
+    });
+    if (!invite) {
+      throw new ApiException(404, 'INVITE_NOT_FOUND', 'Invalid invite link');
+    }
+    if (
+      invite.status === InvitationStatus.PENDING &&
+      invite.expiresAt < new Date()
+    ) {
+      await this.releaseInvite(invite.id, invite.phoneNumberId, true);
+      invite.status = InvitationStatus.EXPIRED;
+    }
+    return {
+      email: invite.email,
+      status: invite.status,
+      expiresAt: invite.expiresAt,
+      organization: invite.organization,
+      phoneNumber: invite.phoneNumber,
+    };
+  }
+
+  /**
+   * Close an invite and release its held number. `expired` marks the
+   * invite EXPIRED, otherwise REVOKED.
+   */
+  private async releaseInvite(
+    inviteId: string,
+    phoneNumberId: string | null,
+    expired = false,
+  ) {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.businessInvite.update({
+        where: { id: inviteId },
+        data: {
+          status: expired ? InvitationStatus.EXPIRED : InvitationStatus.REVOKED,
+        },
+      });
+      if (phoneNumberId) {
+        await tx.phoneNumber.update({
+          where: { id: phoneNumberId },
+          data: { status: PhoneNumberStatus.AVAILABLE, reservedUntil: null },
+        });
+      }
+    });
+  }
+
+  private async assertInviteTarget(
+    invite: { email: string },
+    userId: string,
+  ) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || user.email.toLowerCase() !== invite.email.toLowerCase()) {
+      throw new ApiException(
+        403,
+        'EMAIL_MISMATCH',
+        'This invite was sent to a different email address',
+      );
+    }
+    return user;
+  }
+
+  private async assertOpenInvite(invite: {
+    id: string;
+    phoneNumberId: string | null;
+    status: InvitationStatus;
+    expiresAt: Date;
+  }) {
+    if (invite.status !== InvitationStatus.PENDING) {
+      throw new ApiException(
+        409,
+        'INVITE_CLOSED',
+        `This invite has already been ${invite.status.toLowerCase()}`,
+      );
+    }
+    if (invite.expiresAt < new Date()) {
+      await this.releaseInvite(invite.id, invite.phoneNumberId, true);
+      throw new ApiException(410, 'INVITE_EXPIRED', 'This invite has expired');
+    }
+  }
+
+  private async resolveInvite(token: string) {
+    const invite = await this.prisma.businessInvite.findUnique({
+      where: {
+        tokenHash: createHash('sha256').update(token).digest('hex'),
+      },
+      include: { organization: true },
+    });
+    if (!invite) {
+      throw new ApiException(404, 'INVITE_NOT_FOUND', 'Invalid invite link');
+    }
+    await this.assertOpenInvite(invite);
+    return invite;
+  }
+
+  private async resolveInviteById(inviteId: string) {
+    const invite = await this.prisma.businessInvite.findUnique({
+      where: { id: inviteId },
+      include: { organization: true },
+    });
+    if (!invite) {
+      throw new ApiException(404, 'INVITE_NOT_FOUND', 'Invite not found');
+    }
+    await this.assertOpenInvite(invite);
+    return invite;
+  }
+
+  /**
+   * Shared acceptance path — creates an ACTIVE OrganizationMember and,
+   * when the invite allocated a number, provisions the member's Business
+   * SIM immediately (org-covered — no member payment required in demo).
+   */
+  private async acceptInviteInternal(
+    userId: string,
+    invite: {
+      id: string;
+      email: string;
+      organizationId: string;
+      employeeId: string | null;
+      phoneNumberId: string | null;
+      organization: { name: string };
+    },
+  ) {
+    await this.assertInviteTarget(invite, userId);
+
+    const businessPlan = invite.phoneNumberId
+      ? await this.prisma.plan.findFirst({
+          where: { isActive: true, businessOnly: true },
+          orderBy: { price: 'asc' },
+        })
+      : null;
+
+    const membership = await this.prisma.$transaction(async (tx) => {
+      const [member] = await Promise.all([
+        tx.organizationMember.upsert({
+          where: {
+            organizationId_userId: {
+              organizationId: invite.organizationId,
+              userId,
+            },
+          },
+          create: {
+            organizationId: invite.organizationId,
+            userId,
+            employeeId:
+              invite.employeeId ?? `EMP-${userId.slice(-6).toUpperCase()}`,
+            role: OrganizationMemberRole.EMPLOYEE,
+            status: MembershipStatus.ACTIVE,
+            verifiedAt: new Date(),
+          },
+          update: { status: MembershipStatus.ACTIVE },
+        }),
+        tx.businessInvite.update({
+          where: { id: invite.id },
+          data: { status: InvitationStatus.ACCEPTED, acceptedAt: new Date() },
+        }),
+      ]);
+
+      if (invite.phoneNumberId) {
+        const sim = await tx.sim.create({
+          data: {
+            userId,
+            phoneNumberId: invite.phoneNumberId,
+            category: SimCategory.BUSINESS,
+            technology: SimTechnology.PHYSICAL,
+            status: SimStatus.ACTIVE,
+            activatedAt: new Date(),
+            organizationId: invite.organizationId,
+            organizationMemberId: member.id,
+          },
+        });
+        await tx.phoneNumber.update({
+          where: { id: invite.phoneNumberId },
+          data: { status: PhoneNumberStatus.ASSIGNED, reservedUntil: null },
+        });
+        if (businessPlan) {
+          const start = new Date();
+          await tx.planSubscription.create({
+            data: {
+              simId: sim.id,
+              planId: businessPlan.id,
+              status: PlanSubscriptionStatus.ACTIVE,
+              startDate: start,
+              endDate: new Date(
+                start.getTime() + businessPlan.validityDays * 86400000,
+              ),
+            },
+          });
+        }
+        await tx.dataBankAccount.create({
+          data: { simId: sim.id, balanceMb: 0 },
+        });
+        await tx.notification.create({
+          data: {
+            userId,
+            title: `Welcome to ${invite.organization.name}!`,
+            message: `Your Business SIM is live — number assigned by your organization.`,
+          },
+        });
+      }
+
+      return member;
+    });
+
+    return {
+      message: `You have joined ${invite.organization.name}`,
+      organization: invite.organization,
+      membership,
+    };
+  }
+
+  /**
+   * Invitee accepts via token link — creates an ACTIVE OrganizationMember
+   * so the member can onboard a Business SIM with a number from the org
+   * prefix pool.
+   */
+  async acceptInvite(userId: string, dto: AcceptBusinessInviteDto) {
+    const invite = await this.resolveInvite(dto.token);
+    return this.acceptInviteInternal(userId, {
+      ...invite,
+      phoneNumberId: invite.phoneNumberId ?? null,
+    });
+  }
+
+  /**
+   * Invitee accepts from the dashboard card (invite id, session email
+   * must match).
+   */
+  async acceptInviteById(userId: string, inviteId: string) {
+    const invite = await this.resolveInviteById(inviteId);
+    return this.acceptInviteInternal(userId, {
+      ...invite,
+      phoneNumberId: invite.phoneNumberId ?? null,
+    });
+  }
+
+  async declineInvite(userId: string, dto: AcceptBusinessInviteDto) {
+    const invite = await this.resolveInvite(dto.token);
+    await this.assertInviteTarget(invite, userId);
+    await this.releaseInvite(invite.id, invite.phoneNumberId);
+    return { message: 'Invite declined' };
+  }
+
+  async declineInviteById(userId: string, inviteId: string) {
+    const invite = await this.resolveInviteById(inviteId);
+    await this.assertInviteTarget(invite, userId);
+    await this.releaseInvite(invite.id, invite.phoneNumberId);
+    return { message: 'Invite declined' };
+  }
+
+  async cancelInvite(userId: string, inviteId: string) {
+    const org = await this.requireOwnedOrganization(userId);
+    const invite = await this.prisma.businessInvite.findUnique({
+      where: { id: inviteId },
+    });
+    if (!invite || invite.organizationId !== org.id) {
+      throw new ApiException(404, 'INVITE_NOT_FOUND', 'Invite not found');
+    }
+    if (invite.status !== InvitationStatus.PENDING) {
+      throw new ApiException(
+        409,
+        'INVITE_CLOSED',
+        'Only pending invites can be cancelled',
+      );
+    }
+    await this.releaseInvite(invite.id, invite.phoneNumberId);
+    return { message: 'Invite cancelled' };
   }
 
   /**

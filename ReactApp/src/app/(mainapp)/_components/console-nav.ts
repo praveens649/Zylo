@@ -1,4 +1,4 @@
-import { CreditCard, Database, Globe, Plane, ShoppingBag, LayoutDashboard, Users, Zap } from "lucide-react";
+import { Building2, CreditCard, Database, Globe, Plane, ShoppingBag, LayoutDashboard, Users, Zap } from "lucide-react";
 import { LifeBuoy, MonitorPlay, Radio, Smartphone, Tv, SmartphoneCharging } from "lucide-react";
 
 export type NavItem = {
@@ -40,6 +40,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/esim-plans", label: "eSIM Plans", icon: Globe, adminOnly: true },
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/users", label: "Users", icon: Users, adminOnly: true },
+  { href: "/organization", label: "My Organization", icon: Building2, customerOnly: true },
   { href: "/orders", label: "Order History", icon: ShoppingBag },
   { href: "/payments", label: "Payment History", icon: CreditCard },
   { href: "/sims", label: "SIMs", icon: Smartphone, adminOnly: true },
