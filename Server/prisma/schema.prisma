@@ -373,6 +373,8 @@ model BusinessInvite {
   acceptedAt     DateTime?
 
   organization BusinessOrganization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  phoneNumber  PhoneNumber?         @relation(fields: [phoneNumberId], references: [id], onDelete: SetNull)
+  phoneNumberId String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -399,8 +401,9 @@ model PhoneNumber {
   organizationId String?
   organization   BusinessOrganization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
 
-  sim    Sim?
-  orders Order[]
+  sim             Sim?
+  orders          Order[]
+  businessInvites BusinessInvite[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

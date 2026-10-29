@@ -95,6 +95,7 @@ export interface OnboardingStatus {
   } | null;
   organization: BusinessOrganization | null;
   membership: OrganizationMembership | null;
+  allocatedNumber: { id: string; number: string } | null;
 }
 
 export interface SubmitKycPayload {
@@ -161,6 +162,39 @@ export interface CreateCheckoutResponse {
   data?: CompleteOnboardingResponse["data"];
 }
 
+export interface BusinessInvite {
+  id: string;
+  email: string;
+  employeeId: string | null;
+  status: "PENDING" | "ACCEPTED" | "EXPIRED" | "REVOKED";
+  expiresAt: string;
+  acceptedAt: string | null;
+  createdAt: string;
+  phoneNumber: { id: string; number: string } | null;
+}
+
+export interface MyInvite {
+  id: string;
+  email: string;
+  employeeId: string | null;
+  expiresAt: string;
+  organization: { name: string; numberPrefix: string };
+  phoneNumber: { id: string; number: string } | null;
+}
+
+export interface InvitePreview {
+  email: string;
+  status: BusinessInvite["status"];
+  expiresAt: string;
+  organization: { name: string; numberPrefix: string };
+}
+
+export interface AcceptInviteResponse {
+  message: string;
+  organization: BusinessOrganization;
+  membership: { id: string; role: string; status: string };
+}
+
 export const onboardingApi = {
   getStatus: () => api.get<OnboardingStatus>("/api/v1/onboarding/status"),
 
@@ -180,6 +214,51 @@ export const onboardingApi = {
 
   getStarterPlans: () =>
     api.get<StarterPlan[]>("/api/v1/onboarding/starter-plans"),
+
+  listInvites: () =>
+    api.get<BusinessInvite[]>("/api/v1/onboarding/invites"),
+
+  createInvite: (payload: {
+    email: string;
+    phoneNumberId: string;
+    employeeId?: string;
+  }) =>
+    api.post<{ invite: BusinessInvite; token: string }>(
+      "/api/v1/onboarding/invites",
+      payload,
+    ),
+
+  cancelInvite: (id: string) =>
+    api.delete(`/api/v1/onboarding/invites/${id}`),
+
+  lookupInvite: (token: string) =>
+    api.get<InvitePreview>(
+      `/api/v1/onboarding/invites/lookup?token=${encodeURIComponent(token)}`
+    ),
+
+  acceptInvite: (token: string) =>
+    api.post<AcceptInviteResponse>("/api/v1/onboarding/invites/accept", {
+      token,
+    }),
+
+  declineInvite: (token: string) =>
+    api.post<{ message: string }>("/api/v1/onboarding/invites/decline", {
+      token,
+    }),
+
+  myInvites: () => api.get<MyInvite[]>("/api/v1/onboarding/invites/mine"),
+
+  acceptInviteById: (id: string) =>
+    api.post<AcceptInviteResponse>(
+      `/api/v1/onboarding/invites/${id}/accept`,
+      {},
+    ),
+
+  declineInviteById: (id: string) =>
+    api.post<{ message: string }>(
+      `/api/v1/onboarding/invites/${id}/decline`,
+      {},
+    ),
 
   getBusinessPlans: () =>
     api.get<StarterPlan[]>("/api/v1/onboarding/business-plans"),
