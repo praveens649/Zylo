@@ -7,6 +7,7 @@ import { TravelEsimService } from '../travel-esim/travel-esim.service.js';
 import type { SubscriptionStatus } from '../generated/prisma/enums.js';
 import type { UserModel } from '../generated/prisma/models.js';
 import { TvFulfilmentService } from '../set-top-box/tv-fulfilment.service.js';
+import { WifiFulfilmentService } from '../wifi/wifi-fulfilment.service.js';
 
 function subscriptionPeriodEnd(sub: Stripe.Subscription): Date | null {
   const itemEnd = sub.items?.data?.[0]?.current_period_end;
@@ -80,6 +81,7 @@ export class StripeService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly tvFulfilment: TvFulfilmentService,
+    private readonly wifiFulfilment: WifiFulfilmentService,
     private readonly rechargeService: RechargeService,
     private readonly travelEsimService: TravelEsimService,
   ) {}
@@ -438,10 +440,12 @@ export class StripeService {
         });
       }
 
-      // Zylo TV orders: idempotent, so a redelivered webhook (or a retry after a
-      // failure below) is safe. Runs even when the payment was already marked paid.
+      // Zylo TV / WiFi orders: idempotent, so a redelivered webhook (or a retry
+      // after a failure below) is safe. Each service no-ops on foreign order
+      // types, and runs even when the payment was already marked paid.
       if (payment.orderId && session.payment_status === 'paid') {
         await this.tvFulfilment.onOrderPaid(payment.orderId);
+        await this.wifiFulfilment.onOrderPaid(payment.orderId);
       }
     }
 

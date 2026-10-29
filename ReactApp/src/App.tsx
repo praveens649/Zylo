@@ -27,6 +27,10 @@ import TvPage from "@/app/(mainapp)/tv/page";
 import MyTvPage from "@/app/(mainapp)/tv/my/page";
 import TvSuccessPage from "@/app/(mainapp)/tv/success/page";
 import TvAdminPage from "@/app/(mainapp)/tv-admin/page";
+import WifiPage from "@/app/(mainapp)/wifi/page";
+import MyWifiPage from "@/app/(mainapp)/wifi/my/page";
+import WifiSuccessPage from "@/app/(mainapp)/wifi/success/page";
+import WifiAdminPage from "@/app/(mainapp)/wifi-admin/page";
 import SupportPage from "@/app/(mainapp)/support/page";
 import SupportAdminPage from "@/app/(mainapp)/support-admin/page";
 import LoansAdminPage from "@/app/(mainapp)/loans-admin/page";
@@ -62,6 +66,10 @@ export default function App() {
             <Route path="/tv/my" element={<MyTvPage />} />
             <Route path="/tv/success" element={<TvSuccessPage />} />
             <Route path="/tv-admin" element={<TvAdminPage />} />
+            <Route path="/wifi" element={<WifiPage />} />
+            <Route path="/wifi/my" element={<MyWifiPage />} />
+            <Route path="/wifi/success" element={<WifiSuccessPage />} />
+            <Route path="/wifi-admin" element={<WifiAdminPage />} />
             <Route path="/support" element={<SupportPage />} />
             <Route path="/support-admin" element={<SupportAdminPage />} />
             <Route path="/loans-admin" element={<LoansAdminPage />} />

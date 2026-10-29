@@ -1,5 +1,5 @@
 import { Building2, CreditCard, Database, Globe, Plane, HandCoins, ShoppingBag, LayoutDashboard, Users, Zap, Trophy } from "lucide-react";
-import { LifeBuoy, MonitorPlay, Radio, Smartphone, Tv, SmartphoneCharging } from "lucide-react";
+import { LifeBuoy, MonitorPlay, Radio, Smartphone, Tv, Wifi, SmartphoneCharging } from "lucide-react";
 
 export type NavItem = {
   href: string;
@@ -53,6 +53,9 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/tv", label: "Zylo TV", icon: Tv, customerOnly: true },
   { href: "/tv/my", label: "My TV", icon: MonitorPlay, customerOnly: true },
   { href: "/tv-admin", label: "TV Console", icon: Radio, adminOnly: true },
+  { href: "/wifi", label: "Zylo WiFi", icon: Wifi, customerOnly: true },
+  { href: "/wifi/my", label: "My WiFi", icon: Wifi, customerOnly: true },
+  { href: "/wifi-admin", label: "WiFi Console", icon: Wifi, adminOnly: true },
   { href: "/support", label: "Support", icon: LifeBuoy, customerOnly: true },
   { href: "/support-admin", label: "Support Desk", icon: LifeBuoy, adminOnly: true },
   { href: "/loans-admin", label: "Data Loans", icon: HandCoins, adminOnly: true },

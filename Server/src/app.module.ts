@@ -15,6 +15,7 @@ import { PaymentsModule } from './payments/payments.module.js';
 import { StripeModule } from './stripe/stripe.module.js';
 import { PlansModule } from './plans/plans.module.js';
 import { SetTopBoxModule } from './set-top-box/set-top-box.module.js';
+import { WifiModule } from './wifi/wifi.module.js';
 import { RechargeModule } from './recharge/recharge.module.js';
 import { TravelEsimModule } from './travel-esim/travel-esim.module.js';
 import { NumbersModule } from './numbers/numbers.module.js';
@@ -55,6 +56,7 @@ import { EnvelopeInterceptor } from './common/envelope.interceptor.js';
     StripeModule,
     PlansModule,
     SetTopBoxModule,
+    WifiModule,
     RechargeModule,
     TravelEsimModule,
     NumbersModule,

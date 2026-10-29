@@ -21,6 +21,7 @@
     "seed:plans": "tsx scripts/seed-recharge-plans.ts",
     "seed:esim": "tsx scripts/seed-travel-esim-plans.ts",
     "seed:tv": "tsx scripts/seed-set-top-box.ts",
+    "seed:wifi": "tsx scripts/seed-wifi.ts",
     "seed:demo": "tsx scripts/seed-history-demo.ts",
     "stripe": "stripe listen --all-snapshot --forward-to localhost:5000/api/v1/stripe/webhook",
     "og-stripe": "stripe listen --forward-to localhost:5000/api/v1/stripe/webhook",

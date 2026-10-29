@@ -67,6 +67,8 @@ enum OrderType {
   RECHARGE
   SET_TOP_BOX_ORDER
   TV_PACK_PURCHASE
+  WIFI_ORDER
+  WIFI_PLAN_PURCHASE
 }
 
 enum OrderStatus {
@@ -150,6 +152,7 @@ enum SupportCategory {
   SIM_REPLACEMENT
   BUSINESS_SIM
   SET_TOP_BOX
+  WIFI
   OTHER
 }
 
@@ -301,6 +304,7 @@ model User {
   rewardRedemptions    RewardRedemption[]
   travelEsimOrders     TravelEsimOrder[]
   setTopBoxConnections SetTopBoxConnection[]
+  wifiConnections      WifiConnection[]
   kyc                  KycVerification?
 
   ownedOrganizations      BusinessOrganization[] @relation("OrganizationOwner")
@@ -448,7 +452,7 @@ model PhoneNumber {
 
   sim    Sim?
   orders Order[]
-  
+
   businessInvites BusinessInvite[]
 
   travelEsimOrders TravelEsimOrder[]
@@ -511,6 +515,7 @@ model Sim {
   usageSimulations UsageSimulation[]
 
   setTopBoxConnections SetTopBoxConnection[]
+  wifiConnections      WifiConnection[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -621,6 +626,10 @@ model Order {
   tvPlanId              String?
   setTopBoxConnectionId String?
 
+  wifiDeviceId     String?
+  wifiPlanId       String?
+  wifiConnectionId String?
+
   user User @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   sim Sim? @relation(fields: [simId], references: [id], onDelete: Restrict)
@@ -635,9 +644,14 @@ model Order {
   tvPlan              TvPlan?              @relation(fields: [tvPlanId], references: [id], onDelete: Restrict)
   setTopBoxConnection SetTopBoxConnection? @relation(fields: [setTopBoxConnectionId], references: [id], onDelete: Restrict)
 
+  wifiDevice     WifiDevice?     @relation(fields: [wifiDeviceId], references: [id], onDelete: Restrict)
+  wifiPlan       WifiPlan?       @relation(fields: [wifiPlanId], references: [id], onDelete: Restrict)
+  wifiConnection WifiConnection? @relation(fields: [wifiConnectionId], references: [id], onDelete: Restrict)
+
   payment          Payment?
   planSubscription PlanSubscription?
   tvSubscription   TvSubscription?
+  wifiSubscription WifiSubscription?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -647,6 +661,7 @@ model Order {
   @@index([type])
   @@index([organizationId])
   @@index([setTopBoxConnectionId])
+  @@index([wifiConnectionId])
 }
 
 // ======================================================
@@ -731,12 +746,14 @@ model SupportTicket {
   resolvedAt   DateTime?
 
   setTopBoxConnectionId String?
+  wifiConnectionId      String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   sim Sim? @relation(fields: [simId], references: [id], onDelete: SetNull)
 
   setTopBoxConnection SetTopBoxConnection? @relation(fields: [setTopBoxConnectionId], references: [id], onDelete: SetNull)
+  wifiConnection      WifiConnection?      @relation(fields: [wifiConnectionId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1024,11 +1041,11 @@ model Quest {
 }
 
 model UserQuest {
-  id         String      @id @default(uuid())
+  id         String  @id @default(uuid())
   userId     String
   questId    String
   planSubId  String?
-  weekNumber Int         @default(1)
+  weekNumber Int     @default(1)
 
   periodStart DateTime
   periodEnd   DateTime
@@ -1072,16 +1089,16 @@ model RewardCoupon {
 }
 
 model Achievement {
-  id             String   @id @default(uuid())
-  name           String   @unique
+  id             String  @id @default(uuid())
+  name           String  @unique
   description    String
   iconUrl        String?
-  badgeTier      String   @default("BRONZE")
+  badgeTier      String  @default("BRONZE")
   conditionType  String
   conditionValue Int
-  xpReward       Int      @default(50)
-  isHidden       Boolean  @default(false)
-  isActive       Boolean  @default(true)
+  xpReward       Int     @default(50)
+  isHidden       Boolean @default(false)
+  isActive       Boolean @default(true)
 
   userAchievements UserAchievement[]
 
@@ -1530,6 +1547,226 @@ model InstallationRequest {
   failureReason   String?
 
   connection SetTopBoxConnection @relation(fields: [connectionId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([connectionId, status])
+  @@index([status, scheduledAt])
+}
+
+// ======================================================
+// ZYLO WIFI (HOME BROADBAND)
+// Fibre broadband: router/ONT hardware, broadband plans,
+// technician installation and rental returns.
+// ======================================================
+
+enum WifiBand {
+  SINGLE_BAND
+  DUAL_BAND
+  TRI_BAND
+}
+
+enum WifiUnitStatus {
+  IN_STOCK
+  RESERVED
+  ASSIGNED
+  INSTALLED
+  FAULTY
+  RETURNED
+  RETIRED
+}
+
+enum DeviceOwnership {
+  PURCHASE
+  RENTAL
+}
+
+enum WifiConnectionStatus {
+  PENDING_INSTALLATION
+  ACTIVE
+  PAUSED
+  GRACE_PERIOD
+  SUSPENDED
+  DISCONNECTED
+  CANCELLED
+}
+
+enum WifiPlanType {
+  BASE
+  ADD_ON
+}
+
+enum WifiSubscriptionStatus {
+  PENDING
+  ACTIVE
+  PAUSED
+  EXPIRED
+  CANCELLED
+}
+
+model WifiDevice {
+  id            String   @id @default(uuid())
+  name          String   @unique
+  sku           String   @unique
+  description   String?
+  band          WifiBand @default(DUAL_BAND)
+  wifiStandard  String   @default("Wi-Fi 5")
+  maxDevices    Int      @default(32)
+  ethernetPorts Int      @default(4)
+  isMesh        Boolean  @default(false)
+  imageFileId   String?
+
+  // A null price means that option is not offered.
+  purchasePrice   Decimal? @db.Decimal(10, 2)
+  rentalPerMonth  Decimal? @db.Decimal(10, 2)
+  securityDeposit Decimal? @db.Decimal(10, 2)
+
+  isActive   Boolean @default(true)
+  isFeatured Boolean @default(false)
+
+  units       WifiDeviceUnit[]
+  connections WifiConnection[]
+  orders      Order[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, band])
+}
+
+model WifiDeviceUnit {
+  id             String         @id @default(uuid())
+  deviceId       String
+  serialNumber   String         @unique
+  macAddress     String         @unique
+  status         WifiUnitStatus @default(IN_STOCK)
+  warrantyEndsAt DateTime?
+  notes          String?
+
+  device     WifiDevice      @relation(fields: [deviceId], references: [id], onDelete: Restrict)
+  connection WifiConnection?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([deviceId, status])
+}
+
+model WifiConnection {
+  id               String @id @default(uuid())
+  connectionNumber String @unique
+  userId           String
+  deviceId         String
+
+  simId  String?
+  unitId String? @unique
+
+  ownership DeviceOwnership      @default(PURCHASE)
+  status    WifiConnectionStatus @default(PENDING_INSTALLATION)
+
+  addressLine  String
+  city         String
+  state        String
+  postalCode   String
+  contactPhone String
+
+  activatedAt       DateTime?
+  planExpiredAt     DateTime?
+  gracePeriodEndsAt DateTime?
+  pausedAt          DateTime?
+  pauseEndsAt       DateTime?
+
+  // Pause allowance tracking: days used inside the rolling 365-day window.
+  pauseDaysUsed        Int       @default(0)
+  pauseWindowStartedAt DateTime?
+  disconnectedAt       DateTime?
+  returnDueAt          DateTime?
+
+  user   User            @relation(fields: [userId], references: [id], onDelete: Restrict)
+  device WifiDevice      @relation(fields: [deviceId], references: [id], onDelete: Restrict)
+  sim    Sim?            @relation(fields: [simId], references: [id], onDelete: SetNull)
+  unit   WifiDeviceUnit? @relation(fields: [unitId], references: [id], onDelete: Restrict)
+
+  subscriptions  WifiSubscription[]
+  installations  WifiInstallation[]
+  orders         Order[]
+  supportTickets SupportTicket[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([status, planExpiredAt])
+  @@index([simId])
+}
+
+model WifiPlan {
+  id               String       @id @default(uuid())
+  name             String       @unique
+  description      String?
+  type             WifiPlanType @default(BASE)
+  price            Decimal      @db.Decimal(10, 2)
+  currency         String       @default("inr")
+  validityDays     Int          @default(30)
+  speedMbps        Int
+  // Null means truly unlimited data.
+  dataLimitGb      Int?
+  postFupSpeedMbps Int?
+  requiresTriBand  Boolean      @default(false)
+  features         String[]
+  isActive         Boolean      @default(true)
+  isFeatured       Boolean      @default(false)
+
+  subscriptions WifiSubscription[]
+  orders        Order[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([type, isActive])
+  @@index([price])
+}
+
+model WifiSubscription {
+  id           String                 @id @default(uuid())
+  connectionId String
+  wifiPlanId   String
+  orderId      String?                @unique
+  status       WifiSubscriptionStatus @default(PENDING)
+  startDate    DateTime?
+  endDate      DateTime?
+  autoRenew    Boolean                @default(false)
+
+  connection WifiConnection @relation(fields: [connectionId], references: [id], onDelete: Restrict)
+  wifiPlan   WifiPlan       @relation(fields: [wifiPlanId], references: [id], onDelete: Restrict)
+  order      Order?         @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([connectionId, status])
+  @@index([status, endDate])
+}
+
+model WifiInstallation {
+  id           String             @id @default(uuid())
+  reference    String             @unique @default(uuid())
+  connectionId String
+  type         InstallationType   @default(TECHNICIAN)
+  status       InstallationStatus @default(REQUESTED)
+
+  preferredDate DateTime
+  preferredSlot InstallationSlot @default(MORNING)
+  scheduledAt   DateTime?
+  customerNotes String?
+
+  technicianName  String?
+  technicianPhone String?
+  completedAt     DateTime?
+  failureReason   String?
+
+  connection WifiConnection @relation(fields: [connectionId], references: [id], onDelete: Restrict)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
