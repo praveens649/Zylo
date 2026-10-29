@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '../generated/prisma/client.js';
+import { PlanType } from '../generated/prisma/enums.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ApiException } from '../common/api-error.js';
 import { listMeta, pageParams } from '../common/pagination.js';
@@ -8,6 +9,23 @@ import type {
   ListPlansQueryDto,
   UpdatePlanDto,
 } from './dto.js';
+
+/**
+ * Derive the daily data simulation allowance from the plan's marketed data
+ * allowance. Non-POSTPAID plans advertise dataAllowanceGb as a per-day amount
+ * ("1.5 GB/day"), while POSTPAID is a pooled monthly quota and validity-only
+ * packs carry no daily allowance — those stay null.
+ */
+function deriveDailyAllowanceMb(
+  dataAllowanceGb: number | Prisma.Decimal | null | undefined,
+  type: PlanType,
+  isValidityOnly: boolean,
+): number | null {
+  if (type === 'POSTPAID' || isValidityOnly) return null;
+  const gb = dataAllowanceGb == null ? null : Number(dataAllowanceGb);
+  if (gb == null || gb <= 0) return null;
+  return Math.round(gb * 1024);
+}
 
 @Injectable()
 export class PlansService {
@@ -133,6 +151,13 @@ export class PlansService {
         isActive: dto.isActive ?? true,
         isFeatured: dto.isFeatured ?? false,
         isValidityOnly: dto.isValidityOnly ?? false,
+        dailyDataAllowanceMb:
+          dto.dailyDataAllowanceMb ??
+          deriveDailyAllowanceMb(
+            dto.dataAllowanceGb,
+            dto.type ?? 'PREPAID',
+            dto.isValidityOnly ?? false,
+          ),
         dataBankEnabled: dto.dataBankEnabled ?? false,
         rolloverLimitMb: dto.rolloverLimitMb ?? null,
         rolloverExpiryDays: dto.rolloverExpiryDays ?? null,
@@ -186,6 +211,22 @@ export class PlansService {
     if (dto.dataAllowanceGb !== undefined) {
       data.dataAllowanceGb =
         dto.dataAllowanceGb !== null ? new Prisma.Decimal(dto.dataAllowanceGb) : null;
+    }
+    if (dto.dailyDataAllowanceMb !== undefined) {
+      data.dailyDataAllowanceMb = dto.dailyDataAllowanceMb;
+    } else if (
+      dto.dataAllowanceGb !== undefined ||
+      dto.type !== undefined ||
+      dto.isValidityOnly !== undefined
+    ) {
+      // The inputs to the derivation changed — recompute using merged values.
+      data.dailyDataAllowanceMb = deriveDailyAllowanceMb(
+        dto.dataAllowanceGb !== undefined
+          ? dto.dataAllowanceGb
+          : existing.dataAllowanceGb,
+        dto.type ?? existing.type,
+        dto.isValidityOnly ?? existing.isValidityOnly,
+      );
     }
     if (dto.callingBenefit !== undefined) data.callingBenefit = dto.callingBenefit;
     if (dto.smsCount !== undefined) data.smsCount = dto.smsCount;

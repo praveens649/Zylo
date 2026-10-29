@@ -20,6 +20,9 @@ import { TravelEsimModule } from './travel-esim/travel-esim.module.js';
 import { NumbersModule } from './numbers/numbers.module.js';
 import { OnboardingModule } from './onboarding/onboarding.module.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
+import { UsageSimulationModule } from './usage-simulation/usage-simulation.module.js';
+import { DataBankModule } from './data-bank/data-bank.module.js';
+import { SupportModule } from './support/support.module.js';
 import { ApiExceptionFilter } from './common/api-exception.filter.js';
 import { EnvelopeInterceptor } from './common/envelope.interceptor.js';
 
@@ -53,6 +56,9 @@ import { EnvelopeInterceptor } from './common/envelope.interceptor.js';
     NumbersModule,
     OnboardingModule,
     NotificationsModule,
+    UsageSimulationModule,
+    DataBankModule,
+    SupportModule,
   ],
   controllers: [AppController],
   providers: [

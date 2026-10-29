@@ -6,6 +6,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
 
 import { authService, AUTH_ME_KEY } from "@/api/auth.api";
+import { onboardingApi } from "@/api/onboarding.api";
 import { ApiRequestError, authToken } from "@/lib/api";
 
 export function useSignup() {
@@ -20,17 +21,29 @@ export function useSignup() {
 
   const signupMutation = useMutation({
     mutationFn: () => authService.signUp(email.trim(), password),
-    onSuccess: ({ user, token }) => {
+    onSuccess: async ({ user, token }) => {
       authToken.set(token);
       queryClient.setQueryData(AUTH_ME_KEY, { user });
       setFormError(null);
 
+      // Invited members skip onboarding — the invite provisions their
+      // SIM on accept; everyone else starts the onboarding flow.
+      let invited = false;
+      try {
+        const invites = await onboardingApi.myInvites();
+        invited = !!invites?.length;
+      } catch {
+        // invite check failed — proceed to normal onboarding
+      }
+
       toast({
         title: "Welcome to Zylo!",
-        description: "Your account has been created. Next step: KYC & SIM selection.",
+        description: invited
+          ? "Your account has been created. Accept your organization invite to continue."
+          : "Your account has been created. Next step: KYC & SIM selection.",
       });
 
-      router.replace("/");
+      router.replace(invited ? "/dashboard" : "/onboarding");
     },
     onError: (error) => {
       if (error instanceof ApiRequestError) {

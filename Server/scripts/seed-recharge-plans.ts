@@ -1,4 +1,4 @@
-import { config } from 'dotenv';
+﻿import { config } from 'dotenv';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../src/generated/prisma/client.js';
 import { Prisma } from '../src/generated/prisma/client.js';
@@ -14,7 +14,7 @@ const prisma = new PrismaClient({ adapter });
 
 const SAMPLE_PLANS = [
   {
-    name: 'Zylo Super Hero 299',
+    name: 'Plan 1',
     description: 'Truly Unlimited Voice Calls + 1.5 GB/day High-Speed Data + Zylo Data Bank rollover eligible',
     type: 'PREPAID' as const,
     price: new Prisma.Decimal(299),
@@ -32,9 +32,10 @@ const SAMPLE_PLANS = [
     rolloverExpiryDays: 90,
     dataTransferEnabled: true,
     transferLimitMb: 2048,
+    dailyDataAllowanceMb: 1536, // 1.5 GB/day
   },
   {
-    name: 'Zylo Unlimited Max 749',
+    name: 'Plan 2',
     description: 'Ultra value combo with 2 GB/day, Unlimited 5G Data, and Zylo Peer Data Transfer support',
     type: 'PREPAID' as const,
     price: new Prisma.Decimal(749),
@@ -52,9 +53,10 @@ const SAMPLE_PLANS = [
     rolloverExpiryDays: 90,
     dataTransferEnabled: true,
     transferLimitMb: 5120,
+    dailyDataAllowanceMb: 2048, // 2 GB/day
   },
   {
-    name: 'Zylo Annual Mega 2999',
+    name: 'Plan 3',
     description: '365 Days non-stop connectivity with 2.5 GB/day, zero daily stress & full Data Bank rollover',
     type: 'PREPAID' as const,
     price: new Prisma.Decimal(2999),
@@ -72,9 +74,10 @@ const SAMPLE_PLANS = [
     rolloverExpiryDays: 180,
     dataTransferEnabled: true,
     transferLimitMb: 10240,
+    dailyDataAllowanceMb: 2560, // 2.5 GB/day
   },
   {
-    name: 'Zylo Validity Booster 155',
+    name: 'Plan 4',
     description: 'Affordable validity extension with basic calling and emergency data buffer',
     type: 'VALIDITY_ONLY' as const,
     price: new Prisma.Decimal(155),
@@ -92,9 +95,10 @@ const SAMPLE_PLANS = [
     rolloverExpiryDays: null,
     dataTransferEnabled: false,
     transferLimitMb: null,
+    dailyDataAllowanceMb: null, // validity-only pack — no daily data
   },
   {
-    name: 'Zylo Postpaid Infinity 599',
+    name: 'Plan 5',
     description: 'Postpaid family plan with 75 GB monthly data pool, unlimited calling & rollover up to 200 GB',
     type: 'POSTPAID' as const,
     price: new Prisma.Decimal(599),
@@ -112,9 +116,10 @@ const SAMPLE_PLANS = [
     rolloverExpiryDays: 365,
     dataTransferEnabled: true,
     transferLimitMb: 20480,
+    dailyDataAllowanceMb: 2560, // ~2.5 GB/day effective from the 75 GB pool
   },
   {
-    name: 'Zylo Enterprise Pro 1199',
+    name: 'Plan 6',
     description: 'Tailored for business SIMs with dedicated priority bandwidth, business prefix support & pool data transfer',
     type: 'BUSINESS' as const,
     price: new Prisma.Decimal(1199),
@@ -132,12 +137,14 @@ const SAMPLE_PLANS = [
     rolloverExpiryDays: 365,
     dataTransferEnabled: true,
     transferLimitMb: 51200,
+    dailyDataAllowanceMb: 5120, // ~5 GB/day effective from the 150 GB pool
   },
 ];
 
 async function main() {
   console.log('Seeding initial recharge plans...');
   let created = 0;
+  let updated = 0;
 
   for (const plan of SAMPLE_PLANS) {
     const existing = await prisma.plan.findUnique({
@@ -146,14 +153,56 @@ async function main() {
 
     if (!existing) {
       await prisma.plan.create({ data: plan });
-      console.log(`+ Created plan: ${plan.name} (₹${plan.price})`);
+      console.log(`+ Created plan: ${plan.name} (Rs.${plan.price})`);
       created++;
+      continue;
+    }
+
+    // Backfill the usage-simulation / data-bank fields on existing rows
+    // without overwriting anything an admin may have configured.
+    const backfill: Record<string, number | null> = {};
+    if (
+      existing.dailyDataAllowanceMb == null &&
+      plan.dailyDataAllowanceMb != null
+    ) {
+      backfill.dailyDataAllowanceMb = plan.dailyDataAllowanceMb;
+    }
+
+    if (Object.keys(backfill).length > 0) {
+      await prisma.plan.update({
+        where: { id: existing.id },
+        data: backfill,
+      });
+      console.log(`~ Backfilled ${Object.keys(backfill).join(', ')}: ${plan.name}`);
+      updated++;
     } else {
       console.log(`= Already exists: ${plan.name}`);
     }
   }
 
-  console.log(`Done! Seeded ${created} plans.`);
+  console.log(`Done! Seeded ${created} plans, backfilled ${updated}.`);
+
+  // Second pass: derive dailyDataAllowanceMb on ANY plan still missing it —
+  // covers plans created through the admin UI before this field existed.
+  // Same rule as the server: dataAllowanceGb × 1024 for per-day plans;
+  // POSTPAID pools and validity-only packs stay null.
+  const missing = await prisma.plan.findMany({
+    where: { dailyDataAllowanceMb: null },
+  });
+  let derived = 0;
+  for (const plan of missing) {
+    if (plan.type === 'POSTPAID' || plan.isValidityOnly) continue;
+    const gb = plan.dataAllowanceGb ? Number(plan.dataAllowanceGb) : null;
+    if (gb == null || gb <= 0) continue;
+    const mb = Math.round(gb * 1024);
+    await prisma.plan.update({
+      where: { id: plan.id },
+      data: { dailyDataAllowanceMb: mb },
+    });
+    console.log(`~ Derived dailyDataAllowanceMb=${mb} (${gb} GB/day): ${plan.name}`);
+    derived++;
+  }
+  console.log(`Derived dailyDataAllowanceMb on ${derived} existing plans.`);
 }
 
 main()

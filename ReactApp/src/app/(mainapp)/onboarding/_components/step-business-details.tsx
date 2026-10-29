@@ -28,6 +28,7 @@ import type {
   RegisterBusinessPayload,
 } from "@/api/onboarding.api";
 import { storageApi } from "@/api/storage.api";
+import { InvitePanel } from "./invite-panel";
 
 const BUSINESS_TYPES = [
   "Private Limited",
@@ -388,6 +389,10 @@ export function StepBusinessDetails({
           <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs font-medium text-destructive">
             {formError}
           </div>
+        )}
+
+        {existingOrg?.status === "APPROVED" && (
+          <InvitePanel organizationId={existingOrg.id} />
         )}
 
         <div className="flex justify-between items-center pt-4">

@@ -175,6 +175,12 @@ enum DataTransferRequestStatus {
   CANCELLED
 }
 
+enum UsageSimulationStatus {
+  RUNNING
+  STOPPED
+  COMPLETED
+}
+
 enum DataLoanStatus {
   ACTIVE
   PARTIALLY_REPAID
@@ -270,6 +276,7 @@ model User {
 
   ownedOrganizations      BusinessOrganization[] @relation("OrganizationOwner")
   organizationMemberships OrganizationMember[]
+  reservedPhoneNumbers    PhoneNumber[]          @relation("NumberReserver")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -373,6 +380,8 @@ model BusinessInvite {
   acceptedAt     DateTime?
 
   organization BusinessOrganization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  phoneNumber  PhoneNumber?         @relation(fields: [phoneNumberId], references: [id], onDelete: SetNull)
+  phoneNumberId String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -395,7 +404,9 @@ model PhoneNumber {
   price         Decimal           @default(0) @db.Decimal(10, 2)
   status        PhoneNumberStatus @default(AVAILABLE)
   reservedUntil DateTime?
-  reservedByUserId  String?
+
+  // Which customer currently holds this number during checkout.
+  reservedByUserId String?
 
   // ISO country code the number belongs to (IN, SG, AE, ...) — travel
   // eSIMs get a number from their destination country.
@@ -404,8 +415,12 @@ model PhoneNumber {
   organizationId String?
   organization   BusinessOrganization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
 
+  reservedBy User? @relation("NumberReserver", fields: [reservedByUserId], references: [id], onDelete: SetNull)
+
   sim    Sim?
   orders Order[]
+  
+  businessInvites BusinessInvite[]
 
   travelEsimOrders TravelEsimOrder[]
 
@@ -463,6 +478,9 @@ model Sim {
 
   dataLoans DataLoan[]
 
+  dailyUsages      DailyDataUsage[]
+  usageSimulations UsageSimulation[]
+
   setTopBoxConnections SetTopBoxConnection[]
 
   createdAt DateTime @default(now())
@@ -497,6 +515,9 @@ model Plan {
   // A validity-only pack gives no regular plan benefits.
   isValidityOnly Boolean @default(false)
 
+  // Daily data simulation allowance (set explicitly per plan; null = simulation disabled)
+  dailyDataAllowanceMb Int?
+
   // Zylo Data Bank settings
   dataBankEnabled    Boolean @default(false)
   rolloverLimitMb    Int?
@@ -508,6 +529,7 @@ model Plan {
 
   orders            Order[]
   planSubscriptions PlanSubscription[]
+  dailyUsages       DailyDataUsage[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -741,13 +763,18 @@ model DataBankTransaction {
   expiresAt      DateTime?
   processedAt    DateTime                @default(now())
 
-  dataBank DataBankAccount @relation(fields: [dataBankId], references: [id], onDelete: Restrict)
+  // Which daily usage cycle produced this deposit (audit trail for rollover saves).
+  dailyUsageId String?
+
+  dataBank   DataBankAccount @relation(fields: [dataBankId], references: [id], onDelete: Restrict)
+  dailyUsage DailyDataUsage? @relation(fields: [dailyUsageId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
 
   @@index([dataBankId, processedAt])
   @@index([type, processedAt])
   @@index([expiresAt])
+  @@index([dailyUsageId])
 }
 
 // ======================================================
@@ -851,6 +878,63 @@ model DataLoanTransaction {
 
   @@index([loanId, processedAt])
   @@index([type, processedAt])
+}
+
+// ======================================================
+// ZYLO DATA USAGE SIMULATION
+// Tracks the daily data consumption demo per SIM.
+// One DailyDataUsage record per SIM per calendar day (IST).
+// UsageSimulation records each start/stop session within a day.
+// ======================================================
+
+model DailyDataUsage {
+  id          String   @id @default(uuid())
+  simId       String
+  planId      String
+  cycleDate   DateTime @db.Date
+  allowanceMb Int
+  usedMb      Int      @default(0)
+
+  // How much of this cycle's unused data was saved to the Data Bank.
+  bankedMb Int       @default(0)
+  bankedAt DateTime?
+
+  // Extra data redeemed from the Data Bank into today's usable pool.
+  redeemedMb Int @default(0)
+
+  sim              Sim                   @relation(fields: [simId], references: [id], onDelete: Restrict)
+  plan             Plan                  @relation(fields: [planId], references: [id], onDelete: Restrict)
+  simulations      UsageSimulation[]
+  bankTransactions DataBankTransaction[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([simId, cycleDate])
+  @@index([cycleDate])
+  @@index([planId])
+}
+
+model UsageSimulation {
+  id           String                @id @default(uuid())
+  simId        String
+  dailyUsageId String
+  status       UsageSimulationStatus @default(RUNNING)
+
+  startUsedMb Int @default(0)
+  consumedMb  Int @default(0)
+
+  startedAt DateTime  @default(now())
+  stoppedAt DateTime?
+
+  sim        Sim            @relation(fields: [simId], references: [id], onDelete: Restrict)
+  dailyUsage DailyDataUsage @relation(fields: [dailyUsageId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([simId, status])
+  @@index([dailyUsageId])
 }
 
 // ======================================================

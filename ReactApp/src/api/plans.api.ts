@@ -11,6 +11,8 @@ export interface Plan {
   currency: string;
   validityDays: number;
   dataAllowanceGb: string | number | null;
+  /** Derived server-side: dataAllowanceGb × 1024 for per-day plans. */
+  dailyDataAllowanceMb: number | null;
   callingBenefit: string;
   smsCount: number | null;
   businessOnly: boolean;
@@ -38,6 +40,8 @@ export interface CreatePlanInput {
   currency?: string;
   validityDays: number;
   dataAllowanceGb?: number | null;
+  /** Optional override — derived from dataAllowanceGb when omitted. */
+  dailyDataAllowanceMb?: number | null;
   callingBenefit?: string;
   smsCount?: number | null;
   businessOnly?: boolean;
