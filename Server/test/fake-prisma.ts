@@ -23,10 +23,32 @@ function matchValue(actual: any, cond: any): boolean {
 }
 
 function matches(rec: Rec, where: Rec = {}): boolean {
-  return Object.entries(where).every(([k, v]) => matchValue(rec[k], v));
+  return Object.entries(where).every(([k, v]) => {
+    if (k === 'OR') return (v as Rec[]).some((c) => matches(rec, c));
+    if (k === 'AND') return (v as Rec[]).every((c) => matches(rec, c));
+    if (k === 'NOT') return !matches(rec, v as Rec);
+    return matchValue(rec[k], v);
+  });
 }
 
 let seq = 0;
+
+/** Applies Prisma update data, including { increment } / { decrement }. */
+function applyData(rec: Rec, data: Rec) {
+  for (const [k, v] of Object.entries(data)) {
+    if (v && typeof v === 'object' && !(v instanceof Date)) {
+      if ('increment' in v) {
+        rec[k] = (rec[k] ?? 0) + v.increment;
+        continue;
+      }
+      if ('decrement' in v) {
+        rec[k] = (rec[k] ?? 0) - v.decrement;
+        continue;
+      }
+    }
+    rec[k] = v;
+  }
+}
 
 export function createTable(rows: Rec[] = [], decorate: (r: Rec) => Rec = (r) => r) {
   const find = (where: Rec) => rows.find((r) => matches(r, where));
@@ -49,13 +71,23 @@ export function createTable(rows: Rec[] = [], decorate: (r: Rec) => Rec = (r) =>
     update: async ({ where, data }: any) => {
       const r = find(where);
       if (!r) throw Object.assign(new Error('not found'), { code: 'P2025' });
-      Object.assign(r, data);
+      applyData(r, data);
       return r;
     },
     updateMany: async ({ where, data }: any) => {
       const hit = rows.filter((r) => matches(r, where));
-      hit.forEach((r) => Object.assign(r, data));
+      hit.forEach((r) => applyData(r, data));
       return { count: hit.length };
+    },
+    deleteMany: async ({ where }: any = {}) => {
+      const hit = rows.filter((r) => matches(r, where));
+      hit.forEach((r) => rows.splice(rows.indexOf(r), 1));
+      return { count: hit.length };
+    },
+    findUniqueOrThrow: async ({ where }: any) => {
+      const r = find(where);
+      if (!r) throw Object.assign(new Error('not found'), { code: 'P2025' });
+      return decorate(r);
     },
   };
 }
@@ -83,6 +115,18 @@ export function createFakePrisma(seed: Partial<Record<string, Rec[]>> = {}) {
     installationRequest: createTable(seed.installationRequest),
     notification: createTable(seed.notification),
   };
-  fake.$transaction = async (cb: (tx: any) => Promise<any>) => cb(fake);
-  return fake;
+  // Any model name resolves to a table — seeded when provided, otherwise
+  // an empty one is created on first access.
+  const proxy = new Proxy(fake, {
+    get(target, prop: string) {
+      if (prop === '$transaction') {
+        return async (cb: (tx: any) => Promise<any>) => cb(proxy);
+      }
+      if (!(prop in target) && typeof prop === 'string') {
+        target[prop] = createTable((seed as Rec)[prop] ?? []);
+      }
+      return target[prop];
+    },
+  });
+  return proxy;
 }

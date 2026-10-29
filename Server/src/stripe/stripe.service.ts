@@ -3,6 +3,7 @@ import Stripe from 'stripe';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ApiException } from '../common/api-error.js';
 import { RechargeService } from '../recharge/recharge.service.js';
+import { ParkingService } from '../parking/parking.service.js';
 import { TravelEsimService } from '../travel-esim/travel-esim.service.js';
 import type { SubscriptionStatus } from '../generated/prisma/enums.js';
 import type { UserModel } from '../generated/prisma/models.js';
@@ -81,6 +82,7 @@ export class StripeService {
     private readonly prisma: PrismaService,
     private readonly tvFulfilment: TvFulfilmentService,
     private readonly rechargeService: RechargeService,
+    private readonly parkingService: ParkingService,
     private readonly travelEsimService: TravelEsimService,
   ) {}
 
@@ -455,6 +457,12 @@ export class StripeService {
     // Travel eSIM checkouts issue the eSIM credentials after payment.
     if (session.metadata?.type === 'travel_esim') {
       await this.travelEsimService.fulfillFromCheckoutSession(session);
+    }
+
+    // Number Parking checkouts activate the parking (or apply the paid
+    // extension) only once payment is confirmed — idempotent.
+    if (session.metadata?.type === 'number_parking') {
+      await this.parkingService.fulfillFromCheckoutSession(session);
     }
   }
 
