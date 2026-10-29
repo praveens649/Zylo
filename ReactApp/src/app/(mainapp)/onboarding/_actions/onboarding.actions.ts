@@ -6,7 +6,6 @@ import {
 } from "@/api/onboarding.api";
 import {
   numbersApi,
-  GenerateNumbersPayload,
 } from "@/api/numbers.api";
 
 /**
@@ -90,11 +89,4 @@ export async function declineInviteByIdAction(id: string) {
  */
 export async function reserveNumberAction(numberId: string, holdMinutes = 15) {
   return numbersApi.reserve(numberId, holdMinutes);
-}
-
-/**
- * Generates fresh batch of standard and VIP phone numbers via the server engine.
- */
-export async function generateNumbersAction(params: GenerateNumbersPayload) {
-  return numbersApi.generate(params);
 }

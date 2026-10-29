@@ -36,7 +36,6 @@ export default function OnboardingPage() {
     isReserving,
     reservingNumberId,
     handleSelectNumber,
-    handleGenerateNumbers,
     numberFilter,
     setNumberFilter,
     setNumberSearch,
@@ -138,7 +137,6 @@ export default function OnboardingPage() {
                 isReserving={isReserving}
                 reservingNumberId={reservingNumberId}
                 onSelectNumber={handleSelectNumber}
-                onGenerateNumbers={handleGenerateNumbers}
                 onBack={() => setCurrentStep(2)}
                 onNext={() => setCurrentStep(4)}
                 onSearchChange={setNumberSearch}

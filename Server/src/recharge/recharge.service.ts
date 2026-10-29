@@ -394,7 +394,14 @@ export class RechargeService {
   private async claimPhoneNumber(tx: Prisma.TransactionClient) {
     for (const type of ['STANDARD', 'PREMIUM'] as const) {
       const candidates = await tx.phoneNumber.findMany({
-        where: { status: 'AVAILABLE', type },
+        where: {
+          status: 'AVAILABLE',
+          type,
+          // Domestic pool only — never claim a travel eSIM destination
+          // number or a corporate-prefixed business number for a SIM.
+          countryCode: 'IN',
+          organizationId: null,
+        },
         orderBy: { createdAt: 'asc' },
         take: 5,
         select: { id: true },

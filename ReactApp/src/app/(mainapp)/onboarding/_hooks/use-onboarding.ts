@@ -26,7 +26,6 @@ import {
   createCheckoutAction,
   verifyCheckoutAction,
   reserveNumberAction,
-  generateNumbersAction,
   registerBusinessAction,
 } from "../_actions/onboarding.actions";
 import { OnboardingStep } from "../_components/onboarding-stepper";
@@ -134,7 +133,6 @@ export function useOnboarding() {
   const {
     data: numbersData,
     isLoading: isNumbersLoading,
-    refetch: refetchNumbers,
   } = useAvailableNumbers(
     {
       category: simCategory,
@@ -348,24 +346,6 @@ export function useOnboarding() {
     }
   };
 
-  // Handler: Quick-generate fresh batch of numbers
-  const handleGenerateNumbers = async () => {
-    try {
-      await generateNumbersAction({ type: "PERSONAL", count: 10, allowPremium: true });
-      refetchNumbers();
-      toast({
-        title: "Numbers Generated",
-        description: "10 fresh phone numbers added to inventory.",
-      });
-    } catch (err: any) {
-      toast({
-        title: "Generation Error",
-        description: err?.message || "Failed to generate numbers.",
-        variant: "destructive",
-      });
-    }
-  };
-
   return {
     // Stepper & Navigation
     currentStep,
@@ -396,7 +376,6 @@ export function useOnboarding() {
     isReserving,
     reservingNumberId,
     handleSelectNumber,
-    handleGenerateNumbers,
     numberFilter,
     setNumberFilter,
     setNumberSearch,

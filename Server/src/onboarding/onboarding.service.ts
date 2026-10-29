@@ -554,6 +554,16 @@ export class OnboardingService {
       );
     }
 
+    // Travel eSIM destination numbers live in the same inventory table —
+    // they can only be issued through the eSIM checkout.
+    if (phoneNumber.countryCode !== 'IN') {
+      throw new ApiException(
+        400,
+        'NUMBER_NOT_DOMESTIC',
+        'This number is reserved for travel eSIM orders',
+      );
+    }
+
     if (isBusiness) {
       if (phoneNumber.organizationId !== organization!.id) {
         throw new ApiException(
