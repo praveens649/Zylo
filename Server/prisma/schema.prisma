@@ -411,7 +411,6 @@ model BusinessInvite {
 
   organization BusinessOrganization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   phoneNumber  PhoneNumber?         @relation(fields: [phoneNumberId], references: [id], onDelete: SetNull)
-  phoneNumberId String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -430,7 +429,6 @@ model PhoneNumber {
   id            String            @id @default(uuid())
   number        String            @unique
   prefix        String?
-  countryCode   String?           @default("+91")
   type          PhoneNumberType   @default(STANDARD)
   price         Decimal           @default(0) @db.Decimal(10, 2)
   status        PhoneNumberStatus @default(AVAILABLE)
@@ -1179,8 +1177,6 @@ model InternationalPlan {
 
   dataAllowanceMb Int
   validityDays    Int
-  callMinutes     Int?
-  smsCount        Int?
 
   // Optional voice/SMS bundle — null means the pack is data-only.
   callMinutes Int?
