@@ -7,6 +7,7 @@ export type SimCategory = "PERSONAL" | "BUSINESS";
 export type SimTechnology = "PHYSICAL" | "ESIM";
 export type SimStatus =
   | "PENDING_ACTIVATION"
+  | "READY_TO_INSTALL"
   | "ACTIVE"
   | "GRACE_PERIOD"
   | "SUSPENDED"
@@ -26,10 +27,12 @@ export interface AdminSim {
     number: string;
     prefix: string | null;
     type: "STANDARD" | "PREMIUM";
-  };
+  } | null;
   category: SimCategory;
   technology: SimTechnology;
   status: SimStatus;
+  destinationCountry: string | null;
+  reference: string | null;
   activatedAt: string | null;
   planExpiredAt: string | null;
   activePlan: {

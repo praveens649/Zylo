@@ -36,13 +36,13 @@ export function SidebarNav({ items }: { items: NavItem[] }) {
                     asChild
                     tooltip={item.label}
                     isActive={isActive}
-                    className="h-9 rounded-lg px-3 text-sm font-medium text-sidebar-foreground/70 transition-all duration-150 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[active=true]:bg-sidebar-primary/15 data-[active=true]:text-sidebar-primary data-[active=true]:shadow-[inset_2px_0_0_0] data-[active=true]:shadow-sidebar-primary"
+                    className="h-9 rounded-lg px-3 text-sm font-medium text-sidebar-foreground/70 transition-all duration-150 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[active=true]:bg-sidebar-primary data-[active=true]:font-semibold data-[active=true]:text-sidebar-primary-foreground data-[active=true]:shadow-md data-[active=true]:shadow-sidebar-primary/30"
                   >
                     <Link href={item.href}>
                       {isActive && isFetching > 0 ? (
-                        <Loader2 className="animate-spin text-sidebar-primary" />
+                        <Loader2 className="animate-spin text-sidebar-primary-foreground" />
                       ) : (
-                        <item.icon className={isActive ? "text-sidebar-primary" : "text-sidebar-foreground/50"} />
+                        <item.icon className={isActive ? "text-sidebar-primary-foreground" : "text-sidebar-foreground/50"} />
                       )}
                       <span>{item.label}</span>
                     </Link>
