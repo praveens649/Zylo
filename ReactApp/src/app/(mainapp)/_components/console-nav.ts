@@ -1,4 +1,4 @@
-import { CreditCard, Database, ShoppingBag, LayoutDashboard, Users, Zap } from "lucide-react";
+import { CreditCard, Database, HandCoins, ShoppingBag, LayoutDashboard, Users, Zap } from "lucide-react";
 import { MonitorPlay, Radio, Smartphone, Tv, SmartphoneCharging } from "lucide-react";
 
 export type NavItem = {
@@ -39,4 +39,5 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/tv", label: "Zylo TV", icon: Tv, customerOnly: true },
   { href: "/tv/my", label: "My TV", icon: MonitorPlay, customerOnly: true },
   { href: "/tv-admin", label: "TV Console", icon: Radio, adminOnly: true },
+  { href: "/loans-admin", label: "Data Loans", icon: HandCoins, adminOnly: true },
 ];

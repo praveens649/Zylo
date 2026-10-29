@@ -68,14 +68,18 @@ async function fetchEnvelope<T, M>(
   path: string,
   init: RequestInit = {}
 ): Promise<{ data: T; meta?: M }> {
-  const res = await fetch(path, {
-    headers: {
-      "Content-Type": "application/json",
-      ...authHeaders(),
-      ...init.headers,
-    },
-    ...init,
+  // Merge headers via the Headers API — spreading `init` after a plain-object
+  // headers literal would let `init.headers` replace (not merge) the auth and
+  // content-type headers.
+  const headers = new Headers({
+    "Content-Type": "application/json",
+    ...authHeaders(),
   });
+  new Headers(init.headers ?? {}).forEach((value, key) =>
+    headers.set(key, value)
+  );
+
+  const res = await fetch(path, { ...init, headers });
 
   const body = (await res
     .json()
@@ -103,8 +107,12 @@ export const api = {
   get: <T>(path: string) => request<T>(path),
   getWithMeta: <T, M = Record<string, unknown>>(path: string) =>
     fetchEnvelope<T, M>(path),
-  post: <T>(path: string, body?: unknown) =>
-    request<T>(path, { method: "POST", body: JSON.stringify(body) }),
+  post: <T>(path: string, body?: unknown, init?: RequestInit) =>
+    request<T>(path, {
+      method: "POST",
+      body: JSON.stringify(body),
+      ...init,
+    }),
   postFormData: async <T>(path: string, formData: FormData): Promise<T> => {
     const res = await fetch(path, {
       method: "POST",

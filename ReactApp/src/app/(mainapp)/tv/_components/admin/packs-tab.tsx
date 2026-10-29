@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import GenericTable from "@/components/ui/generic-table";
 import { formatINR } from "@/lib/format";
 import { useTvAction } from "../../_hooks/use-tv";
-import { FormField, fieldCls } from "../tv-ui";
+import { ConfirmDialog, FormField, fieldCls } from "../tv-ui";
 
 function PackDialog({ pack, onClose }: { pack: TvPack | null; onClose: () => void }) {
   const [name, setName] = useState(pack?.name ?? "");
@@ -74,7 +74,12 @@ function PackDialog({ pack, onClose }: { pack: TvPack | null; onClose: () => voi
 export function PacksTab() {
   const q = useQuery({ queryKey: [...TV_KEYS.admin, "plans"], queryFn: tvAdminApi.plans });
   const [editing, setEditing] = useState<TvPack | null | undefined>(undefined);
-  const del = useTvAction(tvAdminApi.deletePlan, (r) => (r.deleted ? "Pack deleted" : "Pack has history — disabled instead"));
+  const [deleting, setDeleting] = useState<TvPack | null>(null);
+  const del = useTvAction(
+    tvAdminApi.deletePlan,
+    (r) => (r.deleted ? "Pack deleted" : "Pack has history — disabled instead"),
+    () => setDeleting(null)
+  );
 
   const columns = useMemo<ColumnDef<TvPack, unknown>[]>(
     () => [
@@ -90,7 +95,7 @@ export function PacksTab() {
         cell: ({ row }) => (
           <div className="flex justify-end gap-1">
             <Button size="sm" variant="ghost" onClick={() => setEditing(row.original)}><Edit3 className="mr-1 h-3.5 w-3.5" />Edit</Button>
-            <Button size="sm" variant="ghost" className="text-destructive" onClick={() => confirm(`Delete ${row.original.name}?`) && del.mutate(row.original.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+            <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setDeleting(row.original)}><Trash2 className="h-3.5 w-3.5" /></Button>
           </div>
         ),
       },
@@ -103,6 +108,19 @@ export function PacksTab() {
       <div className="flex justify-end"><Button onClick={() => setEditing(null)}><Plus className="mr-2 h-4 w-4" />New TV pack</Button></div>
       {q.isPending ? <Loader2 className="mx-auto h-5 w-5 animate-spin" /> : <GenericTable columns={columns} data={q.data ?? []} sort pagination />}
       {editing !== undefined && <PackDialog pack={editing} onClose={() => setEditing(undefined)} />}
+      <ConfirmDialog
+        open={!!deleting}
+        onOpenChange={(o) => !o && setDeleting(null)}
+        title={`Delete pack ${deleting?.name}?`}
+        description={
+          (deleting?._count?.subscriptions ?? 0) > 0
+            ? `This pack has ${deleting?._count?.subscriptions} subscriber(s). To keep billing history intact it will be disabled and hidden, not deleted.`
+            : "The pack is permanently removed. This cannot be undone."
+        }
+        confirmLabel={(deleting?._count?.subscriptions ?? 0) > 0 ? "Disable pack" : "Delete pack"}
+        pending={del.isPending}
+        onConfirm={() => deleting && del.mutate(deleting.id)}
+      />
     </div>
   );
 }

@@ -79,11 +79,17 @@ export function DataBankCard({ simId }: DataBankCardProps) {
       onSuccess: (res) => {
         toast({
           title: "Data saved to bank",
-          description: `${formatMb(res.savedMb)} moved to your Data Bank${
-            res.expiresAt
-              ? ` (expires ${new Date(res.expiresAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })})`
-              : ""
-          }.`,
+          description: res.loanRepaidMb
+            ? `${formatMb(res.loanRepaidMb)} repaid your Data Loan first${
+                res.loanOutstandingMb
+                  ? ` (${formatMb(res.loanOutstandingMb)} left)`
+                  : " — loan fully repaid"
+              }, ${formatMb(res.savedMb - res.loanRepaidMb)} banked.`
+            : `${formatMb(res.savedMb)} moved to your Data Bank${
+                res.expiresAt
+                  ? ` (expires ${new Date(res.expiresAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })})`
+                  : ""
+              }.`,
         });
       },
       onError: (err) => {

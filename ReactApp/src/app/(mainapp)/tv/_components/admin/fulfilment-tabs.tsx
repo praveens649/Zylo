@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import GenericTable from "@/components/ui/generic-table";
 import { formatDate, formatDateTime, formatINR } from "@/lib/format";
 import { useTvAction } from "../../_hooks/use-tv";
-import { ConnectionStatusBadge, FormField, SLOT_LABEL, StatusPill, fieldCls } from "../tv-ui";
+import { ConfirmDialog, ConnectionStatusBadge, FormField, SLOT_LABEL, StatusPill, fieldCls } from "../tv-ui";
 
 function useAssign() {
   return useTvAction(tvAdminApi.assignUnit, "Unit assigned");
@@ -152,8 +152,9 @@ export function ConnectionsTab() {
     queryKey: [...TV_KEYS.admin, "connections", status, search],
     queryFn: () => tvAdminApi.connections({ status: status || undefined, search: search || undefined }),
   });
+  const [disconnecting, setDisconnecting] = useState<AdminConnection | null>(null);
   const assign = useAssign();
-  const disconnect = useTvAction(tvAdminApi.disconnect, "Connection disconnected");
+  const disconnect = useTvAction(tvAdminApi.disconnect, "Connection disconnected", () => setDisconnecting(null));
   const ret = useTvAction(tvAdminApi.confirmReturn, "Return confirmed");
 
   const columns = useMemo<ColumnDef<AdminConnection, unknown>[]>(
@@ -172,7 +173,7 @@ export function ConnectionsTab() {
             <div className="flex justify-end gap-1">
               {c.status === "PENDING_INSTALLATION" && !c.unit && <Button size="sm" variant="outline" onClick={() => assign.mutate(c.id)}>Assign unit</Button>}
               {["ACTIVE", "PAUSED", "GRACE_PERIOD", "SUSPENDED"].includes(c.status) && (
-                <Button size="sm" variant="ghost" className="text-destructive" onClick={() => confirm(`Disconnect ${c.connectionNumber}?`) && disconnect.mutate(c.id)}><Unplug className="mr-1 h-3.5 w-3.5" />Disconnect</Button>
+                <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setDisconnecting(c)}><Unplug className="mr-1 h-3.5 w-3.5" />Disconnect</Button>
               )}
               {c.status === "DISCONNECTED" && c.ownership === "RENTAL" && c.unit && c.returnDueAt && (
                 <Button size="sm" variant="outline" onClick={() => ret.mutate(c.id)}><Ban className="mr-1 h-3.5 w-3.5" />Confirm return</Button>
@@ -195,6 +196,19 @@ export function ConnectionsTab() {
         </select>
       </div>
       {q.isPending ? <Loader2 className="mx-auto h-5 w-5 animate-spin" /> : <GenericTable columns={columns} data={q.data?.data ?? []} sort pagination />}
+      <ConfirmDialog
+        open={!!disconnecting}
+        onOpenChange={(o) => !o && setDisconnecting(null)}
+        title={`Disconnect ${disconnecting?.connectionNumber}?`}
+        description={
+          disconnecting?.ownership === "RENTAL"
+            ? `This ends ${disconnecting.user.name}'s TV service and all packs immediately, and marks the rented box for return.`
+            : `This ends ${disconnecting?.user.name}'s TV service and all packs immediately.`
+        }
+        confirmLabel="Disconnect"
+        pending={disconnect.isPending}
+        onConfirm={() => disconnecting && disconnect.mutate(disconnecting.id)}
+      />
     </div>
   );
 }

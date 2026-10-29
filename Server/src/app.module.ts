@@ -20,6 +20,7 @@ import { NumbersModule } from './numbers/numbers.module.js';
 import { OnboardingModule } from './onboarding/onboarding.module.js';
 import { UsageSimulationModule } from './usage-simulation/usage-simulation.module.js';
 import { DataBankModule } from './data-bank/data-bank.module.js';
+import { LoansModule } from './loans/loans.module.js';
 import { ApiExceptionFilter } from './common/api-exception.filter.js';
 import { EnvelopeInterceptor } from './common/envelope.interceptor.js';
 
@@ -52,6 +53,7 @@ import { EnvelopeInterceptor } from './common/envelope.interceptor.js';
     NumbersModule,
     OnboardingModule,
     UsageSimulationModule,
+    LoansModule,
     DataBankModule,
   ],
   controllers: [AppController],

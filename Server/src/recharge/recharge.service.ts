@@ -3,6 +3,7 @@ import Stripe from 'stripe';
 import { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ApiException } from '../common/api-error.js';
+import { LoansService } from '../loans/loans.service.js';
 import type { UserModel } from '../generated/prisma/models.js';
 import type { CreateRechargeCheckoutDto } from './dto.js';
 
@@ -44,7 +45,10 @@ export class RechargeService {
     return raw.split(',')[0].trim().replace(/\/+$/, '');
   }
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly loans: LoansService,
+  ) {}
 
   // -----------------------------------------------------------------------
   // Customer overview — their SIMs with current + queued plan subscriptions
@@ -349,6 +353,10 @@ export class RechargeService {
           where: { id: simId },
           data: { planExpiredAt: endDate },
         });
+
+        // An open Data Loan on this SIM is settled from the new recharge —
+        // deterministic reference, so a replayed webhook can never settle twice.
+        await this.loans.settleOnRecharge(tx, simId, order.id, now);
       });
     } catch (err) {
       // Unique constraint on planSubscription.orderId — already fulfilled

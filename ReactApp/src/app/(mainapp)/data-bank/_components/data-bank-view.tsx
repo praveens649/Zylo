@@ -19,6 +19,8 @@ import {
 import { useRechargeOverview } from "../../recharge/_hooks/use-recharge";
 import { DataUsageCard } from "./data-usage-card";
 import { DataBankCard } from "./data-bank-card";
+import { DataLoanCard } from "../../loans/_components/data-loan-card";
+import { LoanHistory } from "../../loans/_components/loan-history";
 
 /**
  * Zylo Data Bank page — the daily usage simulation and the Data Bank
@@ -124,10 +126,16 @@ export function DataBankView() {
       {!isLoading && !isError && (
         <>
           {selectedSim ? (
-            <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-              <DataUsageCard simId={selectedSim.id} />
-              <DataBankCard simId={selectedSim.id} />
-            </div>
+            <>
+              <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+                <DataUsageCard simId={selectedSim.id} />
+                <DataBankCard simId={selectedSim.id} />
+              </div>
+              <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+                <DataLoanCard simId={selectedSim.id} />
+                <LoanHistory simId={selectedSim.id} />
+              </div>
+            </>
           ) : (
             <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-border/80 bg-muted/10 p-12 text-center">
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">

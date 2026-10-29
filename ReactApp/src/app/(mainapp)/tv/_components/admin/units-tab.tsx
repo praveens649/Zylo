@@ -11,7 +11,7 @@ import GenericTable from "@/components/ui/generic-table";
 import { formatDate } from "@/lib/format";
 import { toast } from "@/hooks/use-toast";
 import { useTvAction } from "../../_hooks/use-tv";
-import { FormField, UnitStatusBadge, fieldCls } from "../tv-ui";
+import { ConfirmDialog, FormField, UnitStatusBadge, fieldCls } from "../tv-ui";
 
 const STATUSES: UnitStatus[] = ["IN_STOCK", "RESERVED", "ASSIGNED", "INSTALLED", "FAULTY", "RETURNED", "RETIRED"];
 
@@ -86,14 +86,15 @@ export function UnitsTab() {
   const [modelId, setModelId] = useState("");
   const [search, setSearch] = useState("");
   const [dialog, setDialog] = useState<"add" | "import" | null>(null);
+  const [confirmUnit, setConfirmUnit] = useState<{ action: "faulty" | "delete"; unit: AdminUnit } | null>(null);
 
   const q = useQuery({
     queryKey: [...TV_KEYS.admin, "units", status, modelId, search],
     queryFn: () => tvAdminApi.units({ status: status || undefined, modelId: modelId || undefined, search: search || undefined }),
   });
-  const faulty = useTvAction(tvAdminApi.markFaulty, "Unit marked faulty");
+  const faulty = useTvAction(tvAdminApi.markFaulty, "Unit marked faulty", () => setConfirmUnit(null));
   const replace = useTvAction(tvAdminApi.replaceUnit, "Replacement unit assigned");
-  const del = useTvAction(tvAdminApi.deleteUnit, "Unit deleted");
+  const del = useTvAction(tvAdminApi.deleteUnit, "Unit deleted", () => setConfirmUnit(null));
 
   const columns = useMemo<ColumnDef<AdminUnit, unknown>[]>(
     () => [
@@ -110,13 +111,13 @@ export function UnitsTab() {
           return (
             <div className="flex justify-end gap-1">
               {["ASSIGNED", "INSTALLED"].includes(u.status) && (
-                <Button size="sm" variant="ghost" onClick={() => confirm(`Mark ${u.serialNumber} as faulty?`) && faulty.mutate(u.id)}><AlertTriangle className="mr-1 h-3.5 w-3.5" />Faulty</Button>
+                <Button size="sm" variant="ghost" onClick={() => setConfirmUnit({ action: "faulty", unit: u })}><AlertTriangle className="mr-1 h-3.5 w-3.5" />Faulty</Button>
               )}
               {u.status === "FAULTY" && u.connection && (
                 <Button size="sm" variant="outline" onClick={() => replace.mutate(u.id)}><Repeat className="mr-1 h-3.5 w-3.5" />Replace</Button>
               )}
               {!u.connection && ["IN_STOCK", "RETIRED", "RETURNED", "FAULTY"].includes(u.status) && (
-                <Button size="sm" variant="ghost" className="text-destructive" onClick={() => confirm(`Delete ${u.serialNumber}?`) && del.mutate(u.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setConfirmUnit({ action: "delete", unit: u })}><Trash2 className="h-3.5 w-3.5" /></Button>
               )}
             </div>
           );
@@ -155,6 +156,23 @@ export function UnitsTab() {
       )}
       {dialog === "add" && <AddUnitDialog onClose={() => setDialog(null)} />}
       {dialog === "import" && <ImportDialog onClose={() => setDialog(null)} />}
+      <ConfirmDialog
+        open={!!confirmUnit}
+        onOpenChange={(o) => !o && setConfirmUnit(null)}
+        title={
+          confirmUnit?.action === "delete"
+            ? `Delete unit ${confirmUnit.unit.serialNumber}?`
+            : `Mark ${confirmUnit?.unit.serialNumber} as faulty?`
+        }
+        description={
+          confirmUnit?.action === "delete"
+            ? "The unit is permanently removed from inventory. This cannot be undone."
+            : "The unit is taken out of service. If it was installed for a customer, use Replace to swap in a new box."
+        }
+        confirmLabel={confirmUnit?.action === "delete" ? "Delete unit" : "Mark faulty"}
+        pending={faulty.isPending || del.isPending}
+        onConfirm={() => confirmUnit && (confirmUnit.action === "delete" ? del : faulty).mutate(confirmUnit.unit.id)}
+      />
     </div>
   );
 }
