@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { VoucherItem } from "@/api/quests.api";
 import type { VoucherCategoryFilter } from "../_hooks/use-quests";
+import { getBadge } from "@/lib/badges";
 
 interface VoucherMarketplaceProps {
   vouchers: VoucherItem[];
@@ -99,6 +100,7 @@ export function VoucherMarketplace({
         {filteredVouchers.map((voucher) => {
           const canAfford = spendablePackXp >= voucher.requiredXp;
           const isBadgeOwned = voucher.isBadgeOwned;
+          const badgeDef = voucher.badgeCode ? getBadge(voucher.badgeCode) : null;
           const progressTowardItem = Math.min(
             100,
             Math.round((spendablePackXp / voucher.requiredXp) * 100)
@@ -153,6 +155,32 @@ export function VoucherMarketplace({
                 <CardDescription className="text-xs line-clamp-2 leading-relaxed">
                   {voucher.description}
                 </CardDescription>
+
+                {/* Visual Badge Medallion Preview if this is a cosmetic badge */}
+                {badgeDef && (
+                  <div className="mt-3 flex items-center gap-3 rounded-xl border border-border/80 bg-gradient-to-r from-card to-muted/40 p-2.5 shadow-2xs">
+                    <div
+                      className={`relative h-12 w-12 shrink-0 overflow-hidden rounded-full border-2 ${badgeDef.borderColor} p-0.5 shadow-sm`}
+                    >
+                      <img
+                        src={badgeDef.image}
+                        alt={badgeDef.name}
+                        className="h-full w-full rounded-full object-cover"
+                      />
+                    </div>
+                    <div className="min-w-0 space-y-0.5">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400">
+                        {badgeDef.tier} Tier Crest
+                      </span>
+                      <p className="text-xs font-bold text-foreground truncate">
+                        {badgeDef.name}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground truncate">
+                        {badgeDef.unlockCondition}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </CardHeader>
 
               <CardContent className="pt-0 space-y-3">

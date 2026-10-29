@@ -23,6 +23,9 @@ import { Separator } from "@/components/ui/separator";
 import { ChangePasswordDialog } from "../../_components/change-password-dialog";
 import { initials } from "../../_components/console-utils";
 import { ProfileEditDialog } from "./profile-edit-dialog";
+import { ProfileBadgesShowcase } from "./profile-badges-showcase";
+import { getHighestBadge } from "@/lib/badges";
+import { useQuestBoard } from "../../quests/_hooks/use-quests";
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                           */
@@ -46,24 +49,31 @@ function DetailRow({
 }
 
 /* ------------------------------------------------------------------ */
-/*  Hero card                                                         */
+/*  Hero card with Prestige Emblem Crest                              */
 /* ------------------------------------------------------------------ */
 
 function ProfileHero({
   user,
   onEdit,
+  unlockedBadges = ["LEVEL_1_ROOKIE"],
+  level = 1,
 }: {
   user: AuthUser;
   onEdit: () => void;
+  unlockedBadges?: string[];
+  level?: number;
 }) {
   const [imgFailed, setImgFailed] = useState(false);
   const imageUrl = user.image && !imgFailed ? user.image : null;
+  const crest = getHighestBadge(unlockedBadges);
 
   return (
-    <Card className="border-border bg-card shadow-sm">
-      <CardContent className="flex flex-col gap-6 p-6 sm:flex-row sm:items-center sm:justify-between">
+    <Card className="border-border bg-card shadow-sm overflow-hidden relative">
+      <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-primary/5 blur-3xl" />
+
+      <CardContent className="flex flex-col gap-6 p-6 sm:flex-row sm:items-center sm:justify-between relative">
         <div className="flex items-center gap-4">
-          {/* Avatar */}
+          {/* Avatar with Floating Crest */}
           <div className="relative">
             {imageUrl ? (
               <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-full border-2 border-primary/25 shadow-sm">
@@ -79,14 +89,44 @@ function ProfileHero({
                 {initials(user.name)}
               </div>
             )}
+
+            {/* Floating Medallion Emblem on Avatar */}
+            {crest && (
+              <div
+                className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full border-2 border-card bg-card p-0.5 shadow-md ring-2 ring-primary/20"
+                title={`${crest.name} • ${crest.tier} Tier`}
+              >
+                <img
+                  src={crest.image}
+                  alt={crest.name}
+                  className="h-full w-full rounded-full object-cover"
+                />
+              </div>
+            )}
           </div>
 
           {/* Identity */}
-          <div className="min-w-0">
+          <div className="min-w-0 space-y-1">
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="font-display text-xl font-bold tracking-tight">
                 {user.name}
               </h2>
+
+              {/* Prestige Medallion Tag */}
+              {crest && (
+                <div className="flex items-center gap-1.5 rounded-full border border-border/80 bg-muted/40 px-2.5 py-0.5 text-xs font-bold shadow-2xs">
+                  <img
+                    src={crest.image}
+                    alt={crest.name}
+                    className="h-4 w-4 rounded-full object-cover"
+                  />
+                  <span className="text-foreground">{crest.name}</span>
+                  <span className="text-[10px] text-muted-foreground font-normal">
+                    • Lvl {level}
+                  </span>
+                </div>
+              )}
+
               <Badge variant="secondary" className="gap-1 text-xs">
                 <ShieldCheck className="h-3 w-3" />
                 {getRoleLabel(user.role)}
@@ -101,11 +141,11 @@ function ProfileHero({
                 {user.isActive ? "Active" : "Inactive"}
               </Badge>
             </div>
-            <p className="mt-1 flex items-center gap-1.5 truncate text-sm text-muted-foreground">
+            <p className="flex items-center gap-1.5 truncate text-sm text-muted-foreground">
               <Mail className="h-3.5 w-3.5 shrink-0" />
               {user.email}
             </p>
-            <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground/80">
+            <p className="flex items-center gap-1.5 text-xs text-muted-foreground/80">
               <CalendarDays className="h-3.5 w-3.5 shrink-0" />
               Member since {formatDate(user.createdAt)}
             </p>
@@ -210,6 +250,7 @@ function SecurityCard({ onChangePassword }: { onChangePassword: () => void }) {
 
 export function ProfileView() {
   const { user, isPending } = useAuthUser();
+  const { data: questBoard } = useQuestBoard();
   const [editOpen, setEditOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
 
@@ -222,20 +263,34 @@ export function ProfileView() {
     );
   }
 
+  const unlockedBadges = questBoard?.profile?.unlockedBadges ?? ["LEVEL_1_ROOKIE"];
+  const level = questBoard?.profile?.level ?? 1;
+
   return (
     <div className="flex flex-col gap-6">
       {/* Page header */}
       <div>
         <h1 className="font-display text-2xl font-bold tracking-tight">
-          Profile
+          Profile & Prestige
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Your account information, photo, and security settings.
+          Your account identity, unlocked prestige crests, and security credentials.
         </p>
       </div>
 
-      {/* Identity hero */}
-      <ProfileHero user={user} onEdit={() => setEditOpen(true)} />
+      {/* Identity hero with active crest */}
+      <ProfileHero
+        user={user}
+        onEdit={() => setEditOpen(true)}
+        unlockedBadges={unlockedBadges}
+        level={level}
+      />
+
+      {/* Prestige Medallions Showcase */}
+      <ProfileBadgesShowcase
+        unlockedBadges={unlockedBadges}
+        level={level}
+      />
 
       {/* Details + security */}
       <div className="grid gap-6 md:grid-cols-2">

@@ -1,6 +1,8 @@
-import { Coins, Calendar, ShieldCheck, Trophy, Sparkles, Star, Zap, Clock } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Coins, Calendar, ShieldCheck, Trophy, Sparkles, Zap, Clock, ExternalLink, Lock, Check } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ORDERED_BADGES, getHighestBadge } from "@/lib/badges";
 
 interface QuestsMetricsCardsProps {
   wallet: {
@@ -22,29 +24,6 @@ interface QuestsMetricsCardsProps {
   };
 }
 
-const BADGE_STYLES: Record<string, { label: string; color: string; border: string }> = {
-  LEVEL_1_ROOKIE: {
-    label: "Rookie",
-    color: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30",
-    border: "border-amber-500/30",
-  },
-  LEVEL_2_DATA_EXPLORER: {
-    label: "Data Explorer",
-    color: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30",
-    border: "border-blue-500/30",
-  },
-  LEVEL_3_CYBER_MASTER: {
-    label: "Cyber Master",
-    color: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/30",
-    border: "border-purple-500/30",
-  },
-  DIAMOND_VIP_SAVER: {
-    label: "Diamond VIP",
-    color: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/30",
-    border: "border-cyan-500/30",
-  },
-};
-
 export function QuestsMetricsCards({
   wallet,
   planInfo,
@@ -55,6 +34,9 @@ export function QuestsMetricsCards({
     100,
     Math.round((wallet.packTotalEarned / targetXp) * 100)
   );
+
+  const unlockedSet = new Set(profile.unlockedBadges || []);
+  const highestBadge = getHighestBadge(profile.unlockedBadges);
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -173,7 +155,7 @@ export function QuestsMetricsCards({
         </CardContent>
       </Card>
 
-      {/* Card 3: Permanent Level & Profile Badges */}
+      {/* Card 3: Permanent Level & Profile Badges (Visual Medallions) */}
       <Card className="relative overflow-hidden border-border/80 bg-gradient-to-br from-card via-card to-indigo-500/[0.04] shadow-sm hover:shadow-md transition-all sm:col-span-2 lg:col-span-1">
         <div className="absolute -right-8 -bottom-8 h-28 w-28 rounded-full bg-indigo-500/10 blur-2xl pointer-events-none" />
 
@@ -192,39 +174,68 @@ export function QuestsMetricsCards({
         </CardHeader>
 
         <CardContent className="space-y-3">
-          <div className="flex items-center gap-2.5">
-            <div className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-3 py-1 font-black text-white text-xs sm:text-sm shadow-xs">
-              <Trophy className="h-3.5 w-3.5 text-amber-300" />
-              <span>Level {profile.level}</span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-3 py-1 font-black text-white text-xs sm:text-sm shadow-xs">
+                <Trophy className="h-3.5 w-3.5 text-amber-300" />
+                <span>Level {profile.level}</span>
+              </div>
+              <span className="text-xs font-bold text-foreground">
+                {highestBadge?.name || "Rookie"}
+              </span>
             </div>
-            <span className="text-xs font-semibold text-foreground">
-              Account Mastery
-            </span>
+
+            <Link
+              to="/profile"
+              className="text-[11px] font-bold text-primary hover:underline flex items-center gap-0.5"
+            >
+              <span>Hall</span>
+              <ExternalLink className="h-3 w-3" />
+            </Link>
           </div>
 
-          {/* Badges showcase */}
-          <div className="flex flex-wrap gap-1.5 min-h-[38px] pt-1">
-            {profile.unlockedBadges.map((badgeCode) => {
-              const meta = BADGE_STYLES[badgeCode] || {
-                label: badgeCode.replace(/_/g, " "),
-                color: "bg-secondary text-foreground border-border/80",
-              };
+          {/* Visual Medallions Showcase Grid */}
+          <div className="grid grid-cols-4 gap-2 pt-1">
+            {ORDERED_BADGES.map((badge) => {
+              const isUnlocked = unlockedSet.has(badge.code);
               return (
-                <Badge
-                  key={badgeCode}
-                  variant="outline"
-                  className={`gap-1 text-[10px] font-bold py-0.5 px-2 rounded-lg border ${meta.color}`}
+                <Link
+                  key={badge.code}
+                  to="/profile"
+                  className="group flex flex-col items-center gap-1"
+                  title={`${badge.name} (${badge.tier} Tier) - ${isUnlocked ? "Unlocked & Active" : "Locked"}`}
                 >
-                  <Sparkles className="h-2.5 w-2.5" />
-                  {meta.label}
-                </Badge>
+                  <div
+                    className={`relative h-12 w-12 sm:h-14 sm:w-14 overflow-hidden rounded-full border-2 p-0.5 transition-all duration-300 ${
+                      isUnlocked
+                        ? `${badge.borderColor} bg-card group-hover:scale-110 shadow-sm ${badge.glowColor}`
+                        : "border-border/60 bg-muted grayscale opacity-50 group-hover:opacity-75"
+                    }`}
+                  >
+                    <img
+                      src={badge.image}
+                      alt={badge.name}
+                      className="h-full w-full rounded-full object-cover"
+                    />
+                    {!isUnlocked && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                        <Lock className="h-3.5 w-3.5 text-white/90" />
+                      </div>
+                    )}
+                  </div>
+                  <span className="text-[9px] font-bold truncate max-w-full text-muted-foreground group-hover:text-foreground">
+                    {badge.tier}
+                  </span>
+                </Link>
               );
             })}
           </div>
 
           <div className="flex items-center justify-between border-t border-border/50 pt-2 text-[11px] text-muted-foreground">
-            <span>🛡️ Lifetime Achievement</span>
-            <span className="font-semibold text-foreground">{profile.unlockedBadges.length} Badges Owned</span>
+            <span>🛡️ Lifetime Medallions</span>
+            <span className="font-semibold text-foreground">
+              {profile.unlockedBadges.length} of {ORDERED_BADGES.length} Owned
+            </span>
           </div>
         </CardContent>
       </Card>

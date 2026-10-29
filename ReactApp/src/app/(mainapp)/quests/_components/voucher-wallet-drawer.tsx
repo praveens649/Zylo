@@ -1,6 +1,7 @@
 import { Copy, Check, Sparkles, Ticket, Database, ShieldCheck, ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { RedemptionRecord } from "@/api/quests.api";
+import { getBadge } from "@/lib/badges";
 
 interface VoucherWalletDrawerProps {
   redemptions: RedemptionRecord[];
@@ -37,6 +38,7 @@ export function VoucherWalletDrawer({
         {redemptions.map((redemption) => {
           const isCoupon = !!redemption.couponCode;
           const isData = !!redemption.valueMb;
+          const badge = redemption.badgeCode ? getBadge(redemption.badgeCode) : null;
 
           return (
             <div
@@ -46,20 +48,20 @@ export function VoucherWalletDrawer({
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-2.5">
                   <div
-                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-bold ${
-                      isCoupon
+                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xs font-bold overflow-hidden ${
+                      badge
+                        ? `border-2 ${badge.borderColor} p-0.5 bg-card`
+                        : isCoupon
                         ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/30"
-                        : isData
-                        ? "bg-blue-500/10 text-blue-600 border border-blue-500/30"
-                        : "bg-purple-500/10 text-purple-600 border border-purple-500/30"
+                        : "bg-blue-500/10 text-blue-600 border border-blue-500/30"
                     }`}
                   >
-                    {isCoupon ? (
+                    {badge ? (
+                      <img src={badge.image} alt={badge.name} className="h-full w-full rounded-lg object-cover" />
+                    ) : isCoupon ? (
                       <Ticket className="h-4 w-4" />
-                    ) : isData ? (
-                      <Database className="h-4 w-4" />
                     ) : (
-                      <ShieldCheck className="h-4 w-4" />
+                      <Database className="h-4 w-4" />
                     )}
                   </div>
                   <div>
