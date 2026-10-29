@@ -7,7 +7,9 @@ export type DataBankTransactionType =
   | "DEPOSIT"
   | "REDEMPTION"
   | "EXPIRY"
-  | "ADJUSTMENT";
+  | "ADJUSTMENT"
+  | "TRANSFER_OUT"
+  | "TRANSFER_IN";
 
 export interface DataBankTransaction {
   id: string;

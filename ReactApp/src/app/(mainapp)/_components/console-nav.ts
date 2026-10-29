@@ -1,5 +1,5 @@
 import { Building2, CreditCard, Database, Globe, Plane, HandCoins, ShoppingBag, LayoutDashboard, Users, Zap, Trophy } from "lucide-react";
-import { LifeBuoy, MonitorPlay, Radio, Smartphone, Tv, Wifi, SmartphoneCharging } from "lucide-react";
+import { LifeBuoy, MonitorPlay, Radio, Send, Smartphone, Tv, Wifi, SmartphoneCharging } from "lucide-react";
 
 export type NavItem = {
   href: string;
@@ -28,6 +28,12 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/data-bank",
     label: "Data Bank",
     icon: Database,
+    customerOnly: true,
+  },
+  {
+    href: "/data-transfer",
+    label: "Transfer Data",
+    icon: Send,
     customerOnly: true,
   },
   {

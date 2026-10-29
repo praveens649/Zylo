@@ -161,6 +161,8 @@ enum DataBankTransactionType {
   REDEMPTION
   EXPIRY
   ADJUSTMENT
+  TRANSFER_OUT
+  TRANSFER_IN
 }
 
 enum DataTransferStatus {

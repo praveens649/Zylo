@@ -25,6 +25,7 @@ import { UsageSimulationModule } from './usage-simulation/usage-simulation.modul
 import { ScheduleModule } from '@nestjs/schedule';
 import { DataBankModule } from './data-bank/data-bank.module.js';
 import { DataQuestModule } from './data-quest/data-quest.module.js';
+import { DataTransferModule } from './data-transfer/data-transfer.module.js';
 import { SupportModule } from './support/support.module.js';
 import { LoansModule } from './loans/loans.module.js';
 import { ApiExceptionFilter } from './common/api-exception.filter.js';
@@ -66,6 +67,7 @@ import { EnvelopeInterceptor } from './common/envelope.interceptor.js';
     LoansModule,
     DataBankModule,
     DataQuestModule,
+    DataTransferModule,
     SupportModule,
   ],
   controllers: [AppController],
