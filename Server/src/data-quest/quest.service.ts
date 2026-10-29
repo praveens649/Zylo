@@ -1,6 +1,7 @@
-import { Injectable, Logger, OnApplicationBootstrap, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, OnApplicationBootstrap, NotFoundException, BadRequestException, Optional } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { XpLevelService } from './xp-level.service.js';
+import { QuestRulesEngine } from './quest-rules.engine.js';
 import type { QuestFrequency, QuestMetric, RewardType } from '../generated/prisma/enums.js';
 
 const TIME_ZONE = 'Asia/Kolkata';
@@ -229,6 +230,7 @@ export class QuestService implements OnApplicationBootstrap {
   constructor(
     private readonly prisma: PrismaService,
     private readonly xpService: XpLevelService,
+    @Optional() private readonly rulesEngine?: QuestRulesEngine,
   ) {}
 
   async onApplicationBootstrap() {
@@ -462,6 +464,16 @@ export class QuestService implements OnApplicationBootstrap {
    * - User's redeemed vouchers wallet
    */
   async getUserQuestBoard(userId: string) {
+    if (this.rulesEngine) {
+      try {
+        await this.rulesEngine.triggerDailyCheckIn(userId);
+      } catch (err) {
+        this.logger.warn(
+          `Auto check-in on quest board access failed for user ${userId}: ${err}`,
+        );
+      }
+    }
+
     const { profile, activeSub, totalWeeks, currentWeek, isPlanActive } =
       await this.syncUserPackCycle(userId);
 
@@ -552,6 +564,12 @@ export class QuestService implements OnApplicationBootstrap {
         streakDays: profile.streakDays,
         unlockedBadges: profile.unlockedBadges ?? ['LEVEL_1_ROOKIE'],
         lastActiveDate: profile.lastActiveDate,
+        checkedInToday: profile.lastActiveDate
+          ? (this.rulesEngine
+              ? this.rulesEngine.getKolkataDateString(profile.lastActiveDate) ===
+                this.rulesEngine.getKolkataDateString()
+              : true)
+          : false,
       },
       weeks: weeksData,
       vouchers: vouchersCatalog.map((v) => ({

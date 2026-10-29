@@ -38,17 +38,7 @@ export class DataQuestController {
    */
   @Post('check-in')
   async dailyCheckIn(@CurrentUser() user: UserModel) {
-    const todayStr = new Date().toISOString().slice(0, 10);
-    const reference = `checkin_${user.id}_${todayStr}`;
-
-    const result = await this.rulesEngine.processVerifiedEvent({
-      type: 'DAILY_CHECK_IN',
-      userId: user.id,
-      amount: 1,
-      reference,
-      metadata: { checkInDate: todayStr },
-    });
-
+    const result = await this.rulesEngine.triggerDailyCheckIn(user.id);
     return { data: result };
   }
 

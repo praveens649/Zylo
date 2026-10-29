@@ -1,7 +1,7 @@
 import { AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useQuestsState } from "../_hooks/use-quests";
-import { executeCheckIn, executeVoucherRedemption, copyCodeToClipboard } from "../_actions/quest-actions";
+import { executeVoucherRedemption, copyCodeToClipboard } from "../_actions/quest-actions";
 import { QuestsHeader } from "./quests-header";
 import { QuestsMetricsCards } from "./quests-metrics-cards";
 import { WeeklyQuestsSection } from "./weekly-quests-section";
@@ -57,12 +57,11 @@ export function QuestsView() {
 
   return (
     <div className="space-y-8 pb-12">
-      {/* 1. Header with Daily Check-In */}
+      {/* 1. Header with Daily Check-In & Streak Status */}
       <QuestsHeader
         daysRemaining={planInfo.daysRemaining}
         streakDays={profile.streakDays}
-        isCheckInPending={checkInMutation.isPending}
-        onCheckIn={() => executeCheckIn(checkInMutation)}
+        checkedInToday={profile.checkedInToday}
       />
 
       {/* 2. Top Metric Cards: Spendable Pack XP, Plan Duration, Permanent Profile */}

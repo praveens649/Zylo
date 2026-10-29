@@ -71,6 +71,7 @@ export interface QuestBoardData {
     streakDays: number;
     unlockedBadges: string[];
     lastActiveDate: string | null;
+    checkedInToday?: boolean;
   };
   weeks: QuestWeekGroup[];
   vouchers: VoucherItem[];

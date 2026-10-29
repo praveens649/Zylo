@@ -24,7 +24,7 @@ export class QuestRulesEngine {
   /**
    * Returns current calendar date in Asia/Kolkata timezone at midnight UTC.
    */
-  private getKolkataDate(date = new Date()): Date {
+  getKolkataDate(date = new Date()): Date {
     const parts = new Intl.DateTimeFormat('en-CA', {
       timeZone: TIME_ZONE,
       year: 'numeric',
@@ -37,6 +37,38 @@ export class QuestRulesEngine {
     return new Date(
       `${get('year')}-${get('month')}-${get('day')}T00:00:00.000Z`,
     );
+  }
+
+  /**
+   * Returns calendar date string formatted as YYYY-MM-DD in Asia/Kolkata timezone.
+   */
+  getKolkataDateString(date = new Date()): string {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: TIME_ZONE,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(date);
+
+    const get = (type: string) => parts.find((p) => p.type === type)!.value;
+    return `${get('year')}-${get('month')}-${get('day')}`;
+  }
+
+  /**
+   * Triggers daily login check-in for a user.
+   * Safe to call multiple times: fully idempotent per calendar day in Asia/Kolkata timezone.
+   * Awards +25 XP on first check-in of the day, advances streak, and increments weekly check-in quests.
+   */
+  async triggerDailyCheckIn(userId: string): Promise<QuestEvaluationResult> {
+    const todayStr = this.getKolkataDateString();
+    const reference = `checkin_${userId}_${todayStr}`;
+    return this.processVerifiedEvent({
+      type: 'DAILY_CHECK_IN',
+      userId,
+      amount: 1,
+      reference,
+      metadata: { checkInDate: todayStr },
+    });
   }
 
   /**
@@ -136,7 +168,26 @@ export class QuestRulesEngine {
         },
       });
 
-      // 3. Match User's Active In-Progress Quests for this metric
+      let anyLeveledUp = false;
+
+      // 3. For DAILY_CHECK_IN: Award base daily check-in XP (+25 XP)
+      // This records an entry in XpLedger with sourceId: reference.
+      // Any subsequent login/checkin on the same day will find this record and be rejected idempotently.
+      if (type === 'DAILY_CHECK_IN') {
+        const checkInXpResult = await this.xpService.awardXp(
+          userId,
+          25,
+          'STREAK',
+          reference,
+          'Daily Check-in (+25 XP)',
+          tx,
+        );
+        if (checkInXpResult.leveledUp) {
+          anyLeveledUp = true;
+        }
+      }
+
+      // 4. Match User's Active In-Progress Quests for this metric
       const now = new Date();
       const activeUserQuests = await tx.userQuest.findMany({
         where: {
@@ -153,7 +204,6 @@ export class QuestRulesEngine {
       });
 
       const updatedQuests: QuestProgressUpdate[] = [];
-      let anyLeveledUp = false;
 
       for (const userQuest of activeUserQuests) {
         const quest = userQuest.quest;

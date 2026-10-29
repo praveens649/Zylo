@@ -207,6 +207,85 @@ describe('Data Quest Engine Verification Rules & Validation', () => {
         }),
       });
     });
+
+    it('processes DAILY_CHECK_IN event: awards +25 XP, creates ledger entry, and advances streak', async () => {
+      fakePrisma.xpLedger.findFirst.mockResolvedValue(null);
+      fakePrisma.userGameProfile.findUnique.mockResolvedValue({
+        id: 'prof_1',
+        userId: 'u_1',
+        level: 1,
+        totalXp: 100,
+        currentXp: 100,
+        streakDays: 1,
+        lastActiveDate: null,
+      });
+      fakePrisma.userGameProfile.findUniqueOrThrow.mockResolvedValue({
+        id: 'prof_1',
+        userId: 'u_1',
+        level: 1,
+        totalXp: 125,
+        currentXp: 125,
+        streakDays: 1,
+        lastActiveDate: new Date(),
+      });
+      fakePrisma.userQuest.findMany.mockResolvedValue([]);
+      fakePrisma.userAchievement.findMany.mockResolvedValue([]);
+      fakePrisma.achievement.findMany.mockResolvedValue([]);
+
+      const achService = new AchievementService(fakePrisma, xpService);
+      const engine = new QuestRulesEngine(fakePrisma, xpService, achService);
+
+      const result = await engine.triggerDailyCheckIn('u_1');
+
+      expect(result.processed).toBe(true);
+      expect(result.alreadyProcessed).toBe(false);
+      expect(fakePrisma.xpLedger.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            userId: 'u_1',
+            source: 'STREAK',
+            xpAmount: 25,
+            sourceId: expect.stringMatching(/^checkin_u_1_\d{4}-\d{2}-\d{2}$/),
+          }),
+        }),
+      );
+    });
+
+    it('rejects second check-in on the same day without double awarding XP', async () => {
+      const todayDateStr = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Kolkata',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(new Date());
+
+      // Idempotency guard finds existing check-in in xpLedger
+      fakePrisma.xpLedger.findFirst.mockResolvedValue({
+        id: 'existing_ledger_1',
+        sourceId: `checkin_u_1_${todayDateStr}`,
+        source: 'STREAK',
+        xpAmount: 25,
+      });
+      fakePrisma.userGameProfile.findUnique.mockResolvedValue({
+        id: 'prof_1',
+        userId: 'u_1',
+        level: 1,
+        totalXp: 125,
+        currentXp: 125,
+        streakDays: 2,
+        lastActiveDate: new Date(),
+      });
+
+      const achService = new AchievementService(fakePrisma, xpService);
+      const engine = new QuestRulesEngine(fakePrisma, xpService, achService);
+
+      const result = await engine.triggerDailyCheckIn('u_1');
+
+      expect(result.processed).toBe(false);
+      expect(result.alreadyProcessed).toBe(true);
+      expect(result.updatedQuests).toHaveLength(0);
+      expect(result.profile.streakDays).toBe(2);
+    });
   });
 
   describe('QuestCronService Scheduled Jobs', () => {

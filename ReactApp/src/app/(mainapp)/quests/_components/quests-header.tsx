@@ -1,19 +1,16 @@
-import { Sparkles, Clock, Flame } from "lucide-react";
+import { Sparkles, Clock, Flame, CheckCircle2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 
 interface QuestsHeaderProps {
   daysRemaining: number;
   streakDays: number;
-  isCheckInPending: boolean;
-  onCheckIn: () => void;
+  checkedInToday?: boolean;
 }
 
 export function QuestsHeader({
   daysRemaining,
   streakDays,
-  isCheckInPending,
-  onCheckIn,
+  checkedInToday = true,
 }: QuestsHeaderProps) {
   return (
     <div className="relative overflow-hidden rounded-2xl border border-border/80 bg-gradient-to-r from-card via-card/90 to-primary/5 p-6 shadow-sm sm:p-8">
@@ -36,21 +33,25 @@ export function QuestsHeader({
           </p>
         </div>
 
-        {/* Daily Check-In Action Button */}
-        <div className="flex flex-col gap-2 sm:items-end">
-          <Button
-            size="lg"
-            onClick={onCheckIn}
-            disabled={isCheckInPending}
-            className="group relative gap-2 bg-gradient-to-r from-amber-500 to-orange-500 font-semibold text-white shadow-md hover:from-amber-600 hover:to-orange-600"
-          >
-            <Flame className="h-5 w-5 animate-pulse text-yellow-200" />
-            <span>{isCheckInPending ? "Checking in..." : "Daily Check-in (+25 XP)"}</span>
-          </Button>
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Flame className="h-3.5 w-3.5 text-orange-500" />
+        {/* Automatic Daily Check-in & Streak Status Card */}
+        <div className="flex flex-col gap-2.5 sm:items-end">
+          <div className="flex items-center gap-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-sm font-semibold text-emerald-700 dark:text-emerald-400 shadow-sm backdrop-blur-sm">
+            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-300">
+              <CheckCircle2 className="h-4 w-4" />
+            </div>
             <span>
-              Active Streak: <strong className="text-foreground">{streakDays} Days</strong>
+              {checkedInToday
+                ? "Daily Check-in Active (+25 XP earned today)"
+                : "Active Today"}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 rounded-lg bg-orange-500/10 px-3 py-1.5 text-xs text-orange-700 dark:text-orange-400 border border-orange-500/20">
+            <Flame className="h-4 w-4 text-orange-500 animate-pulse" />
+            <span>
+              Active Streak:{" "}
+              <strong className="text-foreground font-bold">
+                {streakDays} {streakDays === 1 ? "Day" : "Days"}
+              </strong>
             </span>
           </div>
         </div>
