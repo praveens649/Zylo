@@ -585,6 +585,9 @@ model Order {
   planId         String?
   organizationId String?
 
+  // Gift recharge — set when the payer recharges someone else's number.
+  rechargedForUserId String?
+
   setTopBoxModelId      String?
   tvPlanId              String?
   setTopBoxConnectionId String?

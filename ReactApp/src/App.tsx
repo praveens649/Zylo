@@ -20,6 +20,7 @@ import RechargePage from "@/app/(mainapp)/recharge/page";
 import DataBankPage from "@/app/(mainapp)/data-bank/page";
 import EsimPage from "@/app/(mainapp)/esim/page";
 import EsimPlansPage from "@/app/(mainapp)/esim-plans/page";
+import NotificationsPage from "@/app/(mainapp)/notifications/page";
 import ProfilePage from "@/app/(mainapp)/profile/page";
 import TvPage from "@/app/(mainapp)/tv/page";
 import MyTvPage from "@/app/(mainapp)/tv/my/page";
@@ -46,6 +47,7 @@ export default function App() {
             <Route path="/data-bank" element={<DataBankPage />} />
             <Route path="/esim" element={<EsimPage />} />
             <Route path="/esim-plans" element={<EsimPlansPage />} />
+            <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/users" element={<UsersPage />} />
             <Route path="/sims" element={<SimsPage />} />
             <Route path="/users/:userId/edit" element={<EditUserPage />} />

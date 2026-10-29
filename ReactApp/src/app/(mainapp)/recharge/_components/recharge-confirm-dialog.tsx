@@ -1,4 +1,11 @@
-import { Calendar, Loader2, ShieldCheck, Smartphone, Zap } from "lucide-react";
+import {
+  Calendar,
+  Gift,
+  Loader2,
+  ShieldCheck,
+  Smartphone,
+  Zap,
+} from "lucide-react";
 import type { Plan } from "@/api/plans.api";
 import type { RechargeSim } from "@/api/recharge.api";
 import { Button } from "@/components/ui/button";
@@ -15,6 +22,7 @@ import { formatDate, formatINR } from "@/lib/format";
 interface RechargeConfirmDialogProps {
   plan: Plan | null;
   sim: RechargeSim | null;
+  giftFor?: { name: string; number: string } | null;
   open: boolean;
   isPending: boolean;
   onOpenChange: (open: boolean) => void;
@@ -24,6 +32,7 @@ interface RechargeConfirmDialogProps {
 export function RechargeConfirmDialog({
   plan,
   sim,
+  giftFor,
   open,
   isPending,
   onOpenChange,
@@ -66,7 +75,15 @@ export function RechargeConfirmDialog({
               </span>
             </div>
 
-            {sim ? (
+            {giftFor ? (
+              <div className="flex items-center gap-2.5 rounded-xl border border-primary/30 bg-primary/5 px-4 py-2.5 text-sm">
+                <Gift className="h-4 w-4 shrink-0 text-primary" />
+                <span className="text-muted-foreground">Gift recharge for</span>
+                <span className="font-semibold text-foreground">
+                  {giftFor.name} ({giftFor.number})
+                </span>
+              </div>
+            ) : sim ? (
               <div className="flex items-center gap-2.5 rounded-xl border border-border/50 bg-muted/20 px-4 py-2.5 text-sm">
                 <Smartphone className="h-4 w-4 shrink-0 text-primary" />
                 <span className="text-muted-foreground">

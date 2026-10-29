@@ -48,16 +48,34 @@ export interface RechargeCheckoutResult {
   orderId: string;
 }
 
+/** A Zylo customer found by full phone number (gift recharge). */
+export interface RechargeRecipient {
+  simId: string;
+  name: string;
+  number: string;
+  category: string;
+}
+
 export const rechargeApi = {
   /** The customer's SIMs with current + queued plan subscriptions. */
   overview: () => api.get<RechargeOverview>("/api/v1/recharge/overview"),
 
+  /** Gift recharge — exact-match customer lookup by phone number. */
+  lookup: (number: string) =>
+    api.get<{ recipient: RechargeRecipient | null }>(
+      `/api/v1/recharge/lookup?number=${encodeURIComponent(number)}`
+    ),
+
   /**
    * Start a recharge — returns the Stripe hosted checkout URL. `simId` is
    * optional; without it a new Zylo number is provisioned on activation.
+   * `targetNumber` recharges someone else's Zylo number (gift).
    */
-  createCheckout: (input: { simId?: string; planId: string }) =>
-    api.post<RechargeCheckoutResult>("/api/v1/recharge/checkout", input),
+  createCheckout: (input: {
+    simId?: string;
+    planId: string;
+    targetNumber?: string;
+  }) => api.post<RechargeCheckoutResult>("/api/v1/recharge/checkout", input),
 };
 
 export const RECHARGE_OVERVIEW_KEY = ["recharge", "overview"] as const;
