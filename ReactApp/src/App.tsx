@@ -18,6 +18,7 @@ import PaymentsPage from "@/app/(mainapp)/payments/page";
 import PlansPage from "@/app/(mainapp)/plans/page";
 import RechargePage from "@/app/(mainapp)/recharge/page";
 import DataBankPage from "@/app/(mainapp)/data-bank/page";
+import QuestsPage from "@/app/(mainapp)/quests/page";
 import EsimPage from "@/app/(mainapp)/esim/page";
 import EsimPlansPage from "@/app/(mainapp)/esim-plans/page";
 import NotificationsPage from "@/app/(mainapp)/notifications/page";
@@ -45,6 +46,7 @@ export default function App() {
             <Route path="/dashboard" element={<CustomerDashboardPage />} />
             <Route path="/recharge" element={<RechargePage />} />
             <Route path="/data-bank" element={<DataBankPage />} />
+            <Route path="/quests" element={<QuestsPage />} />
             <Route path="/esim" element={<EsimPage />} />
             <Route path="/esim-plans" element={<EsimPlansPage />} />
             <Route path="/notifications" element={<NotificationsPage />} />

@@ -1,4 +1,4 @@
-import { Building2, CreditCard, Database, Globe, Plane, ShoppingBag, LayoutDashboard, Users, Zap } from "lucide-react";
+import { Building2, CreditCard, Database, Globe, Plane, ShoppingBag, LayoutDashboard, Users, Zap, Trophy } from "lucide-react";
 import { LifeBuoy, MonitorPlay, Radio, Smartphone, Tv, SmartphoneCharging } from "lucide-react";
 
 export type NavItem = {
@@ -28,6 +28,12 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/data-bank",
     label: "Data Bank",
     icon: Database,
+    customerOnly: true,
+  },
+  {
+    href: "/quests",
+    label: "Quests & Rewards",
+    icon: Trophy,
     customerOnly: true,
   },
   {

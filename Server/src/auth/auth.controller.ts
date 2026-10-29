@@ -2,6 +2,8 @@ import {
   Body,
   Controller,
   Get,
+  Logger,
+  Optional,
   Patch,
   Post,
   Req,
@@ -29,13 +31,17 @@ import {
 } from './dto.js';
 
 import { StorageService } from '../storage/storage.service.js';
+import { QuestRulesEngine } from '../data-quest/quest-rules.engine.js';
 
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(
     private readonly auth: AuthService,
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
+    @Optional() private readonly questRules?: QuestRulesEngine,
   ) {}
 
   @Post('login')
@@ -58,6 +64,14 @@ export class AuthController {
     }
 
     const token = await this.auth.issueToken(user);
+
+    if (user.role === 'CUSTOMER' && this.questRules) {
+      try {
+        await this.questRules.triggerDailyCheckIn(user.id);
+      } catch (err) {
+        this.logger.warn(`Failed to auto check-in user ${user.id} on login: ${err}`);
+      }
+    }
 
     return {
       data: { user: await this.auth.safeUser(user), token },
@@ -97,6 +111,14 @@ export class AuthController {
     });
 
     const token = await this.auth.issueToken(user);
+
+    if (this.questRules) {
+      try {
+        await this.questRules.triggerDailyCheckIn(user.id);
+      } catch (err) {
+        this.logger.warn(`Failed to auto check-in user ${user.id} on registration: ${err}`);
+      }
+    }
 
     return {
       data: { user: await this.auth.safeUser(user), token },
@@ -143,6 +165,13 @@ export class AuthController {
   @Get('me')
   @UseGuards(AuthGuard)
   async me(@CurrentUser() user: UserWithRole) {
+    if (user.role === 'CUSTOMER' && this.questRules) {
+      try {
+        await this.questRules.triggerDailyCheckIn(user.id);
+      } catch (err) {
+        this.logger.warn(`Failed to auto check-in user ${user.id} on me endpoint: ${err}`);
+      }
+    }
     return { data: { user: await this.auth.safeUser(user) } };
   }
 

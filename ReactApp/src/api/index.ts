@@ -12,3 +12,4 @@ export * from "./tv.api";
 export * from "./users.api";
 export * from "./numbers.api";
 export * from "./onboarding.api";
+export * from "./quests.api";
