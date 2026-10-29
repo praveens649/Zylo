@@ -22,6 +22,8 @@ import TvPage from "@/app/(mainapp)/tv/page";
 import MyTvPage from "@/app/(mainapp)/tv/my/page";
 import TvSuccessPage from "@/app/(mainapp)/tv/success/page";
 import TvAdminPage from "@/app/(mainapp)/tv-admin/page";
+import SupportPage from "@/app/(mainapp)/support/page";
+import SupportAdminPage from "@/app/(mainapp)/support-admin/page";
 
 export default function App() {
   return (
@@ -49,6 +51,8 @@ export default function App() {
             <Route path="/tv/my" element={<MyTvPage />} />
             <Route path="/tv/success" element={<TvSuccessPage />} />
             <Route path="/tv-admin" element={<TvAdminPage />} />
+            <Route path="/support" element={<SupportPage />} />
+            <Route path="/support-admin" element={<SupportAdminPage />} />
           </Route>
 
           {/* Catch-all 404 */}
