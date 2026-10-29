@@ -266,7 +266,7 @@ model User {
   userQuests           UserQuest[]
   travelEsimOrders     TravelEsimOrder[]
   setTopBoxConnections SetTopBoxConnection[]
-  kyc                 KycVerification?
+  kyc                  KycVerification?
 
   ownedOrganizations      BusinessOrganization[] @relation("OrganizationOwner")
   organizationMemberships OrganizationMember[]
@@ -395,12 +395,19 @@ model PhoneNumber {
   price         Decimal           @default(0) @db.Decimal(10, 2)
   status        PhoneNumberStatus @default(AVAILABLE)
   reservedUntil DateTime?
+  reservedByUserId  String?
+
+  // ISO country code the number belongs to (IN, SG, AE, ...) — travel
+  // eSIMs get a number from their destination country.
+  countryCode String @default("IN")
 
   organizationId String?
   organization   BusinessOrganization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
 
   sim    Sim?
   orders Order[]
+
+  travelEsimOrders TravelEsimOrder[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -931,7 +938,10 @@ model InternationalPlan {
   dataAllowanceMb Int
   validityDays    Int
 
-  // All plans are data-only; no phone number, voice or SMS.
+  // Optional voice/SMS bundle — null means the pack is data-only.
+  callMinutes Int?
+  smsCount    Int?
+
   pricePaise Int
   currency   String @default("INR")
 
@@ -984,6 +994,10 @@ model TravelEsimOrder {
   // Provider fulfilment
   providerOrderId String? @unique
   failureReason   String?
+
+  // Optional local number for the destination (held 10 min, assigned on payment)
+  phoneNumberId String?
+  phoneNumber   PhoneNumber? @relation(fields: [phoneNumberId], references: [id], onDelete: SetNull)
 
   user              User              @relation(fields: [userId], references: [id], onDelete: Restrict)
   internationalPlan InternationalPlan @relation(fields: [internationalPlanId], references: [id], onDelete: Restrict)
@@ -1188,8 +1202,8 @@ model SetTopBoxConnection {
   // Pause allowance tracking: days used inside the rolling 365-day window.
   pauseDaysUsed        Int       @default(0)
   pauseWindowStartedAt DateTime?
-  disconnectedAt    DateTime?
-  returnDueAt       DateTime?
+  disconnectedAt       DateTime?
+  returnDueAt          DateTime?
 
   user  User           @relation(fields: [userId], references: [id], onDelete: Restrict)
   model SetTopBoxModel @relation(fields: [modelId], references: [id], onDelete: Restrict)
