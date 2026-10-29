@@ -403,6 +403,7 @@ model BusinessInvite {
   organizationId String
   email          String
   employeeId     String?
+  phoneNumberId  String?
   tokenHash      String           @unique
   status         InvitationStatus @default(PENDING)
   expiresAt      DateTime
@@ -427,6 +428,7 @@ model PhoneNumber {
   id            String            @id @default(uuid())
   number        String            @unique
   prefix        String?
+  countryCode   String?           @default("+91")
   type          PhoneNumberType   @default(STANDARD)
   price         Decimal           @default(0) @db.Decimal(10, 2)
   status        PhoneNumberStatus @default(AVAILABLE)
@@ -965,6 +967,15 @@ model UserGameProfile {
   currentXp      Int       @default(0)
   streakDays     Int       @default(0)
   lastActiveDate DateTime? @db.Date
+  unlockedBadges String[]  @default([])
+
+  // Pack-Scoped Spendable XP (starts at 0 on recharge, resets to 0 on plan expiry)
+  activePlanSubId String?
+  spendablePackXp Int       @default(0)
+  packTotalEarned Int       @default(0)
+  packTotalWeeks  Int       @default(4)
+  packStartDate   DateTime?
+  packExpiryDate  DateTime?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -983,6 +994,7 @@ model Quest {
   frequency   QuestFrequency @default(DAILY)
   targetValue Int
   xpReward    Int            @default(100)
+  weekNumber  Int?
 
   rewardType          QuestRewardType @default(XP_ONLY)
   rewardAmountMb      Int?
@@ -1001,9 +1013,11 @@ model Quest {
 }
 
 model UserQuest {
-  id      String @id @default(uuid())
-  userId  String
-  questId String
+  id         String      @id @default(uuid())
+  userId     String
+  questId    String
+  planSubId  String?
+  weekNumber Int         @default(1)
 
   periodStart DateTime
   periodEnd   DateTime
@@ -1024,6 +1038,7 @@ model UserQuest {
   @@unique([userId, questId, periodStart])
   @@index([userId, status])
   @@index([periodEnd, status])
+  @@index([userId, planSubId, weekNumber])
 }
 
 model RewardCoupon {
@@ -1102,6 +1117,8 @@ model RewardCatalog {
   description   String?
   type          RewardType
   valueMb       Int?
+  discountPaise Int?
+  badgeCode     String?
   requiredXp    Int        @default(0)
   requiredLevel Int        @default(1)
   isActive      Boolean    @default(true)
@@ -1115,12 +1132,19 @@ model RewardCatalog {
 }
 
 model RewardRedemption {
-  id         String                 @id @default(uuid())
-  userId     String
-  rewardId   String
-  status     RewardRedemptionStatus @default(PENDING)
-  reference  String                 @unique @default(uuid())
-  redeemedAt DateTime               @default(now())
+  id            String                 @id @default(uuid())
+  userId        String
+  rewardId      String
+  status        RewardRedemptionStatus @default(PENDING)
+  reference     String                 @unique @default(uuid())
+  couponCode    String?
+  discountPaise Int?
+  valueMb       Int?
+  badgeCode     String?
+  expiresAt     DateTime?
+  isUsed        Boolean                @default(false)
+  usedAt        DateTime?
+  redeemedAt    DateTime               @default(now())
 
   user   User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   reward RewardCatalog @relation(fields: [rewardId], references: [id], onDelete: Restrict)
@@ -1145,6 +1169,8 @@ model InternationalPlan {
 
   dataAllowanceMb Int
   validityDays    Int
+  callMinutes     Int?
+  smsCount        Int?
 
   // All plans are data-only; no phone number, voice or SMS.
   pricePaise Int

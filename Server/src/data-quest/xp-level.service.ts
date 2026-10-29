@@ -112,9 +112,23 @@ export class XpLevelService {
     // 2. Fetch or create profile
     const profile = await this.getOrCreateProfile(userId, client);
     const oldLevel = profile.level;
+    const newSpendablePackXp = (profile.spendablePackXp ?? 0) + xpAmount;
+    const newPackTotalEarned = (profile.packTotalEarned ?? 0) + xpAmount;
     const newTotalXp = profile.totalXp + xpAmount;
     const levelInfo = this.calculateLevel(newTotalXp);
     const leveledUp = levelInfo.level > oldLevel;
+
+    // Badges persist permanently
+    const currentBadges = new Set(profile.unlockedBadges || []);
+    if (!currentBadges.has('LEVEL_1_ROOKIE')) {
+      currentBadges.add('LEVEL_1_ROOKIE');
+    }
+    if (newPackTotalEarned >= 500 && !currentBadges.has('LEVEL_2_DATA_EXPLORER')) {
+      currentBadges.add('LEVEL_2_DATA_EXPLORER');
+    }
+    if (newPackTotalEarned >= 850 && !currentBadges.has('LEVEL_3_CYBER_MASTER')) {
+      currentBadges.add('LEVEL_3_CYBER_MASTER');
+    }
 
     // 3. Atomically write ledger & update profile
     await client.xpLedger.create({
@@ -131,13 +145,16 @@ export class XpLevelService {
       where: { id: profile.id },
       data: {
         level: levelInfo.level,
-        totalXp: levelInfo.totalXp,
+        totalXp: newTotalXp,
         currentXp: levelInfo.currentXp,
+        spendablePackXp: newSpendablePackXp,
+        packTotalEarned: newPackTotalEarned,
+        unlockedBadges: Array.from(currentBadges),
       },
     });
 
     this.logger.log(
-      `Awarded +${xpAmount} XP to user ${userId} (${source}:${sourceId}). Level ${oldLevel} -> ${levelInfo.level} (Total XP: ${newTotalXp})`,
+      `Awarded +${xpAmount} XP to user ${userId} (${source}:${sourceId}). Spendable Pack XP now: ${newSpendablePackXp}`,
     );
 
     return {

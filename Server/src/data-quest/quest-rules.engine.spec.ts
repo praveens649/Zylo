@@ -105,11 +105,13 @@ describe('Data Quest Engine Verification Rules & Validation', () => {
       expect(fakePrisma.xpLedger.create).toHaveBeenCalled();
       expect(fakePrisma.userGameProfile.update).toHaveBeenCalledWith({
         where: { id: 'prof_1' },
-        data: {
+        data: expect.objectContaining({
           level: 2,
           totalXp: 550,
           currentXp: 50,
-        },
+          spendablePackXp: 100,
+          packTotalEarned: 100,
+        }),
       });
     });
   });

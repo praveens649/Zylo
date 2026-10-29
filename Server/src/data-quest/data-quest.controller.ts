@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Param,
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard.js';
@@ -48,6 +49,18 @@ export class DataQuestController {
       metadata: { checkInDate: todayStr },
     });
 
+    return { data: result };
+  }
+
+  /**
+   * Redeem a voucher using spendable pack XP.
+   */
+  @Post('vouchers/:id/redeem')
+  async redeemVoucher(
+    @CurrentUser() user: UserModel,
+    @Param('id') voucherId: string,
+  ) {
+    const result = await this.questService.redeemVoucher(user.id, voucherId);
     return { data: result };
   }
 

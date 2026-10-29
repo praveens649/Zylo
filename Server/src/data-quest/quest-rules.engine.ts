@@ -142,6 +142,7 @@ export class QuestRulesEngine {
         where: {
           userId,
           status: 'IN_PROGRESS',
+          periodStart: { lte: now },
           periodEnd: { gte: now },
           quest: {
             metric: targetMetric,

@@ -51,6 +51,7 @@ export class QuestCronService {
   async performMaintenance(): Promise<{
     expiredCount: number;
     streaksResetCount: number;
+    expiredPacksResetCount: number;
   }> {
     const now = new Date();
 
@@ -83,9 +84,22 @@ export class QuestCronService {
       },
     });
 
+    // 3. Reset spendable pack XP to 0 for users whose plan pack has expired
+    const expiredPacks = await this.prisma.userGameProfile.updateMany({
+      where: {
+        packExpiryDate: { lt: now },
+        spendablePackXp: { gt: 0 },
+      },
+      data: {
+        spendablePackXp: 0,
+        activePlanSubId: null,
+      },
+    });
+
     return {
       expiredCount: expireResult.count,
       streaksResetCount: resetStreaks.count,
+      expiredPacksResetCount: expiredPacks.count,
     };
   }
 }
