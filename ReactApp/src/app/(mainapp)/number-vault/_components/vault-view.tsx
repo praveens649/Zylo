@@ -157,10 +157,12 @@ export function VaultView() {
       onSuccess: () => {
         toast({
           title: "Number reactivated",
-          description: "The parking was ended and your number is active again.",
+          description:
+            "The parking was ended — recharge the number to use it again.",
         });
         setReactivateTarget(null);
         invalidate();
+        router.push("/recharge");
       },
       onError: (err) => {
         toast({
@@ -329,14 +331,14 @@ export function VaultView() {
         </div>
       )}
 
-      <div className="flex items-start gap-3 rounded-2xl border border-border/50 bg-muted/20 px-4 py-3">
+      {/* <div className="flex items-start gap-3 rounded-2xl border border-border/50 bg-muted/20 px-4 py-3">
         <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
         <p className="text-xs leading-relaxed text-muted-foreground">
           Parking records a paid reservation on your Zylo number in this demo —
           it does not disconnect real network service, and plan validity is
           unaffected. Numbers unpark automatically when the period expires.
         </p>
-      </div>
+      </div> */}
 
       <ExtendDialog
         parking={extendTarget}

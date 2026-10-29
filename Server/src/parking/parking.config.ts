@@ -15,11 +15,16 @@ export interface ParkingPeriod {
  * edit them through an API.
  */
 export const parkingConfig = {
-  /** Offered parking durations and their prices (same for initial + extension). */
+  /**
+   * Offered parking durations and their prices (same for initial +
+   * extension). Note: Stripe Checkout requires ≥ ~$0.50 (~₹50), so the
+   * defaults sit above that floor — the ₹29/₹49 spec examples cannot be
+   * charged through Stripe.
+   */
   get periods(): ParkingPeriod[] {
     return [
-      { days: 15, priceInr: num('PARKING_PRICE_15_INR', 29) },
-      { days: 30, priceInr: num('PARKING_PRICE_30_INR', 49) },
+      { days: 15, priceInr: num('PARKING_PRICE_15_INR', 59) },
+      { days: 30, priceInr: num('PARKING_PRICE_30_INR', 99) },
     ].sort((a, b) => a.days - b.days);
   },
   /** Maximum number of paid extensions per parking. */

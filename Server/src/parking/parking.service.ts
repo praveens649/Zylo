@@ -685,14 +685,19 @@ export class ParkingService {
     const admin = user.role === SYSTEM_ROLE;
 
     const parkings = await this.prisma.numberParking.findMany({
-      where: admin
-        ? {}
-        : {
-            OR: [
-              { userId: user.id },
-              { organizationId: { in: [...orgIds] } },
-            ],
-          },
+      where: {
+        // Abandoned/failed checkout attempts stay in the DB for audit but
+        // are not real parkings — keep them out of the vault view.
+        status: { not: 'CANCELLED' },
+        ...(admin
+          ? {}
+          : {
+              OR: [
+                { userId: user.id },
+                { organizationId: { in: [...orgIds] } },
+              ],
+            }),
+      },
       orderBy: { createdAt: 'desc' },
       include: {
         ...parkingInclude,
