@@ -14,7 +14,7 @@ export function useRechargeOverview() {
 /** Create the Stripe checkout session for a recharge. */
 export function useRechargeCheckout() {
   return useMutation({
-    mutationFn: (input: { simId?: string; planId: string }) =>
+    mutationFn: (input: { simId?: string; planId: string; targetNumber?: string }) =>
       rechargeApi.createCheckout(input),
   });
 }

@@ -19,6 +19,7 @@ import { RechargeModule } from './recharge/recharge.module.js';
 import { TravelEsimModule } from './travel-esim/travel-esim.module.js';
 import { NumbersModule } from './numbers/numbers.module.js';
 import { OnboardingModule } from './onboarding/onboarding.module.js';
+import { NotificationsModule } from './notifications/notifications.module.js';
 import { ApiExceptionFilter } from './common/api-exception.filter.js';
 import { EnvelopeInterceptor } from './common/envelope.interceptor.js';
 
@@ -51,6 +52,7 @@ import { EnvelopeInterceptor } from './common/envelope.interceptor.js';
     TravelEsimModule,
     NumbersModule,
     OnboardingModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [

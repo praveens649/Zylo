@@ -163,6 +163,54 @@ export class RechargeService {
     };
   }
 
+  /**
+   * Gift recharge — look up the Zylo customer who owns a full number.
+   * Only an exact match is returned so numbers can't be enumerated.
+   */
+  async lookupRecipient(user: UserModel, number: string) {
+    const normalized = number.trim();
+    const phone = await this.prisma.phoneNumber.findFirst({
+      where: { number: normalized },
+      include: {
+        sim: {
+          include: { user: { select: { id: true, name: true } } },
+        },
+      },
+    });
+
+    if (!phone?.sim) {
+      throw new ApiException(
+        404,
+        'NUMBER_NOT_FOUND',
+        'No Zylo customer found for that number',
+      );
+    }
+    const sim = phone.sim;
+    if (sim.userId === user.id) {
+      throw new ApiException(
+        400,
+        'SELF_RECHARGE',
+        "That's your own number — use the normal recharge",
+      );
+    }
+    if (!RECHARGEABLE_SIM_STATUSES.has(sim.status)) {
+      throw new ApiException(
+        400,
+        'SIM_NOT_RECHARGEABLE',
+        `That number (${sim.status.toLowerCase().replace(/_/g, ' ')}) can't be recharged right now`,
+      );
+    }
+
+    return {
+      recipient: {
+        simId: sim.id,
+        name: sim.user.name,
+        number: phone.number,
+        category: sim.category,
+      },
+    };
+  }
+
   // -----------------------------------------------------------------------
   // Checkout — order + payment + Stripe session
   // -----------------------------------------------------------------------
@@ -170,14 +218,58 @@ export class RechargeService {
   async createCheckout(user: UserModel, dto: CreateRechargeCheckoutDto) {
     let sim:
       | (Prisma.SimGetPayload<{
-          include: { phoneNumber: { select: { number: true } } };
+          include: {
+            phoneNumber: { select: { number: true } };
+            user: { select: { id: true; name: true } };
+          };
         }>)
       | null = null;
+    let giftFor: { userId: string; name: string } | null = null;
 
-    if (dto.simId) {
+    if (dto.targetNumber) {
+      // Gift recharge — the target SIM is resolved by phone number, not
+      // by ownership, and must be rechargeable.
+      const phone = await this.prisma.phoneNumber.findFirst({
+        where: { number: dto.targetNumber.trim() },
+        include: {
+          sim: {
+            include: {
+              phoneNumber: { select: { number: true } },
+              user: { select: { id: true, name: true } },
+            },
+          },
+        },
+      });
+      sim = phone?.sim ?? null;
+      if (!sim) {
+        throw new ApiException(
+          404,
+          'NUMBER_NOT_FOUND',
+          'No Zylo customer found for that number',
+        );
+      }
+      if (sim.userId === user.id) {
+        throw new ApiException(
+          400,
+          'SELF_RECHARGE',
+          "That's your own number — use the normal recharge",
+        );
+      }
+      if (!RECHARGEABLE_SIM_STATUSES.has(sim.status)) {
+        throw new ApiException(
+          400,
+          'SIM_NOT_RECHARGEABLE',
+          `That number (${sim.status.toLowerCase().replace(/_/g, ' ')}) can't be recharged right now`,
+        );
+      }
+      giftFor = { userId: sim.user.id, name: sim.user.name };
+    } else if (dto.simId) {
       sim = await this.prisma.sim.findFirst({
         where: { id: dto.simId, userId: user.id },
-        include: { phoneNumber: { select: { number: true } } },
+        include: {
+          phoneNumber: { select: { number: true } },
+          user: { select: { id: true, name: true } },
+        },
       });
       if (!sim) {
         throw new ApiException(404, 'SIM_NOT_FOUND', 'SIM not found');
@@ -215,6 +307,7 @@ export class RechargeService {
         simId: sim?.id ?? null,
         planId: plan.id,
         phoneNumberId: sim?.phoneNumberId ?? null,
+        rechargedForUserId: giftFor?.userId ?? null,
       },
     });
 
@@ -229,7 +322,9 @@ export class RechargeService {
             currency,
             unit_amount: Math.round(Number(plan.price) * 100),
             product_data: {
-              name: `Recharge — ${plan.name}`,
+              name: giftFor
+                ? `Recharge for ${giftFor.name} — ${plan.name}`
+                : `Recharge — ${plan.name}`,
               description: sim
                 ? `${plan.validityDays} days validity for Zylo number ${sim.phoneNumber.number}`
                 : `${plan.validityDays} days validity — new Zylo number assigned on activation`,
@@ -244,6 +339,7 @@ export class RechargeService {
         userId: user.id,
         simId: sim?.id ?? '',
         planId: plan.id,
+        ...(giftFor ? { rechargedForUserId: giftFor.userId } : {}),
       },
       success_url: `${this.frontendUrl}/recharge?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${this.frontendUrl}/recharge?cancelled=true`,
@@ -257,9 +353,11 @@ export class RechargeService {
         status: 'PENDING',
         amount: plan.price,
         currency,
-        description: sim
-          ? `Recharge — ${plan.name} (${sim.phoneNumber.number})`
-          : `Recharge — ${plan.name} (new Zylo number)`,
+        description: giftFor
+          ? `Recharge for ${giftFor.name} (${sim!.phoneNumber.number}) — ${plan.name}`
+          : sim
+            ? `Recharge — ${plan.name} (${sim.phoneNumber.number})`
+            : `Recharge — ${plan.name} (new Zylo number)`,
         stripeCheckoutSessionId: session.id,
       },
     });
@@ -373,6 +471,44 @@ export class RechargeService {
           where: { id: simId },
           data: { planExpiredAt: endDate },
         });
+
+        // Gift recharge — notify both sides: the recipient (someone paid
+        // for you) and the payer (you recharged them).
+        if (order.rechargedForUserId) {
+          const [payer, recipient, sim] = await Promise.all([
+            tx.user.findUnique({
+              where: { id: order.userId },
+              select: { name: true },
+            }),
+            tx.user.findUnique({
+              where: { id: order.rechargedForUserId },
+              select: { name: true },
+            }),
+            tx.sim.findUnique({
+              where: { id: simId },
+              select: { phoneNumber: { select: { number: true } } },
+            }),
+          ]);
+          const number = sim?.phoneNumber.number ?? '';
+          const starts =
+            startDate <= now
+              ? 'active now'
+              : `starts ${startDate.toDateString()}`;
+          await tx.notification.createMany({
+            data: [
+              {
+                userId: order.rechargedForUserId,
+                title: 'Recharge received',
+                message: `${payer?.name ?? 'Someone'} recharged your Zylo number ${number} with ${plan.name} (₹${Number(plan.price)} · ${plan.validityDays} days) — ${starts}.`,
+              },
+              {
+                userId: order.userId,
+                title: 'Gift recharge sent',
+                message: `You recharged ${recipient?.name ?? 'a customer'}'s Zylo number ${number} with ${plan.name} (₹${Number(plan.price)} · ${plan.validityDays} days) — ${starts}.`,
+              },
+            ],
+          });
+        }
       });
     } catch (err) {
       // Unique constraint on planSubscription.orderId — already fulfilled

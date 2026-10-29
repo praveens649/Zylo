@@ -10,6 +10,7 @@ import {
   Zap,
 } from "lucide-react";
 import type { Plan } from "@/api/plans.api";
+import type { RechargeRecipient } from "@/api/recharge.api";
 import { subscriptionsApi } from "@/api/subscriptions.api";
 import { usePlans } from "@/app/(mainapp)/plans/_hooks/use-plans";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +33,7 @@ import {
 import { CurrentPlanCard } from "./current-plan-card";
 import { RechargePlanCard } from "./recharge-plan-card";
 import { RechargeConfirmDialog } from "./recharge-confirm-dialog";
+import { GiftRecharge } from "./gift-recharge";
 
 export function RechargeView() {
   const router = useRouter();
@@ -41,6 +43,7 @@ export function RechargeView() {
 
   const [selectedSimId, setSelectedSimId] = useState<string | null>(null);
   const [confirmPlan, setConfirmPlan] = useState<Plan | null>(null);
+  const [giftTarget, setGiftTarget] = useState<RechargeRecipient | null>(null);
 
   const {
     data: overview,
@@ -133,7 +136,9 @@ export function RechargeView() {
   const handleConfirm = () => {
     if (!confirmPlan) return;
     checkout.mutate(
-      { simId: selectedSim?.id, planId: confirmPlan.id },
+      giftTarget
+        ? { planId: confirmPlan.id, targetNumber: giftTarget.number }
+        : { simId: selectedSim?.id, planId: confirmPlan.id },
       {
         onSuccess: (res) => {
           if (res.url) {
@@ -250,7 +255,9 @@ export function RechargeView() {
       {/* Current plan + recharge plans */}
       {!isOverviewLoading && !isOverviewError && (
         <>
-          {selectedSim ? (
+          <GiftRecharge recipient={giftTarget} onSelect={setGiftTarget} />
+
+          {giftTarget ? null : selectedSim ? (
             <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
               <div className="lg:col-span-2">
                 <CurrentPlanCard sim={selectedSim} />
@@ -340,6 +347,11 @@ export function RechargeView() {
       <RechargeConfirmDialog
         plan={confirmPlan}
         sim={selectedSim}
+        giftFor={
+          giftTarget
+            ? { name: giftTarget.name, number: giftTarget.number }
+            : null
+        }
         open={!!confirmPlan}
         isPending={checkout.isPending}
         onOpenChange={(open) => !open && setConfirmPlan(null)}

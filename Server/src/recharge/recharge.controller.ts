@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard.js';
@@ -30,6 +31,21 @@ export class RechargeController {
    * Start a recharge — creates the order + Stripe checkout session and
    * returns the hosted checkout URL to redirect to.
    */
+  /**
+   * Gift recharge — find the Zylo customer who owns a full number.
+   * Exact match only, so numbers can't be enumerated.
+   */
+  @Get('lookup')
+  async lookup(
+    @Query('number') number: string,
+    @CurrentUser() user: UserModel,
+  ) {
+    if (!number || number.trim().length < 8) {
+      return { data: { recipient: null } };
+    }
+    return { data: await this.recharge.lookupRecipient(user, number) };
+  }
+
   @Post('checkout')
   async checkout(
     @Body() dto: CreateRechargeCheckoutDto,
