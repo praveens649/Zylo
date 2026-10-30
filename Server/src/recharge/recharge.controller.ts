@@ -46,6 +46,15 @@ export class RechargeController {
     return { data: await this.recharge.lookupRecipient(user, number) };
   }
 
+  /**
+   * The customer's unused quest coupons — ZYLO-XXXX codes redeemable at
+   * recharge checkout.
+   */
+  @Get('coupons')
+  async coupons(@CurrentUser() user: UserModel) {
+    return { data: await this.recharge.listCoupons(user.id) };
+  }
+
   @Post('checkout')
   async checkout(
     @Body() dto: CreateRechargeCheckoutDto,

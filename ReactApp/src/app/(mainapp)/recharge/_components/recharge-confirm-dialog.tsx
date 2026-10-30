@@ -7,7 +7,7 @@ import {
   Zap,
 } from "lucide-react";
 import type { Plan } from "@/api/plans.api";
-import type { RechargeSim } from "@/api/recharge.api";
+import type { RechargeCoupon, RechargeSim } from "@/api/recharge.api";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -17,12 +17,22 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { formatDate, formatINR } from "@/lib/format";
 
 interface RechargeConfirmDialogProps {
   plan: Plan | null;
   sim: RechargeSim | null;
   giftFor?: { name: string; number: string } | null;
+  coupons: RechargeCoupon[];
+  couponCode: string;
+  onCouponChange: (code: string) => void;
   open: boolean;
   isPending: boolean;
   onOpenChange: (open: boolean) => void;
@@ -33,11 +43,22 @@ export function RechargeConfirmDialog({
   plan,
   sim,
   giftFor,
+  coupons,
+  couponCode,
+  onCouponChange,
   open,
   isPending,
   onOpenChange,
   onConfirm,
 }: RechargeConfirmDialogProps) {
+  const planPaise = plan ? Math.round(Number(plan.price) * 100) : 0;
+  const coupon = coupons.find((c) => c.code === couponCode) ?? null;
+  // Eligible coupons only — the server re-validates this rule anyway.
+  const eligibleCoupons = coupons.filter(
+    (c) => planPaise >= (c.minPurchasePaise ?? c.discountPaise)
+  );
+  const discountPaise = coupon ? coupon.discountPaise : 0;
+  const payablePaise = planPaise - discountPaise;
   // The server only returns live plans, so a currentPlan or any queued
   // subscription means this recharge stacks behind existing validity.
   const queueTail =
@@ -74,6 +95,40 @@ export function RechargeConfirmDialog({
                 {formatINR(plan.price)}
               </span>
             </div>
+
+            {coupons.length > 0 && (
+              <div className="flex flex-col gap-1.5">
+                <Select value={couponCode || "none"} onValueChange={(v) => onCouponChange(v === "none" ? "" : v)}>
+                  <SelectTrigger className="h-10 text-sm">
+                    <SelectValue placeholder="Apply a coupon (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No coupon</SelectItem>
+                    {eligibleCoupons.map((c) => (
+                      <SelectItem key={c.code} value={c.code}>
+                        {c.name} — {c.code}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {coupons.length > eligibleCoupons.length && (
+                  <p className="text-[11px] text-muted-foreground">
+                    Some coupons need a higher-value plan and are hidden.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {discountPaise > 0 && (
+              <div className="flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/5 px-4 py-2.5 text-sm">
+                <span className="text-muted-foreground">
+                  Coupon {couponCode} ({coupon?.name})
+                </span>
+                <span className="font-semibold text-emerald-600">
+                  −{formatINR(discountPaise / 100)}
+                </span>
+              </div>
+            )}
 
             {giftFor ? (
               <div className="flex items-center gap-2.5 rounded-xl border border-primary/30 bg-primary/5 px-4 py-2.5 text-sm">
@@ -147,7 +202,7 @@ export function RechargeConfirmDialog({
             ) : (
               <Zap className="h-4 w-4 mr-1.5" />
             )}
-            Pay {plan ? formatINR(plan.price) : ""}
+            Pay {plan ? formatINR(payablePaise / 100) : ""}
           </Button>
         </DialogFooter>
       </DialogContent>

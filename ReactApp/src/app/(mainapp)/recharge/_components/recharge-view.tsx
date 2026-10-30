@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   AlertCircle,
@@ -10,7 +11,7 @@ import {
   Zap,
 } from "lucide-react";
 import type { Plan } from "@/api/plans.api";
-import type { RechargeRecipient } from "@/api/recharge.api";
+import { rechargeApi, type RechargeRecipient } from "@/api/recharge.api";
 import { subscriptionsApi } from "@/api/subscriptions.api";
 import { usePlans } from "@/app/(mainapp)/plans/_hooks/use-plans";
 import { Badge } from "@/components/ui/badge";
@@ -44,6 +45,7 @@ export function RechargeView() {
   const [selectedSimId, setSelectedSimId] = useState<string | null>(null);
   const [confirmPlan, setConfirmPlan] = useState<Plan | null>(null);
   const [giftTarget, setGiftTarget] = useState<RechargeRecipient | null>(null);
+  const [couponCode, setCouponCode] = useState("");
 
   const {
     data: overview,
@@ -61,6 +63,11 @@ export function RechargeView() {
   });
 
   const checkout = useRechargeCheckout();
+  const { data: couponsData } = useQuery({
+    queryKey: ["recharge", "coupons"],
+    queryFn: rechargeApi.coupons,
+  });
+  const coupons = couponsData?.coupons ?? [];
 
   const sims = useMemo(() => overview?.sims ?? [], [overview]);
   // Falls back to the first SIM until the user picks another one.
@@ -137,8 +144,16 @@ export function RechargeView() {
     if (!confirmPlan) return;
     checkout.mutate(
       giftTarget
-        ? { planId: confirmPlan.id, targetNumber: giftTarget.number }
-        : { simId: selectedSim?.id, planId: confirmPlan.id },
+        ? {
+            planId: confirmPlan.id,
+            targetNumber: giftTarget.number,
+            ...(couponCode ? { couponCode } : {}),
+          }
+        : {
+            simId: selectedSim?.id,
+            planId: confirmPlan.id,
+            ...(couponCode ? { couponCode } : {}),
+          },
       {
         onSuccess: (res) => {
           if (res.url) {
@@ -327,9 +342,17 @@ export function RechargeView() {
             ? { name: giftTarget.name, number: giftTarget.number }
             : null
         }
+        coupons={coupons}
+        couponCode={couponCode}
+        onCouponChange={setCouponCode}
         open={!!confirmPlan}
         isPending={checkout.isPending}
-        onOpenChange={(open) => !open && setConfirmPlan(null)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setConfirmPlan(null);
+            setCouponCode("");
+          }
+        }}
         onConfirm={handleConfirm}
       />
     </div>

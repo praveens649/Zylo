@@ -142,6 +142,7 @@ interface DefaultVoucherSeed {
   requiredXp: number;
   valueMb?: number;
   discountPaise?: number;
+  minPurchasePaise?: number;
   badgeCode?: string;
 }
 
@@ -176,6 +177,7 @@ const DEFAULT_VOUCHERS: DefaultVoucherSeed[] = [
     type: 'COUPON',
     requiredXp: 300,
     discountPaise: 2000,
+    minPurchasePaise: 19900,
   },
   {
     name: '₹50 Recharge Discount',
@@ -183,6 +185,7 @@ const DEFAULT_VOUCHERS: DefaultVoucherSeed[] = [
     type: 'COUPON',
     requiredXp: 500,
     discountPaise: 5000,
+    minPurchasePaise: 29900,
   },
   {
     name: '₹100 Grand Recharge Coupon',
@@ -262,25 +265,24 @@ export class QuestService implements OnApplicationBootstrap {
       }
     }
 
-    // 2. Vouchers in RewardCatalog
+    // 2. Vouchers in RewardCatalog — upsert so changed defaults (e.g.
+    // minPurchasePaise) reach existing installs too.
     for (const v of DEFAULT_VOUCHERS) {
-      const existing = await this.prisma.rewardCatalog.findFirst({
+      await this.prisma.rewardCatalog.upsert({
         where: { name: v.name },
+        create: {
+          name: v.name,
+          description: v.description,
+          type: v.type,
+          requiredXp: v.requiredXp,
+          valueMb: v.valueMb ?? null,
+          discountPaise: v.discountPaise ?? null,
+          minPurchasePaise: v.minPurchasePaise ?? null,
+          badgeCode: v.badgeCode ?? null,
+          isActive: true,
+        },
+        update: { minPurchasePaise: v.minPurchasePaise ?? null },
       });
-      if (!existing) {
-        await this.prisma.rewardCatalog.create({
-          data: {
-            name: v.name,
-            description: v.description,
-            type: v.type,
-            requiredXp: v.requiredXp,
-            valueMb: v.valueMb ?? null,
-            discountPaise: v.discountPaise ?? null,
-            badgeCode: v.badgeCode ?? null,
-            isActive: true,
-          },
-        });
-      }
     }
   }
 

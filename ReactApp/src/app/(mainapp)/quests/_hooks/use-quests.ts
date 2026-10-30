@@ -1,6 +1,12 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { questsApi, QUEST_BOARD_KEY, type VoucherItem } from "@/api/quests.api";
+import {
+  questsApi,
+  QUEST_BOARD_KEY,
+  type RedeemVoucherResult,
+  type VoucherItem,
+} from "@/api/quests.api";
+import { useToast } from "@/hooks/use-toast";
 
 /**
  * Fetch complete pack-scoped Quest Board data.
@@ -28,15 +34,17 @@ export function useDailyCheckIn() {
 /**
  * Redeem voucher by spending pack XP.
  */
-export function useRedeemVoucher(onSuccess?: () => void) {
+export function useRedeemVoucher(
+  onSuccess?: (result: RedeemVoucherResult) => void
+) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (voucherId: string) => questsApi.redeemVoucher(voucherId),
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: QUEST_BOARD_KEY });
       // DATA_MB vouchers land in the SIM's Data Bank — refresh it too.
       queryClient.invalidateQueries({ queryKey: ["data-bank"] });
-      onSuccess?.();
+      onSuccess?.(result);
     },
   });
 }
@@ -47,6 +55,7 @@ export type VoucherCategoryFilter = "ALL" | "DATA_MB" | "COUPON" | "BADGE";
  * High-level state management hook for Quests view.
  */
 export function useQuestsState() {
+  const { toast } = useToast();
   const { data: board, isLoading, error, refetch } = useQuestBoard();
   const checkInMutation = useDailyCheckIn();
   const [selectedWeek, setSelectedWeek] = useState<number | null>(null);
@@ -54,8 +63,18 @@ export function useQuestsState() {
   const [redeemModalVoucher, setRedeemModalVoucher] = useState<VoucherItem | null>(null);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
-  const redeemMutation = useRedeemVoucher(() => {
+  const redeemMutation = useRedeemVoucher((result) => {
     setRedeemModalVoucher(null);
+    toast({
+      title: result.couponCode
+        ? `Coupon claimed: ${result.couponCode}`
+        : `${result.voucherName} claimed`,
+      description: result.couponCode
+        ? "Apply it at recharge checkout — it's also saved in your voucher wallet."
+        : result.type === "DATA_MB" && result.valueMb
+          ? `${result.valueMb} MB deposited into your Data Bank.`
+          : undefined,
+    });
   });
 
   const currentWeek = board?.planInfo.currentWeek ?? 1;

@@ -56,6 +56,15 @@ export interface RechargeRecipient {
   category: string;
 }
 
+/** An unused quest coupon redeemable at recharge checkout. */
+export interface RechargeCoupon {
+  code: string;
+  name: string;
+  discountPaise: number;
+  minPurchasePaise: number | null;
+  expiresAt: string | null;
+}
+
 export const rechargeApi = {
   /** The customer's SIMs with current + queued plan subscriptions. */
   overview: () => api.get<RechargeOverview>("/api/v1/recharge/overview"),
@@ -66,6 +75,10 @@ export const rechargeApi = {
       `/api/v1/recharge/lookup?number=${encodeURIComponent(number)}`
     ),
 
+  /** The customer's unused quest coupons usable at checkout. */
+  coupons: () =>
+    api.get<{ coupons: RechargeCoupon[] }>("/api/v1/recharge/coupons"),
+
   /**
    * Start a recharge — returns the Stripe hosted checkout URL. `simId` is
    * optional; without it a new Zylo number is provisioned on activation.
@@ -75,6 +88,7 @@ export const rechargeApi = {
     simId?: string;
     planId: string;
     targetNumber?: string;
+    couponCode?: string;
   }) => api.post<RechargeCheckoutResult>("/api/v1/recharge/checkout", input),
 };
 

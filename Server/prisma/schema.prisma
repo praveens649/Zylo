@@ -652,6 +652,10 @@ model Order {
   musicPlanId     String?
   numberParkingId String?
 
+  // Quest coupon applied at checkout — amount already reflects the discount.
+  couponRedemptionId String? @unique
+  discountPaise      Int     @default(0)
+
   user User @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   sim Sim? @relation(fields: [simId], references: [id], onDelete: Restrict)
@@ -672,6 +676,8 @@ model Order {
   wifiConnection WifiConnection? @relation(fields: [wifiConnectionId], references: [id], onDelete: Restrict)
 
   musicPlan MusicPlan? @relation(fields: [musicPlanId], references: [id], onDelete: Restrict)
+
+  couponRedemption RewardRedemption? @relation(fields: [couponRedemptionId], references: [id], onDelete: SetNull)
 
   payment           Payment?
   planSubscription  PlanSubscription?
@@ -1229,9 +1235,11 @@ model RewardCatalog {
   valueMb       Int?
   discountPaise Int?
   badgeCode     String?
-  requiredXp    Int        @default(0)
-  requiredLevel Int        @default(1)
-  isActive      Boolean    @default(true)
+  /** Minimum payable plan amount for a COUPON reward — null means ≥ the discount. */
+  minPurchasePaise Int?
+  requiredXp       Int     @default(0)
+  requiredLevel    Int     @default(1)
+  isActive         Boolean @default(true)
 
   redemptions RewardRedemption[]
 
@@ -1258,6 +1266,7 @@ model RewardRedemption {
 
   user   User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   reward RewardCatalog @relation(fields: [rewardId], references: [id], onDelete: Restrict)
+  order  Order?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

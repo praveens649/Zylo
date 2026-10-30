@@ -1,4 +1,10 @@
-import { IsOptional, IsString, IsUUID, Matches } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsUUID,
+  Matches,
+  MaxLength,
+} from 'class-validator';
 import { Transform } from 'class-transformer';
 import { trim } from '../common/dto.js';
 
@@ -25,4 +31,14 @@ export class CreateRechargeCheckoutDto {
     message: 'targetNumber must be a valid phone number',
   })
   targetNumber?: string;
+
+  /**
+   * Quest coupon code (ZYLO-XXXX) — applies a recharge discount to this
+   * checkout when valid and the plan meets the coupon's minimum purchase.
+   */
+  @IsOptional()
+  @Transform(trim)
+  @IsString()
+  @MaxLength(32)
+  couponCode?: string;
 }

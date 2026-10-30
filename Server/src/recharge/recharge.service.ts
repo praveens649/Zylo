@@ -216,6 +216,35 @@ export class RechargeService {
     };
   }
 
+  /**
+   * The customer's unused quest coupons — usable at recharge checkout.
+   */
+  async listCoupons(userId: string) {
+    const coupons = await this.prisma.rewardRedemption.findMany({
+      where: {
+        userId,
+        isUsed: false,
+        status: 'SUCCESS',
+        couponCode: { not: null },
+        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+        reward: { type: 'COUPON' },
+      },
+      include: {
+        reward: { select: { name: true, minPurchasePaise: true } },
+      },
+      orderBy: { redeemedAt: 'desc' },
+    });
+    return {
+      coupons: coupons.map((c) => ({
+        code: c.couponCode!,
+        name: c.reward.name,
+        discountPaise: c.discountPaise ?? 0,
+        minPurchasePaise: c.reward.minPurchasePaise,
+        expiresAt: c.expiresAt,
+      })),
+    };
+  }
+
   // -----------------------------------------------------------------------
   // Checkout — order + payment + Stripe session
   // -----------------------------------------------------------------------
@@ -302,17 +331,67 @@ export class RechargeService {
       );
     }
 
+    // Optional quest coupon — validate ownership, freshness and minimum
+    // purchase before discounting the order amount.
+    let couponRedemptionId: string | null = null;
+    let discountPaise = 0;
+    const planPaise = Math.round(Number(plan.price) * 100);
+    if (dto.couponCode) {
+      const coupon = await this.prisma.rewardRedemption.findFirst({
+        where: {
+          couponCode: dto.couponCode.toUpperCase(),
+          userId: user.id,
+          isUsed: false,
+          status: 'SUCCESS',
+        },
+        include: { reward: true },
+      });
+      if (!coupon || coupon.reward.type !== 'COUPON' || !coupon.discountPaise) {
+        throw new ApiException(
+          400,
+          'INVALID_COUPON',
+          'That coupon code is not valid for your account',
+        );
+      }
+      if (coupon.expiresAt && coupon.expiresAt <= new Date()) {
+        throw new ApiException(
+          400,
+          'COUPON_EXPIRED',
+          'That coupon has expired',
+        );
+      }
+      const minPaise = coupon.reward.minPurchasePaise ?? coupon.discountPaise;
+      if (planPaise < minPaise) {
+        throw new ApiException(
+          400,
+          'COUPON_MIN_PURCHASE',
+          `This coupon needs a recharge of ₹${minPaise / 100} or more`,
+        );
+      }
+      // A stale PENDING order may still hold this coupon — release it so
+      // the code can be re-used on a fresh checkout.
+      await this.prisma.order.updateMany({
+        where: { couponRedemptionId: coupon.id, status: 'PENDING' },
+        data: { couponRedemptionId: null, discountPaise: 0 },
+      });
+      couponRedemptionId = coupon.id;
+      discountPaise = Math.min(coupon.discountPaise, planPaise - 100);
+    }
+
+    const payablePaise = planPaise - discountPaise;
     const order = await this.prisma.order.create({
       data: {
         userId: user.id,
         type: 'RECHARGE',
         status: 'PENDING',
-        amount: plan.price,
+        amount: payablePaise / 100,
         currency: plan.currency,
         simId: sim?.id ?? null,
         planId: plan.id,
         phoneNumberId: sim?.phoneNumberId ?? null,
         rechargedForUserId: giftFor?.userId ?? null,
+        couponRedemptionId,
+        discountPaise,
       },
     });
 
@@ -325,7 +404,7 @@ export class RechargeService {
         {
           price_data: {
             currency,
-            unit_amount: Math.round(Number(plan.price) * 100),
+            unit_amount: payablePaise,
             product_data: {
               name: giftFor
                 ? `Recharge for ${giftFor.name} — ${plan.name}`
@@ -358,11 +437,13 @@ export class RechargeService {
         status: 'PENDING',
         amount: plan.price,
         currency,
-        description: giftFor
-          ? `Recharge for ${giftFor.name} (${sim!.phoneNumber.number}) — ${plan.name}`
-          : sim
-            ? `Recharge — ${plan.name} (${sim.phoneNumber.number})`
-            : `Recharge — ${plan.name} (new Zylo number)`,
+        description:
+          (giftFor
+            ? `Recharge for ${giftFor.name} (${sim!.phoneNumber.number}) — ${plan.name}`
+            : sim
+              ? `Recharge — ${plan.name} (${sim.phoneNumber.number})`
+              : `Recharge — ${plan.name} (new Zylo number)`) +
+          (discountPaise ? ` − ₹${discountPaise / 100} coupon` : ''),
         stripeCheckoutSessionId: session.id,
       },
     });
@@ -480,6 +561,14 @@ export class RechargeService {
           where: { id: simId },
           data: { planExpiredAt: endDate },
         });
+        // Consume the quest coupon only now that payment actually landed —
+        // an abandoned checkout leaves it usable.
+        if (order.couponRedemptionId) {
+          await tx.rewardRedemption.update({
+            where: { id: order.couponRedemptionId },
+            data: { isUsed: true, usedAt: now },
+          });
+        }
 
         // Notify the plan recipient — for gift recharges that's the friend
         // whose SIM got the plan, not the payer. The payer gets a delivery
