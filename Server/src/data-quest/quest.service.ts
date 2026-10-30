@@ -644,26 +644,32 @@ export class QuestService implements OnApplicationBootstrap {
           where: { userId, status: 'ACTIVE' },
         });
 
-        if (activeSim) {
-          const account = await tx.dataBankAccount.upsert({
-            where: { simId: activeSim.id },
-            create: { simId: activeSim.id, balanceMb: voucher.valueMb },
-            update: { balanceMb: { increment: voucher.valueMb } },
-          });
-
-          await tx.dataBankTransaction.create({
-            data: {
-              dataBankId: account.id,
-              type: 'DEPOSIT',
-              amountMb: voucher.valueMb,
-              balanceAfterMb: account.balanceMb + voucher.valueMb,
-              description: `Quest Voucher Reward: ${voucher.name}`,
-              expiresAt: new Date(Date.now() + 30 * DAY_MS),
-            },
-          });
-
-          this.logger.log(`Deposited ${voucher.valueMb} MB into Data Bank for user ${userId}`);
+        if (!activeSim) {
+          // Never burn XP without delivering the data.
+          throw new BadRequestException(
+            'No active Zylo SIM found — activate a SIM before redeeming data rewards.',
+          );
         }
+
+        const account = await tx.dataBankAccount.upsert({
+          where: { simId: activeSim.id },
+          create: { simId: activeSim.id, balanceMb: voucher.valueMb },
+          update: { balanceMb: { increment: voucher.valueMb } },
+        });
+
+        await tx.dataBankTransaction.create({
+          data: {
+            dataBankId: account.id,
+            type: 'DEPOSIT',
+            amountMb: voucher.valueMb,
+            // account.balanceMb already includes the deposit.
+            balanceAfterMb: account.balanceMb,
+            description: `Quest Voucher Reward: ${voucher.name}`,
+            expiresAt: new Date(Date.now() + 30 * DAY_MS),
+          },
+        });
+
+        this.logger.log(`Deposited ${voucher.valueMb} MB into Data Bank for user ${userId}`);
       } else if (voucher.type === 'COUPON') {
         const rand = Math.random().toString(36).substring(2, 8).toUpperCase();
         couponCode = `ZYLO-${rand}`;

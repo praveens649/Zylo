@@ -34,6 +34,8 @@ export function useRedeemVoucher(onSuccess?: () => void) {
     mutationFn: (voucherId: string) => questsApi.redeemVoucher(voucherId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUEST_BOARD_KEY });
+      // DATA_MB vouchers land in the SIM's Data Bank — refresh it too.
+      queryClient.invalidateQueries({ queryKey: ["data-bank"] });
       onSuccess?.();
     },
   });
