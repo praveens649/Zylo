@@ -117,18 +117,25 @@ function SendCard({ sim }: { sim: TransferSimSummary }) {
         <div>
           <p className="mb-1.5 text-sm font-medium">Friend&apos;s Zylo number</p>
           <div className="flex gap-2">
-            <Input
-              value={number}
-              onChange={(e) => {
-                setNumber(e.target.value.replace(/[^\d\s+-]/g, ""));
-                setRecipient(null);
-              }}
-              placeholder="98XXXXXXXX"
-              maxLength={15}
-            />
+            <div className="relative flex-1">
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground">
+                +91
+              </span>
+              <Input
+                className="pl-11"
+                inputMode="numeric"
+                value={number}
+                onChange={(e) => {
+                  setNumber(e.target.value.replace(/\D/g, ""));
+                  setRecipient(null);
+                }}
+                placeholder="98XXXXXX00"
+                maxLength={10}
+              />
+            </div>
             <Button
               variant="outline"
-              disabled={lookup.isPending || number.trim().length < 8}
+              disabled={lookup.isPending || number.trim().length < 10}
               onClick={() => lookup.mutate()}
             >
               {lookup.isPending ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Search className="mr-1.5 h-4 w-4" />}

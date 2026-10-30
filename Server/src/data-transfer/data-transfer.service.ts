@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ApiException } from '../common/api-error.js';
+import { normalizeIndianPhone } from '../common/phone.js';
 import { QuestRulesEngine } from '../data-quest/quest-rules.engine.js';
 import type { UserModel } from '../generated/prisma/models.js';
 import { transferConfig } from './data-transfer.config.js';
@@ -140,7 +141,7 @@ export class DataTransferService {
 
   async lookupRecipient(user: UserModel, number: string) {
     const phone = await this.prisma.phoneNumber.findFirst({
-      where: { number: number.trim() },
+      where: { number: normalizeIndianPhone(number) },
       include: {
         sim: {
           include: { user: { select: { id: true, name: true } } },
@@ -259,7 +260,7 @@ export class DataTransferService {
     // Recipient must be an ACTIVE Zylo SIM on another customer's account with
     // an active plan — validated exactly like a gift recharge lookup.
     const phone = await this.prisma.phoneNumber.findFirst({
-      where: { number: dto.targetNumber.trim() },
+      where: { number: normalizeIndianPhone(dto.targetNumber) },
       include: { sim: { include: { user: { select: { id: true, name: true } } } } },
     });
     const recipient = phone?.sim;

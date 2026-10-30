@@ -5,8 +5,8 @@ import type { SendTransferDto } from './dto.js';
 
 const user = { id: 'u1', name: 'Asha' } as any;
 
-const FRIEND_NUMBER = '9876543210';
-const MY_NUMBER = '9123456789';
+const FRIEND_NUMBER = '+919876543210';
+const MY_NUMBER = '+919123456789';
 
 const plan = {
   id: 'plan1',

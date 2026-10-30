@@ -3,6 +3,7 @@ import Stripe from 'stripe';
 import { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ApiException } from '../common/api-error.js';
+import { normalizeIndianPhone } from '../common/phone.js';
 import { LoansService } from '../loans/loans.service.js';
 import type { UserModel } from '../generated/prisma/models.js';
 import type { CreateRechargeCheckoutDto } from './dto.js';
@@ -172,7 +173,7 @@ export class RechargeService {
    * Only an exact match is returned so numbers can't be enumerated.
    */
   async lookupRecipient(user: UserModel, number: string) {
-    const normalized = number.trim();
+    const normalized = normalizeIndianPhone(number);
     const phone = await this.prisma.phoneNumber.findFirst({
       where: { number: normalized },
       include: {
@@ -234,7 +235,7 @@ export class RechargeService {
       // Gift recharge — the target SIM is resolved by phone number, not
       // by ownership, and must be rechargeable.
       const phone = await this.prisma.phoneNumber.findFirst({
-        where: { number: dto.targetNumber.trim() },
+        where: { number: normalizeIndianPhone(dto.targetNumber) },
         include: {
           sim: {
             include: {
