@@ -19,6 +19,8 @@ import PlansPage from "@/app/(mainapp)/plans/page";
 import RechargePage from "@/app/(mainapp)/recharge/page";
 import DataBankPage from "@/app/(mainapp)/data-bank/page";
 import DataTransferPage from "@/app/(mainapp)/data-transfer/page";
+import MusicPage from "@/app/(mainapp)/music/page";
+import MusicAdminPage from "@/app/(mainapp)/music-admin/page";
 import QuestsPage from "@/app/(mainapp)/quests/page";
 import EsimPage from "@/app/(mainapp)/esim/page";
 import EsimPlansPage from "@/app/(mainapp)/esim-plans/page";
@@ -53,6 +55,8 @@ export default function App() {
             <Route path="/recharge" element={<RechargePage />} />
             <Route path="/data-bank" element={<DataBankPage />} />
             <Route path="/data-transfer" element={<DataTransferPage />} />
+            <Route path="/music" element={<MusicPage />} />
+            <Route path="/music-admin" element={<MusicAdminPage />} />
             <Route path="/quests" element={<QuestsPage />} />
             <Route path="/esim" element={<EsimPage />} />
             <Route path="/esim-plans" element={<EsimPlansPage />} />

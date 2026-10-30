@@ -69,6 +69,7 @@ enum OrderType {
   TV_PACK_PURCHASE
   WIFI_ORDER
   WIFI_PLAN_PURCHASE
+  MUSIC_SUBSCRIPTION
 }
 
 enum OrderStatus {
@@ -307,6 +308,7 @@ model User {
   travelEsimOrders     TravelEsimOrder[]
   setTopBoxConnections SetTopBoxConnection[]
   wifiConnections      WifiConnection[]
+  musicSubscriptions   MusicSubscription[]
   kyc                  KycVerification?
 
   ownedOrganizations      BusinessOrganization[] @relation("OrganizationOwner")
@@ -632,6 +634,8 @@ model Order {
   wifiPlanId       String?
   wifiConnectionId String?
 
+  musicPlanId String?
+
   user User @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   sim Sim? @relation(fields: [simId], references: [id], onDelete: Restrict)
@@ -650,10 +654,13 @@ model Order {
   wifiPlan       WifiPlan?       @relation(fields: [wifiPlanId], references: [id], onDelete: Restrict)
   wifiConnection WifiConnection? @relation(fields: [wifiConnectionId], references: [id], onDelete: Restrict)
 
-  payment          Payment?
-  planSubscription PlanSubscription?
-  tvSubscription   TvSubscription?
-  wifiSubscription WifiSubscription?
+  musicPlan MusicPlan? @relation(fields: [musicPlanId], references: [id], onDelete: Restrict)
+
+  payment           Payment?
+  planSubscription  PlanSubscription?
+  tvSubscription    TvSubscription?
+  wifiSubscription  WifiSubscription?
+  musicSubscription MusicSubscription?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1775,4 +1782,53 @@ model WifiInstallation {
 
   @@index([connectionId, status])
   @@index([status, scheduledAt])
+}
+
+// ======================================================
+// ZYLO MUSIC — streaming subscription
+// A customer pays for a MusicPlan via Stripe; an ACTIVE subscription
+// unlocks search + preview streaming in the app.
+// ======================================================
+
+model MusicPlan {
+  id           String  @id @default(uuid())
+  name         String  @unique
+  description  String?
+  price        Decimal @db.Decimal(10, 2)
+  currency     String  @default("inr")
+  validityDays Int     @default(30)
+
+  // Demo plan tiers shown in the UI — no actual audio-quality difference.
+  audioQuality String @default("standard")
+  maxDevices   Int    @default(1)
+
+  isActive  Boolean @default(true)
+  sortOrder Int     @default(0)
+
+  subscriptions MusicSubscription[]
+  orders        Order[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model MusicSubscription {
+  id      String                 @id @default(uuid())
+  userId  String
+  orderId String                 @unique
+  planId  String
+  status  PlanSubscriptionStatus @default(PENDING)
+
+  startDate DateTime
+  endDate   DateTime
+
+  user  User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+  order Order     @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  plan  MusicPlan @relation(fields: [planId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([planId])
 }

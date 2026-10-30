@@ -8,6 +8,7 @@ import type { SubscriptionStatus } from '../generated/prisma/enums.js';
 import type { UserModel } from '../generated/prisma/models.js';
 import { TvFulfilmentService } from '../set-top-box/tv-fulfilment.service.js';
 import { WifiFulfilmentService } from '../wifi/wifi-fulfilment.service.js';
+import { MusicService } from '../music/music.service.js';
 
 function subscriptionPeriodEnd(sub: Stripe.Subscription): Date | null {
   const itemEnd = sub.items?.data?.[0]?.current_period_end;
@@ -84,6 +85,7 @@ export class StripeService {
     private readonly wifiFulfilment: WifiFulfilmentService,
     private readonly rechargeService: RechargeService,
     private readonly travelEsimService: TravelEsimService,
+    private readonly musicService: MusicService,
   ) {}
 
   // -----------------------------------------------------------------------
@@ -459,6 +461,11 @@ export class StripeService {
     // Travel eSIM checkouts issue the eSIM credentials after payment.
     if (session.metadata?.type === 'travel_esim') {
       await this.travelEsimService.fulfillFromCheckoutSession(session);
+    }
+
+    // Music checkouts activate the subscription after payment.
+    if (session.metadata?.type === 'music') {
+      await this.musicService.fulfillFromCheckoutSession(session);
     }
   }
 

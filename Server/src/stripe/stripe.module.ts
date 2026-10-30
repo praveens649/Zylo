@@ -6,6 +6,7 @@ import { StripeController } from './stripe.controller.js';
 import { StripeWebhookController } from './stripe-webhook.controller.js';
 import { SetTopBoxModule } from '../set-top-box/set-top-box.module.js';
 import { WifiModule } from '../wifi/wifi.module.js';
+import { MusicModule } from '../music/music.module.js';
 
 /**
  * Self-contained Stripe module:
@@ -17,7 +18,7 @@ import { WifiModule } from '../wifi/wifi.module.js';
  *   POST /api/v1/stripe/webhook                — Stripe event receiver (signature)
  */
 @Module({
-  imports: [SetTopBoxModule, WifiModule, RechargeModule, TravelEsimModule],
+  imports: [SetTopBoxModule, WifiModule, RechargeModule, TravelEsimModule, MusicModule],
   controllers: [StripeController, StripeWebhookController],
   providers: [StripeService],
   exports: [StripeService],
