@@ -20,6 +20,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { DatePicker } from "@/components/ui/date-picker";
 import { AppDialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
@@ -121,7 +122,7 @@ function RescheduleDialog({ inst }: { inst: WifiInstallation }) {
       <AppDialog open={open} onOpenChange={setOpen} size="sm" title="Reschedule installation" icon={<CalendarClock className="h-5 w-5 text-primary" />}>
         <div className="grid grid-cols-2 gap-3">
           <FormField label="Date">
-            <Input type="date" min={isoDay(0)} max={isoDay(60)} value={date} onChange={(e) => setDate(e.target.value)} />
+            <DatePicker min={isoDay(0)} max={isoDay(60)} value={date} onChange={setDate} className="h-9" />
           </FormField>
           <FormField label="Slot">
             <select className={fieldCls} value={slot} onChange={(e) => setSlot(e.target.value as InstallationSlot)}>

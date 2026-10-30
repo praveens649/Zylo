@@ -19,6 +19,7 @@ import { formatDate, formatDateTime } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Dialog,
   DialogContent,
@@ -357,11 +358,10 @@ export function LoansAdminView() {
                 <Label htmlFor="job-date" className="text-[10px] uppercase tracking-wider text-muted-foreground">
                   Run as of (IST)
                 </Label>
-                <Input
+                <DatePicker
                   id="job-date"
-                  type="date"
                   value={asOf}
-                  onChange={(e) => setAsOf(e.target.value)}
+                  onChange={setAsOf}
                   className="h-8 w-40 text-xs"
                 />
               </div>

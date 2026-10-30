@@ -1,7 +1,7 @@
 import { CalendarDays, MapPin, Plane, Search } from "lucide-react";
 import type { TravelDestination } from "@/api/travel-esim.api";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -89,11 +89,10 @@ export function TripForm({
             <Label className="text-xs font-semibold text-muted-foreground">
               Departure
             </Label>
-            <Input
-              type="date"
+            <DatePicker
               value={departureDate}
               min={new Date().toISOString().slice(0, 10)}
-              onChange={(e) => onDepartureChange(e.target.value)}
+              onChange={onDepartureChange}
               className="h-10 text-sm"
             />
           </div>
@@ -102,11 +101,10 @@ export function TripForm({
             <Label className="text-xs font-semibold text-muted-foreground">
               Return
             </Label>
-            <Input
-              type="date"
+            <DatePicker
               value={returnDate}
               min={departureDate || new Date().toISOString().slice(0, 10)}
-              onChange={(e) => onReturnChange(e.target.value)}
+              onChange={onReturnChange}
               className="h-10 text-sm"
             />
           </div>

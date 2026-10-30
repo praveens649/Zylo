@@ -11,6 +11,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { DatePicker } from "@/components/ui/date-picker";
 import { AppDialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { wifiAdminApi, type AdminConnection, type AdminInstallation } from "@/api/wifi.api";
@@ -318,7 +319,7 @@ function ScheduleDialog({ inst, onClose }: { inst: AdminInstallation | null; onC
     <AppDialog open={!!inst} onOpenChange={(o) => !o && onClose()} size="sm" title={`Schedule visit — ${inst?.connection.connectionNumber ?? ""}`} icon={<PackageCheck className="h-5 w-5 text-primary" />}>
       <div className="space-y-3">
         <FormField label="Scheduled at">
-          <Input type="datetime-local" value={at} onChange={(e) => setAt(e.target.value)} />
+          <DatePicker withTime min={new Date().toISOString().slice(0, 10)} value={at} onChange={setAt} className="h-9" />
         </FormField>
         <FormField label="Technician name">
           <Input value={name} onChange={(e) => setName(e.target.value)} />

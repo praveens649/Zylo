@@ -25,6 +25,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -189,12 +190,11 @@ export function TravellerDialog({
               <Label htmlFor="passport-expiry" className="text-xs font-semibold">
                 Passport expiry
               </Label>
-              <Input
+              <DatePicker
                 id="passport-expiry"
-                type="date"
                 value={passportExpiryDate}
                 min={new Date().toISOString().slice(0, 10)}
-                onChange={(e) => setPassportExpiryDate(e.target.value)}
+                onChange={setPassportExpiryDate}
                 className="h-10 text-sm"
               />
             </div>

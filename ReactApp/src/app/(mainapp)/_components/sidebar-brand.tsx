@@ -33,9 +33,6 @@ export function SidebarBrand({ user }: { user: AuthUser }) {
           <span className="font-display text-base font-bold leading-tight tracking-tight text-sidebar-foreground">
             Zylo
           </span>
-          <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-            Telecom Console
-          </span>
           {number && (
             <span className="mt-1 flex items-center gap-1 text-[11px] font-semibold text-foreground/80">
               <Phone className="h-3 w-3 text-primary" />

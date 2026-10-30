@@ -104,7 +104,7 @@ export const SLOT_LABEL = {
   EVENING: "Evening (4 – 7 PM)",
 } as const;
 
-/** yyyy-mm-dd for <input type="date"> min/max. */
+/** yyyy-mm-dd for DatePicker min/max. */
 export function isoDay(offsetDays = 0) {
   const d = new Date();
   d.setDate(d.getDate() + offsetDays);

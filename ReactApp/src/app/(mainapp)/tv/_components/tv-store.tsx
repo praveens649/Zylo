@@ -19,6 +19,7 @@ import { tvApi } from "@/api/tv.api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { formatINR, money } from "@/lib/format";
 import { goToCheckout, useTvAction, useTvBoxes, useTvConnections, useTvPlans } from "../_hooks/use-tv";
@@ -309,7 +310,7 @@ export function TvStore() {
                   <FormField label="PIN code"><Input value={postalCode} inputMode="numeric" maxLength={6} onChange={(e) => setPostalCode(e.target.value.replace(/\D/g, ""))} /></FormField>
                   <FormField label="Contact mobile"><Input value={contactPhone} inputMode="numeric" maxLength={10} onChange={(e) => setContactPhone(e.target.value.replace(/\D/g, ""))} /></FormField>
                   <FormField label="Preferred date">
-                    <Input type="date" min={isoDay(1)} max={isoDay(60)} value={preferredDate} onChange={(e) => setPreferredDate(e.target.value)} />
+                    <DatePicker min={isoDay(1)} max={isoDay(60)} value={preferredDate} onChange={setPreferredDate} className="h-9" />
                   </FormField>
                   <FormField label="Time slot">
                     <select className={cn(fieldCls, "h-9")} value={preferredSlot} onChange={(e) => setPreferredSlot(e.target.value as InstallationSlot)}>

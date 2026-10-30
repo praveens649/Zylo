@@ -17,6 +17,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { DatePicker } from "@/components/ui/date-picker";
 import { AppDialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
@@ -371,7 +372,7 @@ export function WifiStore() {
                 </FormField>
                 <div className="grid grid-cols-2 gap-3">
                   <FormField label="Preferred date">
-                    <Input type="date" min={isoDay(0)} max={isoDay(60)} value={form.preferredDate} onChange={(e) => set("preferredDate", e.target.value)} />
+                    <DatePicker min={isoDay(0)} max={isoDay(60)} value={form.preferredDate} onChange={(v) => set("preferredDate", v)} className="h-9" />
                     {fieldErrors.preferredDate && <p className="text-xs text-destructive">{fieldErrors.preferredDate}</p>}
                   </FormField>
                   <FormField label="Preferred slot">
