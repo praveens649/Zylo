@@ -32,6 +32,16 @@ export default function DashboardLayout({
   const isCustomer = data?.user?.role === "CUSTOMER";
   const isOnboardingRoute = location.pathname === "/onboarding";
   const pathname = location.pathname;
+  // Incomplete customers may only visit onboarding + their dashboard
+  // (where invited members see their allocated number). Number Parking
+  // and the Vault stay reachable too — a customer whose plan lapsed into
+  // grace period must still be able to park/reactivate that number.
+  const allowedWhenIncomplete = [
+    "/onboarding",
+    "/dashboard",
+    "/parking",
+    "/number-vault",
+  ];
 
   // Check onboarding completion for customers
   const { data: onboardingData, isPending: isOnboardingPending } = useQuery({

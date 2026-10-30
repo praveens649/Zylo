@@ -69,6 +69,9 @@ enum OrderType {
   TV_PACK_PURCHASE
   WIFI_ORDER
   WIFI_PLAN_PURCHASE
+  MUSIC_SUBSCRIPTION
+  NUMBER_PARKING
+  NUMBER_PARKING_EXTENSION
 }
 
 enum OrderStatus {
@@ -278,6 +281,14 @@ enum KycDocumentType {
   VOTER_ID
 }
 
+enum NumberParkingStatus {
+  PENDING_PAYMENT
+  ACTIVE
+  EXPIRED
+  REACTIVATED
+  CANCELLED
+}
+
 // ======================================================
 // USERS
 // ======================================================
@@ -307,7 +318,9 @@ model User {
   travelEsimOrders     TravelEsimOrder[]
   setTopBoxConnections SetTopBoxConnection[]
   wifiConnections      WifiConnection[]
+  musicSubscriptions   MusicSubscription[]
   kyc                  KycVerification?
+  numberParkings       NumberParking[]
 
   ownedOrganizations      BusinessOrganization[] @relation("OrganizationOwner")
   organizationMemberships OrganizationMember[]
@@ -352,11 +365,12 @@ model BusinessOrganization {
   ownerUserId String
   owner       User   @relation("OrganizationOwner", fields: [ownerUserId], references: [id], onDelete: Restrict)
 
-  members      OrganizationMember[]
-  invitations  BusinessInvite[]
-  phoneNumbers PhoneNumber[]
-  sims         Sim[]
-  orders       Order[]
+  members        OrganizationMember[]
+  invitations    BusinessInvite[]
+  phoneNumbers   PhoneNumber[]
+  sims           Sim[]
+  orders         Order[]
+  numberParkings NumberParking[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -458,6 +472,7 @@ model PhoneNumber {
   businessInvites BusinessInvite[]
 
   travelEsimOrders TravelEsimOrder[]
+  numberParkings   NumberParking[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -515,6 +530,8 @@ model Sim {
 
   dailyUsages      DailyDataUsage[]
   usageSimulations UsageSimulation[]
+
+  numberParkings NumberParking[]
 
   setTopBoxConnections SetTopBoxConnection[]
   wifiConnections      WifiConnection[]
@@ -632,6 +649,9 @@ model Order {
   wifiPlanId       String?
   wifiConnectionId String?
 
+  musicPlanId     String?
+  numberParkingId String?
+
   user User @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   sim Sim? @relation(fields: [simId], references: [id], onDelete: Restrict)
@@ -645,15 +665,19 @@ model Order {
   setTopBoxModel      SetTopBoxModel?      @relation(fields: [setTopBoxModelId], references: [id], onDelete: Restrict)
   tvPlan              TvPlan?              @relation(fields: [tvPlanId], references: [id], onDelete: Restrict)
   setTopBoxConnection SetTopBoxConnection? @relation(fields: [setTopBoxConnectionId], references: [id], onDelete: Restrict)
+  numberParking       NumberParking?       @relation(fields: [numberParkingId], references: [id], onDelete: Restrict)
 
   wifiDevice     WifiDevice?     @relation(fields: [wifiDeviceId], references: [id], onDelete: Restrict)
   wifiPlan       WifiPlan?       @relation(fields: [wifiPlanId], references: [id], onDelete: Restrict)
   wifiConnection WifiConnection? @relation(fields: [wifiConnectionId], references: [id], onDelete: Restrict)
 
-  payment          Payment?
-  planSubscription PlanSubscription?
-  tvSubscription   TvSubscription?
-  wifiSubscription WifiSubscription?
+  musicPlan MusicPlan? @relation(fields: [musicPlanId], references: [id], onDelete: Restrict)
+
+  payment           Payment?
+  planSubscription  PlanSubscription?
+  tvSubscription    TvSubscription?
+  wifiSubscription  WifiSubscription?
+  musicSubscription MusicSubscription?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -664,6 +688,7 @@ model Order {
   @@index([organizationId])
   @@index([setTopBoxConnectionId])
   @@index([wifiConnectionId])
+  @@index([numberParkingId])
 }
 
 // ======================================================
@@ -983,6 +1008,61 @@ model UsageSimulation {
 
   @@index([simId, status])
   @@index([dailyUsageId])
+}
+
+// ======================================================
+// ZYLO NUMBER PARKING
+// A customer parks an existing mobile number (Normal or
+// Business SIM) for a paid period with limited extensions.
+// ======================================================
+
+model NumberParking {
+  id        String @id @default(uuid())
+  reference String @unique @default(uuid())
+
+  userId         String
+  simId          String
+  phoneNumberId  String
+  organizationId String?
+
+  status         NumberParkingStatus @default(PENDING_PAYMENT)
+  durationDays   Int
+  parkedAt       DateTime?
+  expiresAt      DateTime?
+  extensionsUsed Int                 @default(0)
+  reactivatedAt  DateTime?
+
+  user         User                  @relation(fields: [userId], references: [id], onDelete: Restrict)
+  sim          Sim                   @relation(fields: [simId], references: [id], onDelete: Restrict)
+  phoneNumber  PhoneNumber           @relation(fields: [phoneNumberId], references: [id], onDelete: Restrict)
+  organization BusinessOrganization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  orders     Order[]
+  extensions NumberParkingExtension[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([simId, status])
+  @@index([status, expiresAt])
+  @@index([organizationId, status])
+}
+
+model NumberParkingExtension {
+  id        String @id @default(uuid())
+  parkingId String
+  orderId   String @unique
+
+  durationDays      Int
+  previousExpiresAt DateTime
+  newExpiresAt      DateTime
+
+  parking NumberParking @relation(fields: [parkingId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+
+  @@index([parkingId, createdAt])
 }
 
 // ======================================================
@@ -1775,4 +1855,53 @@ model WifiInstallation {
 
   @@index([connectionId, status])
   @@index([status, scheduledAt])
+}
+
+// ======================================================
+// ZYLO MUSIC — streaming subscription
+// A customer pays for a MusicPlan via Stripe; an ACTIVE subscription
+// unlocks search + preview streaming in the app.
+// ======================================================
+
+model MusicPlan {
+  id           String  @id @default(uuid())
+  name         String  @unique
+  description  String?
+  price        Decimal @db.Decimal(10, 2)
+  currency     String  @default("inr")
+  validityDays Int     @default(30)
+
+  // Demo plan tiers shown in the UI — no actual audio-quality difference.
+  audioQuality String @default("standard")
+  maxDevices   Int    @default(1)
+
+  isActive  Boolean @default(true)
+  sortOrder Int     @default(0)
+
+  subscriptions MusicSubscription[]
+  orders        Order[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model MusicSubscription {
+  id      String                 @id @default(uuid())
+  userId  String
+  orderId String                 @unique
+  planId  String
+  status  PlanSubscriptionStatus @default(PENDING)
+
+  startDate DateTime
+  endDate   DateTime
+
+  user  User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+  order Order     @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  plan  MusicPlan @relation(fields: [planId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([planId])
 }

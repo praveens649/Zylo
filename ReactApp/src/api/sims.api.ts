@@ -10,6 +10,7 @@ export type SimStatus =
   | "READY_TO_INSTALL"
   | "ACTIVE"
   | "GRACE_PERIOD"
+  | "PARKED"
   | "SUSPENDED"
   | "DEACTIVATED"
   | "CANCELLED";

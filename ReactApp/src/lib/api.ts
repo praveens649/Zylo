@@ -64,6 +64,18 @@ function authHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+/**
+ * API base URL — empty in dev (Vite proxies /api to localhost:5000);
+ * set VITE_API_URL in the deployed environment (e.g. Netlify) so calls go
+ * straight to the hosted backend. Trailing slash is stripped.
+ */
+const API_BASE = (
+  import.meta.env.VITE_API_URL ??
+  import.meta.env.API_INTERNAL_URL ??
+  ""
+).replace(/\/+$/, "");
+const url = (path: string) => `${API_BASE}${path}`;
+
 async function fetchEnvelope<T, M>(
   path: string,
   init: RequestInit = {}
@@ -79,7 +91,7 @@ async function fetchEnvelope<T, M>(
     headers.set(key, value)
   );
 
-  const res = await fetch(path, { ...init, headers });
+  const res = await fetch(url(path), { ...init, headers });
 
   const body = (await res
     .json()
@@ -114,7 +126,7 @@ export const api = {
       ...init,
     }),
   postFormData: async <T>(path: string, formData: FormData): Promise<T> => {
-    const res = await fetch(path, {
+    const res = await fetch(url(path), {
       method: "POST",
       headers: authHeaders(),
       body: formData,

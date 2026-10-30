@@ -1,6 +1,9 @@
 /**
  * Minimal in-memory stand-in for PrismaService, just rich enough for the
- * Set-Top Box flow tests. Supports scalar equality plus { in, lt, lte, gt, gte, not } filters.
+ * flow tests. Supports scalar equality plus { in, notIn, lt, lte, gt, gte,
+ * not } filters, OR/AND/NOT clauses, compound-unique where wrappers,
+ * { increment } / { decrement } / { set } update data, and lazily creates
+ * a table for any model accessed.
  */
 type Rec = Record<string, any>;
 
@@ -33,8 +36,9 @@ function flattenWhere(where: Rec = {}): Rec {
       v !== null &&
       typeof v === 'object' &&
       !(v instanceof Date) &&
+      !Array.isArray(v) &&
       !Object.keys(v).some((op) =>
-        ['in', 'notIn', 'lt', 'lte', 'gt', 'gte', 'not'].includes(op),
+        ['in', 'notIn', 'lt', 'lte', 'gt', 'gte', 'not', 'equals'].includes(op),
       )
     ) {
       Object.assign(flat, flattenWhere(v));
@@ -43,6 +47,17 @@ function flattenWhere(where: Rec = {}): Rec {
     }
   }
   return flat;
+}
+
+function matches(rec: Rec, where: Rec = {}): boolean {
+  return Object.entries(where).every(([k, v]) => {
+    if (k === 'OR') return (v as Rec[]).some((c) => matches(rec, c));
+    if (k === 'AND') return (v as Rec[]).every((c) => matches(rec, c));
+    if (k === 'NOT') return !matches(rec, v as Rec);
+    return Object.entries(flattenWhere({ [k]: v })).every(([fk, fv]) =>
+      matchValue(rec[fk], fv),
+    );
+  });
 }
 
 /** Apply update data, resolving { increment } / { decrement } wrappers. */
@@ -67,12 +82,6 @@ function applyData(rec: Rec, data: Rec) {
   return rec;
 }
 
-function matches(rec: Rec, where: Rec = {}): boolean {
-  return Object.entries(flattenWhere(where)).every(([k, v]) =>
-    matchValue(rec[k], v),
-  );
-}
-
 let seq = 0;
 
 export function createTable(rows: Rec[] = [], decorate: (r: Rec) => Rec = (r) => r) {
@@ -80,6 +89,11 @@ export function createTable(rows: Rec[] = [], decorate: (r: Rec) => Rec = (r) =>
   return {
     rows,
     findUnique: async ({ where }: any) => { const r = find(where); return r ? decorate(r) : null; },
+    findUniqueOrThrow: async ({ where }: any) => {
+      const r = find(where);
+      if (!r) throw Object.assign(new Error('not found'), { code: 'P2025' });
+      return decorate(r);
+    },
     findFirst: async ({ where, orderBy }: any = {}) => {
       let list = rows.filter((r) => matches(r, where));
       if (orderBy?.createdAt === 'asc') list = [...list].sort((a, b) => a.createdAt - b.createdAt);
@@ -120,6 +134,11 @@ export function createTable(rows: Rec[] = [], decorate: (r: Rec) => Rec = (r) =>
       const row = { id: `id-${++seq}`, createdAt: ++seq, ...create };
       rows.push(row);
       return row;
+    },
+    deleteMany: async ({ where }: any = {}) => {
+      const hit = rows.filter((r) => matches(r, where));
+      hit.forEach((r) => rows.splice(rows.indexOf(r), 1));
+      return { count: hit.length };
     },
   };
 }
@@ -189,8 +208,20 @@ export function createFakePrisma(seed: Partial<Record<string, Rec[]>> = {}) {
     };
   }
 
-  fake.$transaction = async (cb: (tx: any) => Promise<any>) => cb(fake);
-  // FOR UPDATE locks / raw selects are no-ops in the fake.
-  fake.$queryRaw = async () => [];
-  return fake;
+  // Any model name resolves to a table — seeded when provided, otherwise an
+  // empty one is created on first access (dataTransfer, musicPlan, …).
+  const proxy = new Proxy(fake, {
+    get(target, prop: string) {
+      if (prop === '$transaction') {
+        return async (cb: (tx: any) => Promise<any>) => cb(proxy);
+      }
+      // FOR UPDATE locks / raw selects are no-ops in the fake.
+      if (prop === '$queryRaw') return async () => [];
+      if (!(prop in target) && typeof prop === 'string') {
+        target[prop] = createTable((seed as Rec)[prop] ?? []);
+      }
+      return target[prop];
+    },
+  });
+  return proxy;
 }

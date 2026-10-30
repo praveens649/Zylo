@@ -5,6 +5,9 @@ import { defineConfig } from 'vite';
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  // Expose API_* env vars (e.g. Netlify's API_INTERNAL_URL) to the client
+  // in addition to the default VITE_* prefix.
+  envPrefix: ['VITE_', 'API_'],
   resolve: {
     alias: {
       '@': path.resolve(import.meta.dirname, './src'),
