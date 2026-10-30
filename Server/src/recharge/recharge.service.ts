@@ -388,7 +388,11 @@ export class RechargeService {
   async fulfillOrder(orderId: string) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
-      include: { plan: true, planSubscription: { select: { id: true } } },
+      include: {
+        plan: true,
+        planSubscription: { select: { id: true } },
+        user: { select: { name: true } },
+      },
     });
 
     if (!order || order.type !== 'RECHARGE' || !order.planId) {
@@ -475,6 +479,49 @@ export class RechargeService {
           where: { id: simId },
           data: { planExpiredAt: endDate },
         });
+
+        // Notify the plan recipient — for gift recharges that's the friend
+        // whose SIM got the plan, not the payer. The payer gets a delivery
+        // confirmation too.
+        const activates =
+          startDate <= now
+            ? 'is active now'
+            : `starts on ${startDate.toLocaleDateString('en-IN')}`;
+        const friendUserId = order.rechargedForUserId;
+        let friendLabel = 'a friend';
+        if (friendUserId) {
+          const [friend, sim] = await Promise.all([
+            tx.user.findUnique({
+              where: { id: friendUserId },
+              select: { name: true },
+            }),
+            tx.sim.findUnique({
+              where: { id: simId },
+              select: { phoneNumber: { select: { number: true } } },
+            }),
+          ]);
+          friendLabel = `${friend?.name ?? 'a friend'}${
+            sim?.phoneNumber?.number ? ` (${sim.phoneNumber.number})` : ''
+          }`;
+        }
+        await tx.notification.create({
+          data: {
+            userId: friendUserId ?? order.userId,
+            title: friendUserId ? 'Gift recharge received' : 'Recharge successful',
+            message: friendUserId
+              ? `${order.user.name} sent you a gift recharge — ${plan.name} ${activates} on your Zylo number.`
+              : `${plan.name} ${activates} on your Zylo number.`,
+          },
+        });
+        if (friendUserId) {
+          await tx.notification.create({
+            data: {
+              userId: order.userId,
+              title: 'Gift recharge sent',
+              message: `${plan.name} gifted to ${friendLabel} — it ${activates}.`,
+            },
+          });
+        }
       });
     } catch (err) {
       // Unique constraint on planSubscription.orderId — already fulfilled
