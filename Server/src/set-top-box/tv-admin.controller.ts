@@ -139,7 +139,8 @@ export class TvAdminController {
   }
 
   @Post('jobs/run')
-  async runJobs() {
-    return { data: await this.admin.runJobs() };
+  async runJobs(@Query('asOf') asOf?: string) {
+    const parsed = asOf ? new Date(asOf) : undefined;
+    return { data: await this.admin.runJobs(parsed && !Number.isNaN(parsed.getTime()) ? parsed : undefined) };
   }
 }

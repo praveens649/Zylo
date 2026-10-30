@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   actualPausedDays,
   addDays,
+  capAddOnEnd,
   checkPackEligibility,
   computeGraceEnd,
   computeRenewalEnd,
@@ -66,6 +67,20 @@ describe('pause maths', () => {
     expect(actualPausedDays(now, addDays(now, 3.2), 10)).toBe(4);
     expect(actualPausedDays(now, new Date(now.getTime() + 1000), 10)).toBe(1);
     expect(actualPausedDays(now, addDays(now, 20), 10)).toBe(10);
+  });
+});
+
+describe('add-on validity cap', () => {
+  it('clamps the add-on end at the base pack end', () => {
+    const natural = addDays(now, 30);
+    const baseEnd = addDays(now, 12);
+    expect(capAddOnEnd(natural, baseEnd)).toEqual(baseEnd);
+  });
+
+  it('keeps the natural end when it is shorter than the base validity', () => {
+    const natural = addDays(now, 7);
+    expect(capAddOnEnd(natural, addDays(now, 12))).toEqual(natural);
+    expect(capAddOnEnd(natural, null)).toEqual(natural);
   });
 });
 

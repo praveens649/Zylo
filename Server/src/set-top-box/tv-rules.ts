@@ -41,6 +41,23 @@ export function checkPackEligibility(c: AddOnCheck): string | null {
   return null;
 }
 
+/** An add-on never outlives the base pack it was bought under. */
+export function capAddOnEnd(endDate: Date, baseEnd: Date | null | undefined): Date {
+  return baseEnd && endDate.getTime() > baseEnd.getTime() ? baseEnd : endDate;
+}
+
+/** Connection statuses that still occupy "the" set-top box for an account. */
+export const OPEN_CONNECTION_STATUSES = [
+  'PENDING_INSTALLATION',
+  'ACTIVE',
+  'PAUSED',
+  'GRACE_PERIOD',
+  'SUSPENDED',
+] as const;
+
+/** Monthly rent period for RENTAL connections (anchored to activation). */
+export const RENT_PERIOD_DAYS = 30;
+
 export const PAUSE_WINDOW_DAYS = 365;
 
 /** Days already consumed inside the current pause window (resets after 365 days). */

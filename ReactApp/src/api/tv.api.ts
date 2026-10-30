@@ -94,6 +94,8 @@ export interface TvConnectionOrder {
   status: string;
   amount: Money;
   createdAt: string;
+  /** null on monthly rent orders — the original box order always carries the model id. */
+  setTopBoxModelId: string | null;
   tvPlan: { name: string } | null;
 }
 
@@ -114,7 +116,7 @@ export interface TvConnection {
   pauseEndsAt: string | null;
   returnDueAt: string | null;
   createdAt: string;
-  model: { id: string; name: string; resolution: BoxResolution; isSmart: boolean };
+  model: { id: string; name: string; resolution: BoxResolution; isSmart: boolean; rentalPerMonth?: Money };
   unit: { serialNumber: string; smartCardMasked: string | null; status: UnitStatus } | null;
   subscriptions: TvSubscription[];
   installations: TvInstallation[];
@@ -122,6 +124,9 @@ export interface TvConnection {
   currentPack: TvPack | null;
   daysLeft: number;
   pauseDaysRemaining: number;
+  /** RENTAL only — date the paid rent coverage runs out (box order = month 1). */
+  rentPaidUntil: string | null;
+  rentOverdue: boolean;
 }
 
 export interface TvCheckoutInput {

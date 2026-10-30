@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { runLifecycleTick } from './tv-lifecycle.js';
+import { runLifecycleTick, runRentalBilling } from './tv-lifecycle.js';
+import { stripeRentCharger } from './tv-rent.js';
 
 const HOUR_MS = 60 * 60 * 1000;
 
@@ -29,11 +30,13 @@ export class TvJobsService implements OnModuleInit, OnModuleDestroy {
 
   async tick() {
     try {
-      const r = await runLifecycleTick(this.prisma);
-      if (r.resumed || r.expiredSubscriptions || r.gracePeriod || r.suspended) {
-        this.logger.log(`TV lifecycle: ${JSON.stringify(r)}`);
+      const now = new Date();
+      const r = await runLifecycleTick(this.prisma, now);
+      const rent = await runRentalBilling(this.prisma, now, stripeRentCharger(this.prisma));
+      if (r.resumed || r.expiredSubscriptions || r.gracePeriod || r.suspended || rent.charged || rent.toManualPay) {
+        this.logger.log(`TV lifecycle: ${JSON.stringify(r)} rent: ${JSON.stringify(rent)}`);
       }
-      return r;
+      return { ...r, rent };
     } catch (err) {
       this.logger.error(`TV lifecycle tick failed: ${err instanceof Error ? err.message : String(err)}`);
       throw err;

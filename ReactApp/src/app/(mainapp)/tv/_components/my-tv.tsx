@@ -73,22 +73,39 @@ function Tracker({ c }: { c: TvConnection }) {
 function AddOnDialog({ c, onClose }: { c: TvConnection; onClose: () => void }) {
   const plans = useTvPlans();
   const buy = useTvAction((id: string) => tvApi.addOn(c.id, id), "Redirecting to payment…", (r) => goToCheckout(r.url));
-  const owned = new Set(c.subscriptions.filter((s) => s.status === "ACTIVE").map((s) => s.tvPlan.id));
+  const owned = new Map(
+    c.subscriptions.filter((s) => s.status === "ACTIVE").map((s) => [s.tvPlan.id, s] as const)
+  );
   const list = (plans.data ?? []).filter((p) => p.type === "ADD_ON");
+  const baseEnd = c.planExpiredAt ? new Date(c.planExpiredAt) : null;
   return (
-    <AppDialog open onOpenChange={(o) => !o && onClose()} title="Add an extra pack" description="Add-ons run on top of your active base pack.">
+    <AppDialog
+      open
+      onOpenChange={(o) => !o && onClose()}
+      title="Add an extra pack"
+      description={`Add-ons run on top of your base pack and end with it${baseEnd ? ` (${formatDate(c.planExpiredAt)})` : ""}.`}
+    >
       {plans.isPending && <Loader2 className="mx-auto h-5 w-5 animate-spin" />}
       <div className="space-y-2">
         {list.map((p: TvPack) => {
           const blocked = p.requires4kBox && c.model.resolution !== "UHD_4K";
+          const active = owned.get(p.id);
+          // Already capped at the base end — extending adds zero days.
+          const maxed =
+            !!active?.endDate && !!baseEnd && new Date(active.endDate).getTime() >= baseEnd.getTime();
+          const effectiveDays = baseEnd ? (c.daysLeft ?? 0) : p.validityDays;
           return (
             <div key={p.id} className="flex items-center justify-between gap-3 rounded-xl border border-border/60 p-3">
               <div className="min-w-0">
-                <p className="text-sm font-semibold">{p.name} {owned.has(p.id) && <Badge variant="success">Active</Badge>}</p>
-                <p className="text-xs text-muted-foreground">{p.channelCount} channels · {p.validityDays} days{blocked && " · needs a 4K box"}</p>
+                <p className="text-sm font-semibold">{p.name} {active && <Badge variant="success">Active</Badge>}</p>
+                <p className="text-xs text-muted-foreground">
+                  {p.channelCount} channels · ends {baseEnd ? formatDate(c.planExpiredAt) : `in ${p.validityDays} days`} with your base pack
+                  {effectiveDays < p.validityDays && !active ? ` (${effectiveDays} day(s) left)` : ""}
+                  {blocked && " · needs a 4K box"}
+                </p>
               </div>
-              <Button size="sm" disabled={blocked || buy.isPending} onClick={() => buy.mutate(p.id)}>
-                {owned.has(p.id) ? "Extend" : "Add"} · {formatINR(p.price)}
+              <Button size="sm" disabled={blocked || maxed || buy.isPending} onClick={() => buy.mutate(p.id)}>
+                {maxed ? "Runs full term" : active ? "Extend" : "Add"} · {formatINR(p.price)}
               </Button>
             </div>
           );
@@ -206,7 +223,12 @@ function PendingPayments({ c }: { c: TvConnection }) {
                 Payment pending · {formatINR(o.amount)}
               </p>
               <p className="text-xs text-muted-foreground">
-                {o.type === "SET_TOP_BOX_ORDER" ? "Box and first pack" : o.tvPlan?.name ?? "Pack"} — complete the payment to continue.
+                {o.type === "SET_TOP_BOX_ORDER"
+                  ? o.setTopBoxModelId
+                    ? "Box and first pack"
+                    : "Monthly box rent"
+                  : o.tvPlan?.name ?? "Pack"}{" "}
+                — complete the payment to continue.
               </p>
             </div>
           </div>
@@ -309,6 +331,13 @@ function ConnectionCard({ c }: { c: TvConnection }) {
               <p className="text-xs font-semibold uppercase text-muted-foreground">Your box</p>
               <p className="mt-1">Serial: <strong>{c.unit?.serialNumber ?? "—"}</strong></p>
               <p>Smart card: <strong>{c.unit?.smartCardMasked ?? "—"}</strong></p>
+              {c.ownership === "RENTAL" && (
+                <p className={`mt-2 flex items-center gap-1.5 text-xs font-semibold ${c.rentOverdue ? "text-destructive" : "text-emerald-600 dark:text-emerald-400"}`}>
+                  {c.rentOverdue
+                    ? "Rent due — pay the pending order below"
+                    : `Rent ${c.model.rentalPerMonth != null ? `${formatINR(c.model.rentalPerMonth)}/mo` : ""} on autopay${c.rentPaidUntil ? ` · covered till ${formatDate(c.rentPaidUntil)}` : ""}`}
+                </p>
+              )}
               <p className="mt-2 flex items-start gap-1.5 text-xs text-muted-foreground"><MapPin className="mt-0.5 h-3 w-3 shrink-0" />{c.addressLine}, {c.city} {c.postalCode}</p>
             </div>
           </div>

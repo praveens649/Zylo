@@ -5,9 +5,11 @@ import { tvConfig } from './tv.config.js';
 import {
   actualPausedDays,
   addDays,
+  capAddOnEnd,
   computeGraceEnd,
   computeRenewalEnd,
   DAY_MS,
+  RENT_PERIOD_DAYS,
 } from './tv-rules.js';
 
 export type Tx = Prisma.TransactionClient;
@@ -48,8 +50,13 @@ export async function activatePendingSubscriptions(
     include: { tvPlan: true },
   });
   let baseEnd: Date | null = null;
-  for (const s of subs) {
-    const endDate = addDays(now, s.tvPlan.validityDays);
+  // Base packs first so add-ons can be capped at the base end date.
+  const ordered = [...subs].sort((a, b) =>
+    a.tvPlan.type === b.tvPlan.type ? 0 : a.tvPlan.type === 'BASE' ? -1 : 1,
+  );
+  for (const s of ordered) {
+    let endDate = addDays(now, s.tvPlan.validityDays);
+    if (s.tvPlan.type === 'ADD_ON') endDate = capAddOnEnd(endDate, baseEnd);
     await tx.tvSubscription.update({
       where: { id: s.id },
       data: { status: 'ACTIVE', startDate: now, endDate },
@@ -84,7 +91,16 @@ export async function applyPaidPackPurchase(tx: Tx, orderId: string, now: Date) 
     currentEnd = same?.endDate ?? null;
   }
 
-  const endDate = computeRenewalEnd(currentEnd, now, sub.tvPlan.validityDays);
+  let endDate = computeRenewalEnd(currentEnd, now, sub.tvPlan.validityDays);
+  // An add-on ends with the base pack it was bought under — buying a 30-day
+  // add-on with 12 days of base left gives 12 days, not 30.
+  if (sub.tvPlan.type === 'ADD_ON') {
+    const activeBase = await tx.tvSubscription.findFirst({
+      where: { connectionId: conn.id, status: 'ACTIVE', tvPlan: { type: 'BASE' } },
+      orderBy: { endDate: 'desc' },
+    });
+    endDate = capAddOnEnd(endDate, activeBase?.endDate ?? conn.planExpiredAt);
+  }
   const startDate = currentEnd && currentEnd > now ? currentEnd : now;
 
   await tx.tvSubscription.update({
@@ -214,6 +230,157 @@ export async function runLifecycleTick(
       return r.count === 1;
     });
     if (moved) result.suspended++;
+  }
+
+  return result;
+}
+
+// ------------------------------------------------------------- rental autopay
+//
+// Rent coverage is derived, not stored: the box order already includes month 1
+// rent, so every COMPLETED SET_TOP_BOX_ORDER on the connection pays one month.
+// Monthly rent orders are SET_TOP_BOX_ORDER rows with setTopBoxModelId = null —
+// that is how they are told apart from the original box purchase.
+
+export function rentPaidUntilFrom(activatedAt: Date, paidMonths: number): Date {
+  return addDays(activatedAt, RENT_PERIOD_DAYS * paidMonths);
+}
+
+export interface RentChargeOutcome {
+  ok: boolean;
+  paymentIntentId?: string;
+  message?: string;
+}
+
+/** Injected so the billing loop itself stays Stripe-free and unit-testable. */
+export type RentCharger = (
+  conn: { id: string; connectionNumber: string },
+  amountPaise: number,
+  orderId: string,
+) => Promise<RentChargeOutcome>;
+
+export interface RentalBillingResult {
+  charged: number;
+  toManualPay: number;
+  skippedPending: number;
+}
+
+/**
+ * Monthly rent collection for RENTAL connections. For every connection whose
+ * paid coverage has run out it creates a payable rent order, then tries the
+ * saved card off-session:
+ *  - success → order + payment complete, coverage rolls forward one month
+ *  - failure → order stays PENDING so the customer can pay it from My TV;
+ *    the pending order also stops the next tick from retrying or stacking
+ * Safe to rerun: paid-month counting and the pending-order guard are both
+ * idempotent, and the Stripe charge uses the order id as idempotency key.
+ */
+export async function runRentalBilling(
+  prisma: PrismaService,
+  now: Date,
+  charge: RentCharger,
+): Promise<RentalBillingResult> {
+  const result: RentalBillingResult = { charged: 0, toManualPay: 0, skippedPending: 0 };
+
+  const conns = await prisma.setTopBoxConnection.findMany({
+    where: {
+      ownership: 'RENTAL',
+      status: { in: ['ACTIVE', 'PAUSED', 'GRACE_PERIOD', 'SUSPENDED'] },
+      activatedAt: { not: null },
+    },
+    include: { model: { select: { rentalPerMonth: true } } },
+  });
+
+  for (const conn of conns) {
+    const rent = conn.model.rentalPerMonth;
+    if (!rent || Number(rent) <= 0) continue;
+
+    const paidMonths = await prisma.order.count({
+      where: {
+        setTopBoxConnectionId: conn.id,
+        type: 'SET_TOP_BOX_ORDER',
+        status: 'COMPLETED',
+      },
+    });
+    if (rentPaidUntilFrom(conn.activatedAt!, paidMonths).getTime() > now.getTime()) continue;
+
+    // Any pending SET_TOP_BOX_ORDER on an already-activated connection is a
+    // rent order (the original box order is COMPLETED before installation).
+    const pending = await prisma.order.findFirst({
+      where: {
+        setTopBoxConnectionId: conn.id,
+        type: 'SET_TOP_BOX_ORDER',
+        status: 'PENDING',
+      },
+      select: { id: true },
+    });
+    if (pending) {
+      result.skippedPending++;
+      continue;
+    }
+
+    // The order is created before charging so a process crash still leaves a
+    // payable order (and never a double charge — the Stripe call keys on it).
+    const order = await prisma.$transaction(async (tx) => {
+      const o = await tx.order.create({
+        data: {
+          userId: conn.userId,
+          type: 'SET_TOP_BOX_ORDER',
+          status: 'PENDING',
+          amount: rent,
+          currency: tvConfig.currency,
+          simId: conn.simId,
+          setTopBoxConnectionId: conn.id,
+          setTopBoxModelId: null, // rent order — not a box purchase
+        },
+      });
+      await tx.payment.create({
+        data: {
+          userId: conn.userId,
+          orderId: o.id,
+          type: 'SUBSCRIPTION',
+          status: 'PENDING',
+          amount: rent,
+          currency: tvConfig.currency,
+          description: `Monthly box rent — ${conn.connectionNumber}`,
+        },
+      });
+      return o;
+    });
+
+    const outcome = await charge(
+      { id: conn.id, connectionNumber: conn.connectionNumber },
+      Math.round(Number(rent) * 100),
+      order.id,
+    );
+    if (!outcome.ok) {
+      result.toManualPay++;
+      await prisma.$transaction((tx) =>
+        notify(
+          tx,
+          conn.userId,
+          'Zylo TV rent autopay failed',
+          `We could not charge your saved card for ${conn.connectionNumber} (${outcome.message ?? 'card declined'}). Pay the pending rent order from My TV.`,
+        ),
+      );
+      continue;
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.order.update({ where: { id: order.id }, data: { status: 'COMPLETED' } });
+      await tx.payment.update({
+        where: { orderId: order.id },
+        data: { status: 'SUCCEEDED', paidAt: now, stripePaymentIntentId: outcome.paymentIntentId },
+      });
+      const covered = rentPaidUntilFrom(conn.activatedAt!, paidMonths + 1);
+      await notify(
+        tx,
+        conn.userId,
+        'Zylo TV rent auto-debited',
+        `Monthly rent for ${conn.connectionNumber} was charged to your saved card. Box covered till ${covered.toDateString()}.`,
+      );
+    });
+    result.charged++;
   }
 
   return result;

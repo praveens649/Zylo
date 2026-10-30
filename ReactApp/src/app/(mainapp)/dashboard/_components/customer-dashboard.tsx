@@ -30,13 +30,21 @@ export function CustomerDashboard({ statusData }: CustomerDashboardProps) {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-6 sm:p-8">
         <div>
           <div className="flex items-center gap-2 mb-2">
-            <Badge className="bg-primary text-primary-foreground font-semibold">
-              Active Connection
+            <Badge
+              className={
+                activeSim
+                  ? "bg-primary text-primary-foreground font-semibold"
+                  : "bg-muted text-muted-foreground font-semibold"
+              }
+            >
+              {activeSim ? "Active Connection" : "Setup pending"}
             </Badge>
-            <span className="text-xs text-muted-foreground flex items-center gap-1">
-              <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
-              DoT Verified
-            </span>
+            {kyc?.status === "VERIFIED" && (
+              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
+                DoT Verified
+              </span>
+            )}
           </div>
           <h1 className="text-2xl sm:text-3xl font-display font-bold tracking-tight text-foreground">
             Welcome back, {user?.name || "Zylo Member"}!

@@ -22,7 +22,8 @@ import type {
 } from './dto.js';
 import { tvConfig } from './tv.config.js';
 import { addDays, maskCardNumber, startOfDay } from './tv-rules.js';
-import { activatePendingSubscriptions, notify, runLifecycleTick, TV_ORDER_TYPES } from './tv-lifecycle.js';
+import { activatePendingSubscriptions, notify, runLifecycleTick, runRentalBilling, TV_ORDER_TYPES } from './tv-lifecycle.js';
+import { stripeRentCharger } from './tv-rent.js';
 
 const dec = (v: number | null | undefined) => (v === null || v === undefined ? null : new Prisma.Decimal(v));
 
@@ -559,7 +560,14 @@ export class TvAdminService {
     return { activeConnections, unitsInStock, installsToday, expiringThisWeek };
   }
 
-  runJobs() {
-    return runLifecycleTick(this.prisma);
+  /**
+   * Runs the lifecycle tick and monthly rent billing. `asOf` fast-forwards the
+   * clock for demos — a 30+ day jump puts a rental's first rent due.
+   */
+  async runJobs(asOf?: Date) {
+    const now = asOf ?? new Date();
+    const lifecycle = await runLifecycleTick(this.prisma, now);
+    const rent = await runRentalBilling(this.prisma, now, stripeRentCharger(this.prisma));
+    return { ...lifecycle, rent };
   }
 }

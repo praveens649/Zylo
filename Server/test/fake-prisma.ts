@@ -126,17 +126,20 @@ export function createTable(rows: Rec[] = [], decorate: (r: Rec) => Rec = (r) =>
 
 export function createFakePrisma(seed: Partial<Record<string, Rec[]>> = {}) {
   const plans = seed.tvPlan ?? [];
+  const boxModels = seed.setTopBoxModel ?? [];
   const tvSubscription = createTable(seed.tvSubscription ?? [], (s) => ({
     ...s,
     tvPlan: plans.find((p) => p.id === s.tvPlanId),
   }));
   const fake: any = {
     order: createTable(seed.order),
+    payment: createTable(seed.payment),
     tvPlan: createTable(plans),
+    setTopBoxModel: createTable(boxModels),
     tvSubscription,
     setTopBoxConnection: createTable(seed.setTopBoxConnection, (c) => ({
       ...c,
-      model: { id: c.modelId },
+      model: boxModels.find((m) => m.id === c.modelId) ?? { id: c.modelId },
       unit: null,
       subscriptions: tvSubscription.rows
         .filter((s) => s.connectionId === c.id)

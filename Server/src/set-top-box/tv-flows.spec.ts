@@ -3,13 +3,21 @@ import { createFakePrisma } from '../../test/fake-prisma.js';
 import { TvFulfilmentService } from './tv-fulfilment.service.js';
 import { TvAdminService } from './tv-admin.service.js';
 import { TvCustomerService } from './tv-customer.service.js';
-import { resumeConnection, runLifecycleTick } from './tv-lifecycle.js';
+import { TvCheckoutService } from './tv-checkout.service.js';
+import {
+  activatePendingSubscriptions,
+  resumeConnection,
+  runLifecycleTick,
+  runRentalBilling,
+  rentPaidUntilFrom,
+} from './tv-lifecycle.js';
 import { addDays } from './tv-rules.js';
 
 const now = new Date('2026-10-28T10:00:00Z');
 const user = { id: 'u1', role: 'CUSTOMER' } as any;
 
 const basePlan = { id: 'p-base', type: 'BASE', name: 'Zylo Family', validityDays: 30 };
+const addOnPlan = { id: 'p-addon', type: 'ADD_ON', name: 'Kids Pack', validityDays: 30 };
 
 function connection(over: Record<string, unknown> = {}) {
   return {
@@ -160,6 +168,188 @@ describe('pause and resume', () => {
     expect(second.resumed).toBe(0);
     expect(prisma.setTopBoxConnection.rows[0].planExpiredAt).toEqual(addDays(now, 15));
     expect(await resumeConnection(prisma, 'c1', later)).toBe(false);
+  });
+});
+
+describe('one set-top box per account', () => {
+  const dto = {
+    modelId: 'm1',
+    ownership: 'PURCHASE',
+    basePlanId: 'p-base',
+    addressLine: '12 MG Road',
+    city: 'Chennai',
+    state: 'TN',
+    postalCode: '600001',
+    contactPhone: '9876543210',
+    preferredDate: new Date(Date.now() + 3 * 86_400_000).toISOString(),
+    preferredSlot: 'MORNING',
+  } as any;
+
+  it('blocks a second order while a connection is live', async () => {
+    const prisma = createFakePrisma({
+      setTopBoxConnection: [connection({ status: 'ACTIVE' })],
+    });
+    const svc = new TvCheckoutService(prisma, new TvFulfilmentService(prisma));
+    await expect(svc.checkout(user, dto)).rejects.toMatchObject({
+      code: 'BOX_LIMIT_REACHED',
+    });
+    expect(prisma.order.rows).toHaveLength(0);
+  });
+
+  it('blocks while a disconnected rental box is still unreturned', async () => {
+    const prisma = createFakePrisma({
+      setTopBoxConnection: [
+        connection({ status: 'DISCONNECTED', ownership: 'RENTAL', returnDueAt: addDays(now, 5) }),
+      ],
+    });
+    const svc = new TvCheckoutService(prisma, new TvFulfilmentService(prisma));
+    await expect(svc.checkout(user, dto)).rejects.toMatchObject({
+      code: 'RENTED_BOX_NOT_RETURNED',
+    });
+  });
+
+  it('allows ordering again once the previous connection is closed', async () => {
+    const prisma = createFakePrisma({
+      setTopBoxConnection: [connection({ status: 'CANCELLED' })],
+    });
+    const svc = new TvCheckoutService(prisma, new TvFulfilmentService(prisma));
+    // Guard passed — it now fails at the missing box model, not the limit.
+    await expect(svc.checkout(user, dto)).rejects.toMatchObject({
+      code: 'BOX_NOT_FOUND',
+    });
+  });
+});
+
+describe('add-on validity is capped at the base pack end', () => {
+  it('caps a mid-cycle add-on purchase at the base pack end date', async () => {
+    const baseEnd = addDays(now, 12);
+    const prisma = createFakePrisma({
+      tvPlan: [basePlan, addOnPlan],
+      order: [
+        { id: 'o-addon', userId: 'u1', type: 'TV_PACK_PURCHASE', status: 'PENDING', setTopBoxConnectionId: 'c1' },
+      ],
+      setTopBoxConnection: [connection({ planExpiredAt: baseEnd })],
+      tvSubscription: [
+        { id: 's-base', connectionId: 'c1', tvPlanId: 'p-base', status: 'ACTIVE', endDate: baseEnd },
+        { id: 's-addon', connectionId: 'c1', tvPlanId: 'p-addon', orderId: 'o-addon', status: 'PENDING' },
+      ],
+    });
+
+    expect(await new TvFulfilmentService(prisma).onOrderPaid('o-addon', now)).toBe(true);
+
+    const addon = prisma.tvSubscription.rows.find((s: any) => s.id === 's-addon');
+    expect(addon.status).toBe('ACTIVE');
+    expect(addon.endDate).toEqual(baseEnd); // 12 days, not +30
+  });
+
+  it('caps add-ons activated at installation at the base end too', async () => {
+    const prisma = createFakePrisma({
+      tvPlan: [
+        basePlan,
+        { id: 'p-long', type: 'ADD_ON', name: 'Movies 90d', validityDays: 90 },
+      ],
+      setTopBoxConnection: [connection({ status: 'PENDING_INSTALLATION' })],
+      tvSubscription: [
+        { id: 's1', connectionId: 'c1', tvPlanId: 'p-base', status: 'PENDING' },
+        { id: 's2', connectionId: 'c1', tvPlanId: 'p-long', status: 'PENDING' },
+      ],
+    });
+
+    const baseEnd = await activatePendingSubscriptions(prisma, 'c1', now);
+    expect(baseEnd).toEqual(addDays(now, 30));
+    const addon = prisma.tvSubscription.rows.find((s: any) => s.id === 's2');
+    expect(addon.endDate).toEqual(addDays(now, 30)); // not now + 90
+  });
+});
+
+describe('rental autopay', () => {
+  const rentalConn = (over: Record<string, unknown> = {}) =>
+    connection({ ownership: 'RENTAL', activatedAt: addDays(now, -31), ...over });
+  const rentalModel = { id: 'm1', rentalPerMonth: 199 };
+  const paidBoxOrder = { id: 'o-box', userId: 'u1', type: 'SET_TOP_BOX_ORDER', status: 'COMPLETED', setTopBoxConnectionId: 'c1', setTopBoxModelId: 'm1', createdAt: 1 };
+
+  it('charges the saved card when rent is due and rolls coverage forward', async () => {
+    const prisma = createFakePrisma({
+      order: [paidBoxOrder],
+      setTopBoxModel: [rentalModel],
+      setTopBoxConnection: [rentalConn()],
+    });
+    const charge = async () => ({ ok: true, paymentIntentId: 'pi_rent_1' });
+
+    const r1 = await runRentalBilling(prisma, now, charge);
+    expect(r1).toMatchObject({ charged: 1, toManualPay: 0, skippedPending: 0 });
+
+    const rentOrder = prisma.order.rows.find((o: any) => o.id !== 'o-box');
+    expect(rentOrder).toMatchObject({
+      type: 'SET_TOP_BOX_ORDER',
+      status: 'COMPLETED',
+      setTopBoxModelId: null,
+      setTopBoxConnectionId: 'c1',
+    });
+    const rentPayment = prisma.payment.rows[0];
+    expect(rentPayment).toMatchObject({ status: 'SUCCEEDED', stripePaymentIntentId: 'pi_rent_1', orderId: rentOrder.id });
+    expect(prisma.notification.rows[0].title).toContain('auto-debited');
+
+    // Coverage now runs to activatedAt + 60 days — no longer due.
+    const r2 = await runRentalBilling(prisma, now, charge);
+    expect(r2).toMatchObject({ charged: 0, toManualPay: 0, skippedPending: 0 });
+  });
+
+  it('leaves a payable order and notifies when the card fails — without stacking orders', async () => {
+    const prisma = createFakePrisma({
+      order: [paidBoxOrder],
+      setTopBoxModel: [rentalModel],
+      setTopBoxConnection: [rentalConn()],
+    });
+    const fail = async () => ({ ok: false, message: 'authentication_required' });
+
+    const r1 = await runRentalBilling(prisma, now, fail);
+    expect(r1).toMatchObject({ charged: 0, toManualPay: 1, skippedPending: 0 });
+
+    const pending = prisma.order.rows.find((o: any) => o.status === 'PENDING');
+    expect(pending).toBeTruthy();
+    expect(prisma.notification.rows[0].title).toContain('autopay failed');
+
+    // Next tick does not retry or stack while the order is payable.
+    const r2 = await runRentalBilling(prisma, now, fail);
+    expect(r2).toMatchObject({ charged: 0, toManualPay: 0, skippedPending: 1 });
+    expect(prisma.order.rows.filter((o: any) => o.status === 'PENDING')).toHaveLength(1);
+  });
+
+  it('does not bill rentals that are still covered or not yet installed', async () => {
+    const prisma = createFakePrisma({
+      order: [paidBoxOrder],
+      setTopBoxModel: [rentalModel],
+      setTopBoxConnection: [
+        rentalConn({ id: 'c1', activatedAt: addDays(now, -10) }), // covered till +30
+        rentalConn({ id: 'c2', activatedAt: null }), // box order paid, not installed
+      ],
+    });
+    const charge = async () => ({ ok: true, paymentIntentId: 'pi_x' });
+    const r = await runRentalBilling(prisma, now, charge);
+    expect(r).toMatchObject({ charged: 0, toManualPay: 0, skippedPending: 0 });
+    expect(prisma.order.rows).toHaveLength(1);
+  });
+
+  it('rent coverage derives from paid months anchored to activation', () => {
+    const activated = new Date('2026-10-01T10:00:00Z');
+    expect(rentPaidUntilFrom(activated, 1)).toEqual(addDays(activated, 30));
+    expect(rentPaidUntilFrom(activated, 3)).toEqual(addDays(activated, 90));
+  });
+
+  it('a manually paid rent order completes it and notifies rent received', async () => {
+    const prisma = createFakePrisma({
+      order: [
+        paidBoxOrder,
+        { id: 'o-rent', userId: 'u1', type: 'SET_TOP_BOX_ORDER', status: 'PENDING', setTopBoxConnectionId: 'c1', setTopBoxModelId: null },
+      ],
+      setTopBoxModel: [rentalModel],
+      setTopBoxConnection: [rentalConn()],
+    });
+
+    expect(await new TvFulfilmentService(prisma).onOrderPaid('o-rent', now)).toBe(true);
+    expect(prisma.order.rows.find((o: any) => o.id === 'o-rent').status).toBe('COMPLETED');
+    expect(prisma.notification.rows[0].title).toContain('rent received');
   });
 });
 

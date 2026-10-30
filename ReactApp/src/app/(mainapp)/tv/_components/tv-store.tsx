@@ -21,7 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { formatINR, money } from "@/lib/format";
-import { goToCheckout, useTvAction, useTvBoxes, useTvPlans } from "../_hooks/use-tv";
+import { goToCheckout, useTvAction, useTvBoxes, useTvConnections, useTvPlans } from "../_hooks/use-tv";
 import { FormField, isoDay, ResolutionBadge, SLOT_LABEL, TvHero, fieldCls } from "./tv-ui";
 
 const cn = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(" ");
@@ -34,9 +34,12 @@ function hardwareCost(box: TvBox, o: BoxOwnership) {
   return o === "PURCHASE" ? money(box.purchasePrice) : money(box.rentalPerMonth) + money(box.securityDeposit);
 }
 
+const LIVE_STATUSES = ["PENDING_INSTALLATION", "ACTIVE", "PAUSED", "GRACE_PERIOD", "SUSPENDED"];
+
 export function TvStore() {
   const boxesQ = useTvBoxes();
   const plansQ = useTvPlans();
+  const connsQ = useTvConnections();
 
   const [boxId, setBoxId] = useState<string>();
   const [ownershipPick, setOwnershipPick] = useState<BoxOwnership>("PURCHASE");
@@ -54,6 +57,11 @@ export function TvStore() {
 
   const boxes = boxesQ.data ?? [];
   const plans = plansQ.data ?? [];
+  // One set-top box per account: a live connection (or an unreturned rental)
+  // blocks a new order — the server enforces the same rule.
+  const liveConn = (connsQ.data ?? []).find(
+    (c) => LIVE_STATUSES.includes(c.status) || (c.status === "DISCONNECTED" && c.returnDueAt)
+  );
   const basePlans = plans.filter((p) => p.type === "BASE");
   const addOns = plans.filter((p) => p.type === "ADD_ON");
 
@@ -131,6 +139,26 @@ export function TvStore() {
         <Card className="border-destructive/30 bg-destructive/5">
           <CardContent className="flex items-center gap-2 p-4 text-sm text-destructive">
             <AlertCircle className="h-4 w-4" /> Could not load the Zylo TV catalogue.
+          </CardContent>
+        </Card>
+      )}
+
+      {liveConn && (
+        <Card className="border-amber-500/40 bg-amber-500/10">
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4 text-sm">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+              <div>
+                <p className="font-semibold">You already have a Zylo TV connection</p>
+                <p className="text-xs text-muted-foreground">
+                  {liveConn.connectionNumber} is {liveConn.status.replaceAll("_", " ").toLowerCase()} — one set-top box is allowed per account.
+                  {liveConn.status === "DISCONNECTED" && liveConn.returnDueAt ? " Return the rented box first to order again." : ""}
+                </p>
+              </div>
+            </div>
+            <Button asChild size="sm" variant="outline" className="shrink-0">
+              <Link to="/tv/my">Open My TV</Link>
+            </Button>
           </CardContent>
         </Card>
       )}
@@ -337,12 +365,16 @@ export function TvStore() {
                   </p>
                 )}
 
-                <Button className="h-11 w-full font-bold" onClick={submit} disabled={checkout.isPending || !base || !box.inStock}>
+                <Button className="h-11 w-full font-bold" onClick={submit} disabled={checkout.isPending || !base || !box.inStock || !!liveConn}>
                   {checkout.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CreditCard className="mr-2 h-4 w-4" />}
                   Pay {formatINR(total)} with Stripe
                 </Button>
                 <p className="flex items-center justify-center gap-1 text-[11px] text-muted-foreground">
-                  <Wifi className="h-3 w-3" /> Your pack starts once the technician completes installation.
+                  <Wifi className="h-3 w-3" /> {liveConn
+                    ? "You already have a Zylo TV connection."
+                    : ownership === "RENTAL"
+                    ? "Monthly rent is auto-debited from your saved card."
+                    : "Your pack starts once the technician completes installation."}
                 </p>
               </CardContent>
             </Card>

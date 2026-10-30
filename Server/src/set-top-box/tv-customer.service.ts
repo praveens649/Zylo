@@ -13,17 +13,17 @@ import {
   pauseDaysUsedInWindow,
   startOfDay,
 } from './tv-rules.js';
-import { notify, resumeConnection, uniqueRef } from './tv-lifecycle.js';
+import { notify, rentPaidUntilFrom, resumeConnection, uniqueRef } from './tv-lifecycle.js';
 
 const CONNECTION_INCLUDE = {
-  model: { select: { id: true, name: true, sku: true, resolution: true, isSmart: true, hasRecording: true, storageGb: true } },
+  model: { select: { id: true, name: true, sku: true, resolution: true, isSmart: true, hasRecording: true, storageGb: true, rentalPerMonth: true } },
   unit: { select: { serialNumber: true, smartCardNumber: true, status: true } },
   subscriptions: { include: { tvPlan: true }, orderBy: { createdAt: 'desc' } },
   installations: { orderBy: { createdAt: 'desc' } },
-  // The box order (for the tracker) plus any unpaid orders (for "Pay now").
+  // The box order (for the tracker) plus rent orders and any unpaid pack orders.
   orders: {
     where: { OR: [{ type: 'SET_TOP_BOX_ORDER' }, { status: 'PENDING', type: 'TV_PACK_PURCHASE' }] },
-    select: { id: true, type: true, status: true, amount: true, createdAt: true, tvPlan: { select: { name: true } } },
+    select: { id: true, type: true, status: true, amount: true, createdAt: true, setTopBoxModelId: true, tvPlan: { select: { name: true } } },
     orderBy: { createdAt: 'desc' },
   },
 } satisfies Prisma.SetTopBoxConnectionInclude;
@@ -36,6 +36,9 @@ export function presentConnection(c: ConnectionRow, now = new Date()) {
   const activeBase = c.subscriptions
     .filter((s) => s.status === 'ACTIVE' && s.tvPlan.type === 'BASE')
     .sort((a, b) => (b.endDate?.getTime() ?? 0) - (a.endDate?.getTime() ?? 0))[0];
+  const paidRentMonths = (c.orders ?? []).filter(
+    (o) => o.type === 'SET_TOP_BOX_ORDER' && o.status === 'COMPLETED',
+  ).length;
   return {
     ...rest,
     unit: unit
@@ -44,6 +47,15 @@ export function presentConnection(c: ConnectionRow, now = new Date()) {
     currentPack: activeBase?.tvPlan ?? null,
     daysLeft: daysLeft(c.planExpiredAt, now),
     pauseDaysRemaining: pauseDaysRemaining(tvConfig.maxPauseDaysPerYear, c.pauseDaysUsed, c.pauseWindowStartedAt, now),
+    // Derived rent coverage: box order = month 1, every further paid order +1.
+    rentPaidUntil:
+      c.ownership === 'RENTAL' && c.activatedAt && paidRentMonths > 0
+        ? rentPaidUntilFrom(c.activatedAt, paidRentMonths)
+        : null,
+    rentOverdue:
+      c.ownership === 'RENTAL' && c.activatedAt && paidRentMonths > 0
+        ? rentPaidUntilFrom(c.activatedAt, paidRentMonths).getTime() <= now.getTime()
+        : false,
   };
 }
 

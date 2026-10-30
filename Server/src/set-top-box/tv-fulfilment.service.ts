@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { applyPaidPackPurchase, notify, TV_ORDER_TYPES } from './tv-lifecycle.js';
+import { applyPaidPackPurchase, notify, rentPaidUntilFrom, TV_ORDER_TYPES } from './tv-lifecycle.js';
 
 @Injectable()
 export class TvFulfilmentService {
@@ -28,6 +28,22 @@ export class TvFulfilmentService {
 
       if (order.type === 'TV_PACK_PURCHASE') {
         await applyPaidPackPurchase(tx, orderId, now);
+      } else if (order.setTopBoxModelId == null && order.setTopBoxConnectionId) {
+        // Monthly rent order (SET_TOP_BOX_ORDER without a model): the derived
+        // paid-month count already advanced when the order went COMPLETED.
+        const conn = await tx.setTopBoxConnection.findUnique({
+          where: { id: order.setTopBoxConnectionId },
+          select: { connectionNumber: true, activatedAt: true },
+        });
+        const months = await tx.order.count({
+          where: { setTopBoxConnectionId: order.setTopBoxConnectionId, type: 'SET_TOP_BOX_ORDER', status: 'COMPLETED' },
+        });
+        await notify(
+          tx,
+          order.userId,
+          'Zylo TV rent received',
+          `Rent for ${conn?.connectionNumber ?? 'your box'} was paid. Box covered till ${conn?.activatedAt ? rentPaidUntilFrom(conn.activatedAt, months).toDateString() : 'the next due date'}.`,
+        );
       } else {
         await notify(
           tx,

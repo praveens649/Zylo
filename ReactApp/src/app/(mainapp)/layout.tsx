@@ -31,9 +31,7 @@ export default function DashboardLayout({
 
   const isCustomer = data?.user?.role === "CUSTOMER";
   const isOnboardingRoute = location.pathname === "/onboarding";
-  // Incomplete customers may only visit onboarding + their dashboard
-  // (where invited members see their allocated number).
-  const allowedWhenIncomplete = ["/onboarding", "/dashboard"];
+  const pathname = location.pathname;
 
   // Check onboarding completion for customers
   const { data: onboardingData, isPending: isOnboardingPending } = useQuery({
@@ -51,15 +49,21 @@ export default function DashboardLayout({
 
   // Enforce Onboarding: Customers must complete onboarding before entering the dashboard
   useEffect(() => {
-    if (isCustomer && onboardingData && !isOnboardingPending) {
-      if (
-        !onboardingData.isComplete &&
-        !allowedWhenIncomplete.includes(location.pathname)
-      ) {
-        navigate("/dashboard", { replace: true });
+    if (isCustomer && onboardingData && !isOnboardingPending && !onboardingData.isComplete) {
+      // Invited members keep the dashboard (it shows their allocated number);
+      // everyone else is funnelled straight into the onboarding wizard so a
+      // nav click lands somewhere actionable instead of bouncing back silently.
+      const hasAllocatedNumber = !!onboardingData.allocatedNumber;
+      const allowed = hasAllocatedNumber
+        ? ["/onboarding", "/dashboard"]
+        : ["/onboarding"];
+      if (!allowed.includes(pathname)) {
+        navigate(hasAllocatedNumber ? "/dashboard" : "/onboarding", {
+          replace: true,
+        });
       }
     }
-  }, [isCustomer, onboardingData, isOnboardingPending, isOnboardingRoute, navigate]);
+  }, [isCustomer, onboardingData, isOnboardingPending, pathname, navigate]);
 
   if (error) {
     if (!(error instanceof ApiRequestError && error.status === 401)) {

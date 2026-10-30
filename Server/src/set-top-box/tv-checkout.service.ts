@@ -6,7 +6,7 @@ import { ApiException } from '../common/api-error.js';
 import { getStripeClient } from '../stripe/stripe-client.js';
 import type { AddOnDto, RenewDto, TvCheckoutDto } from './dto.js';
 import { tvConfig } from './tv.config.js';
-import { checkPackEligibility, addDays, startOfDay } from './tv-rules.js';
+import { checkPackEligibility, addDays, OPEN_CONNECTION_STATUSES, startOfDay } from './tv-rules.js';
 import { notify, TV_ORDER_TYPES, uniqueRef, type Tx } from './tv-lifecycle.js';
 import { TvFulfilmentService } from './tv-fulfilment.service.js';
 
@@ -82,6 +82,31 @@ export class TvCheckoutService {
     const addOnIds = dto.addOnPlanIds ?? [];
 
     const created = await this.prisma.$transaction(async (tx) => {
+      // One set-top box per account: a live connection blocks a new order, and
+      // so does a disconnected rental whose box has not been returned yet.
+      const live = await tx.setTopBoxConnection.findFirst({
+        where: { userId: user.id, status: { in: [...OPEN_CONNECTION_STATUSES] } },
+        select: { connectionNumber: true },
+      });
+      if (live) {
+        throw new ApiException(
+          409,
+          'BOX_LIMIT_REACHED',
+          `You already have a Zylo TV connection (${live.connectionNumber}). Only one set-top box is allowed per account.`,
+        );
+      }
+      const unreturned = await tx.setTopBoxConnection.findFirst({
+        where: { userId: user.id, status: 'DISCONNECTED', ownership: 'RENTAL', returnDueAt: { not: null } },
+        select: { connectionNumber: true },
+      });
+      if (unreturned) {
+        throw new ApiException(
+          409,
+          'RENTED_BOX_NOT_RETURNED',
+          `Return the rented box on ${unreturned.connectionNumber} before ordering a new one.`,
+        );
+      }
+
       const model = await tx.setTopBoxModel.findFirst({ where: { id: dto.modelId, isActive: true } });
       if (!model) throw new ApiException(404, 'BOX_NOT_FOUND', 'Box model not available');
 
@@ -187,7 +212,8 @@ export class TvCheckoutService {
     });
 
     try {
-      const session = await this.createStripeSession(user, created.order.id, created.amount, `Zylo TV ${created.connection.connectionNumber}`, created.description, origin);
+      // Rentals run on autopay — save the card for off-session monthly charges.
+      const session = await this.createStripeSession(user, created.order.id, created.amount, `Zylo TV ${created.connection.connectionNumber}`, created.description, origin, dto.ownership === 'RENTAL');
       return {
         orderId: created.order.id,
         connectionId: created.connection.id,
@@ -261,6 +287,23 @@ export class TvCheckoutService {
       });
       if (err) throw new ApiException(400, err, err === 'PACK_REQUIRES_4K_BOX' ? 'This pack requires a 4K box' : 'An active base pack is required for add-ons');
 
+      // An add-on ends with the base pack — re-buying one that already runs to
+      // the base end date would charge the customer for zero extra days.
+      if (plan.type === 'ADD_ON' && activeBase?.endDate) {
+        const covered = await tx.tvSubscription.findFirst({
+          where: {
+            connectionId,
+            tvPlanId: plan.id,
+            status: 'ACTIVE',
+            endDate: { gte: activeBase.endDate },
+          },
+          select: { id: true },
+        });
+        if (covered) {
+          throw new ApiException(409, 'ADD_ON_ALREADY_COVERED', 'This add-on already runs until your base pack ends');
+        }
+      }
+
       const { simId, discount } = await this.bundleDiscount(tx, user.id, conn.simId, plan.price, false);
       const amount = plan.price.sub(discount);
 
@@ -321,8 +364,9 @@ export class TvCheckoutService {
     name: string,
     description: string,
     origin?: string,
+    saveCard = false,
   ) {
-    const session = await this.openSession(user, orderId, amount, name, description, origin);
+    const session = await this.openSession(user, orderId, amount, name, description, origin, saveCard);
     await this.prisma.payment.create({
       data: {
         userId: user.id,
@@ -345,6 +389,7 @@ export class TvCheckoutService {
     name: string,
     description: string,
     origin?: string,
+    saveCard = false,
   ) {
     const stripe = this.stripeOrThrow();
     const base = returnBase(origin);
@@ -358,6 +403,7 @@ export class TvCheckoutService {
         mode: 'payment',
         customer_email: user.email,
         client_reference_id: user.id,
+        ...(saveCard ? { customer_creation: 'always' as const } : {}),
         line_items: [
           {
             price_data: {
@@ -369,7 +415,10 @@ export class TvCheckoutService {
           },
         ],
         metadata,
-        payment_intent_data: { metadata },
+        payment_intent_data: {
+          metadata,
+          ...(saveCard ? { setup_future_usage: 'off_session' as const } : {}),
+        },
         success_url: `${base}/tv/success?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${base}/tv/my?payment=cancelled`,
       });
@@ -385,7 +434,7 @@ export class TvCheckoutService {
   private async ownedPendingOrder(user: UserModel, orderId: string) {
     const order = await this.prisma.order.findFirst({
       where: { id: orderId, userId: user.id, type: { in: [...TV_ORDER_TYPES] } },
-      include: { payment: true, setTopBoxConnection: { select: { connectionNumber: true } }, tvPlan: { select: { name: true } } },
+      include: { payment: true, setTopBoxConnection: { select: { connectionNumber: true, ownership: true } }, tvPlan: { select: { name: true } } },
     });
     if (!order) throw new ApiException(404, 'ORDER_NOT_FOUND', 'Order not found');
     return order;
@@ -436,12 +485,22 @@ export class TvCheckoutService {
       if (old.status === 'open' && old.url) return { alreadyPaid: false, url: old.url };
     }
 
+    const isRentOrder = order.type === 'SET_TOP_BOX_ORDER' && !order.setTopBoxModelId;
     const name =
       order.type === 'SET_TOP_BOX_ORDER'
-        ? `Zylo TV ${order.setTopBoxConnection?.connectionNumber ?? ''}`.trim()
+        ? isRentOrder
+          ? `Monthly box rent — ${order.setTopBoxConnection?.connectionNumber ?? ''}`.trim()
+          : `Zylo TV ${order.setTopBoxConnection?.connectionNumber ?? ''}`.trim()
         : `${order.tvPlan?.name ?? 'Zylo TV pack'} — ${order.setTopBoxConnection?.connectionNumber ?? ''}`.trim();
-    const description = order.type === 'SET_TOP_BOX_ORDER' ? 'Zylo TV box and pack' : 'Zylo TV pack';
-    const session = await this.openSession(user, order.id, order.amount, name, description, origin);
+    const description =
+      order.type === 'SET_TOP_BOX_ORDER'
+        ? isRentOrder
+          ? 'Zylo TV monthly rent'
+          : 'Zylo TV box and pack'
+        : 'Zylo TV pack';
+    // A manual payment on a rental order also refreshes the autopay card.
+    const saveCard = order.setTopBoxConnection?.ownership === 'RENTAL';
+    const session = await this.openSession(user, order.id, order.amount, name, description, origin, saveCard);
 
     if (order.payment) {
       await this.prisma.payment.update({
