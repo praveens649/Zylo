@@ -30,15 +30,6 @@ export default function GetStartedSection() {
           transition={{ duration: 0.7 }}
           className="relative z-10"
         >
-          <div className="mb-5 flex items-center gap-4">
-            <span className="text-xl font-extrabold text-lime-500">
-              05
-            </span>
-            <span className="text-xs font-semibold tracking-[0.16em] text-slate-500">
-              STAY CONNECTED, ANYWHERE
-            </span>
-          </div>
-
           <h2 className="text-4xl font-extrabold leading-[1.08] tracking-[-0.05em] text-[#101729] sm:text-5xl lg:text-6xl">
             Get Your
             <br />

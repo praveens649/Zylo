@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import {
   ArrowUpRight,
   Database,
@@ -11,6 +12,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { OnboardingStatus } from "@/api/onboarding.api";
+import {
+  rechargeApi,
+  RECHARGE_OVERVIEW_KEY,
+  type RechargeSubscription,
+} from "@/api/recharge.api";
+import { dataBankApi, dataBankStatusKey } from "@/api/data-bank.api";
+import { formatDate } from "@/lib/format";
 import { PendingInviteCard } from "./pending-invite-card";
 import { LoanPanel } from "../../loans/_components/loan-panel";
 
@@ -18,10 +26,68 @@ interface CustomerDashboardProps {
   statusData?: OnboardingStatus | null;
 }
 
+function daysLeft(endDate: string | null) {
+  if (!endDate) return null;
+  return Math.max(
+    0,
+    Math.ceil((new Date(endDate).getTime() - Date.now()) / 86_400_000)
+  );
+}
+
+function formatMb(mb: number) {
+  return mb >= 1024
+    ? `${(mb / 1024).toFixed(1).replace(/\.0$/, "")} GB`
+    : `${mb.toLocaleString("en-IN")} MB`;
+}
+
+function simStatusLabel(status?: string) {
+  switch (status) {
+    case "ACTIVE":
+      return { text: "Active", cls: "text-emerald-600" };
+    case "PENDING_ACTIVATION":
+    case "READY_TO_INSTALL":
+      return { text: "Activating", cls: "text-amber-600" };
+    case "PARKED":
+      return { text: "Parked", cls: "text-sky-600" };
+    case "SUSPENDED":
+    case "GRACE_PERIOD":
+      return { text: "Suspended", cls: "text-amber-600" };
+    default:
+      return { text: status ?? "No SIM", cls: "text-muted-foreground" };
+  }
+}
+
+function planBenefits(current: RechargeSubscription) {
+  const p = current.plan;
+  const parts = [p.callingBenefit];
+  if (p.smsCount) parts.push(`${p.smsCount} SMS/Day`);
+  if (p.dataAllowanceGb) parts.push(`${p.dataAllowanceGb} GB data`);
+  return parts.join(" • ");
+}
+
 export function CustomerDashboard({ statusData }: CustomerDashboardProps) {
   const user = statusData?.user;
   const activeSim = statusData?.activeSim;
   const kyc = statusData?.kyc;
+
+  const { data: overview } = useQuery({
+    queryKey: RECHARGE_OVERVIEW_KEY,
+    queryFn: rechargeApi.overview,
+    enabled: !!activeSim?.id,
+  });
+  const line =
+    overview?.sims.find((s) => s.id === activeSim?.id) ?? overview?.sims[0];
+  const current = line?.currentPlan ?? null;
+  const planDaysLeft = daysLeft(current?.endDate ?? null);
+
+  const { data: bank, isError: bankUnavailable } = useQuery({
+    queryKey: dataBankStatusKey(activeSim?.id ?? ""),
+    queryFn: () => dataBankApi.getStatus(activeSim!.id),
+    enabled: !!activeSim?.id,
+    retry: false,
+  });
+
+  const network = simStatusLabel(activeSim?.status);
 
   return (
     <div className="space-y-6 animate-fade-up">
@@ -58,7 +124,9 @@ export function CustomerDashboard({ statusData }: CustomerDashboardProps) {
             </p>
           )}
           <p className="text-sm text-muted-foreground mt-1 max-w-xl">
-            Your personal Zylo connection is active. Manage your Data Bank reserves, transfer data to friends, or level up with daily Data Quests.
+            {activeSim
+              ? "Your personal Zylo connection is active. Manage your Data Bank reserves, transfer data to friends, or level up with daily Data Quests."
+              : "Complete your SIM onboarding to activate your personal Zylo connection."}
           </p>
         </div>
 
@@ -87,20 +155,22 @@ export function CustomerDashboard({ statusData }: CustomerDashboardProps) {
               </Badge>
             </div>
             <CardTitle className="text-xl font-mono font-bold tracking-tight text-foreground mt-1">
-              {activeSim?.phoneNumber?.number || "Unassigned"}
+              {activeSim?.phoneNumber?.number || "Not activated"}
             </CardTitle>
-            <CardDescription className="text-xs text-emerald-600 font-medium">
-              Network Status: Active 5G
+            <CardDescription className={`text-xs font-medium ${network.cls}`}>
+              Network Status: {network.text}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2 pt-2 border-t border-border/70 text-xs text-muted-foreground">
             <div className="flex justify-between">
               <span>Category:</span>
-              <span className="font-medium text-foreground">Personal</span>
+              <span className="font-medium text-foreground">
+                {activeSim?.category === "BUSINESS" ? "Business" : "Personal"}
+              </span>
             </div>
             <div className="flex justify-between">
               <span>KYC Holder:</span>
-              <span className="font-medium text-foreground">{kyc?.fullName || user?.name}</span>
+              <span className="font-medium text-foreground">{kyc?.fullName || user?.name || "—"}</span>
             </div>
           </CardContent>
         </Card>
@@ -112,26 +182,46 @@ export function CustomerDashboard({ statusData }: CustomerDashboardProps) {
               <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 Current Plan
               </span>
-              <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-xs">
-                Active
+              <Badge
+                className={
+                  current
+                    ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-xs"
+                    : "bg-muted text-muted-foreground border-border/40 text-xs"
+                }
+              >
+                {current ? "Active" : "No plan"}
               </Badge>
             </div>
             <CardTitle className="text-xl font-bold tracking-tight text-foreground mt-1">
-              Zylo Prime Unlimited
+              {current?.plan.name ?? "No active plan"}
             </CardTitle>
             <CardDescription className="text-xs text-muted-foreground">
-              Unlimited Calls • 100 SMS/Day • True 5G
+              {current
+                ? planBenefits(current)
+                : "Recharge your number to activate a plan."}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2 pt-2 border-t border-border/70 text-xs text-muted-foreground">
-            <div className="flex justify-between">
-              <span>Daily High-Speed Data:</span>
-              <span className="font-medium text-foreground">1.5 GB / Day</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Validity Remaining:</span>
-              <span className="font-medium text-foreground">28 Days</span>
-            </div>
+            {current ? (
+              <>
+                <div className="flex justify-between">
+                  <span>Validity Remaining:</span>
+                  <span className="font-medium text-foreground">
+                    {planDaysLeft ?? "—"} of {current.plan.validityDays} days
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Ends:</span>
+                  <span className="font-medium text-foreground">
+                    {formatDate(current.endDate)}
+                  </span>
+                </div>
+              </>
+            ) : (
+              <Button asChild size="sm" className="w-full">
+                <Link to="/recharge">Recharge now</Link>
+              </Button>
+            )}
           </CardContent>
         </Card>
 
@@ -147,20 +237,26 @@ export function CustomerDashboard({ statusData }: CustomerDashboardProps) {
               </div>
             </div>
             <CardTitle className="text-xl font-bold tracking-tight text-foreground mt-1">
-              0 MB Saved
+              {bank ? `${formatMb(bank.balanceMb)} Saved` : "0 MB Saved"}
             </CardTitle>
             <CardDescription className="text-xs text-muted-foreground">
-              Unused daily quota auto-banks at midnight
+              {bankUnavailable
+                ? "Data Bank isn't enabled on this plan"
+                : "Unused daily quota auto-banks at midnight"}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2 pt-2 border-t border-border/70 text-xs text-muted-foreground">
             <div className="flex justify-between">
               <span>Vault Capacity:</span>
-              <span className="font-medium text-foreground">10,240 MB (10 GB)</span>
+              <span className="font-medium text-foreground">
+                {bank ? formatMb(bank.capacityMb) : "—"}
+              </span>
             </div>
             <div className="flex justify-between">
               <span>Rollover Expiry:</span>
-              <span className="font-medium text-foreground">90 Days</span>
+              <span className="font-medium text-foreground">
+                {bank ? `${bank.rolloverExpiryDays} Days` : "—"}
+              </span>
             </div>
           </CardContent>
         </Card>

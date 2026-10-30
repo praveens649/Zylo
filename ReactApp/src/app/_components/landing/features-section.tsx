@@ -58,15 +58,6 @@ export default function FeaturesSection() {
           transition={{ duration: 0.7 }}
           className="relative z-10"
         >
-          <div className="mb-5 flex items-center gap-5">
-            <span className="text-2xl font-extrabold text-lime-500">
-              03
-            </span>
-            <span className="text-[10px] font-bold tracking-[0.16em] text-slate-600 sm:text-xs">
-              MORE THAN A SECOND NUMBER
-            </span>
-          </div>
-
           <h2 className="text-4xl font-extrabold leading-[1.05] tracking-[-0.05em] text-[#101729] sm:text-5xl xl:text-6xl">
             Use It
             <br />
@@ -80,7 +71,7 @@ export default function FeaturesSection() {
           </p>
 
           <a
-            href="#all-features"
+            href="#dashboard"
             className="group mt-6 inline-flex items-center gap-3 font-semibold text-sm text-[#101729] underline decoration-lime-400 decoration-2 underline-offset-4 transition hover:text-green-700"
           >
             Explore all features
@@ -92,7 +83,7 @@ export default function FeaturesSection() {
 
           {/* Scroll indicator */}
           <a
-            href="#all-features"
+            href="#dashboard"
             aria-label="Scroll to more features"
             className="mt-8 hidden h-24 w-5 flex-col items-center justify-between text-lime-500 lg:flex"
           >
