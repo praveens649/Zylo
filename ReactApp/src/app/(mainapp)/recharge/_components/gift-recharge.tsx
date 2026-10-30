@@ -6,7 +6,6 @@ import {
   Gift,
   Loader2,
   Phone,
-  Search,
   UserCheck,
   X,
 } from "lucide-react";
@@ -79,12 +78,16 @@ export function GiftRecharge({ recipient, onSelect }: GiftRechargeProps) {
       </div>
       <div className="mt-3 flex items-center gap-2">
         <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground">
+            +91
+          </span>
           <Input
             value={number}
-            onChange={(e) => setNumber(e.target.value)}
-            placeholder="Enter their full Zylo number (e.g. +91 98765 43210)"
-            className="pl-9 h-10 text-sm font-mono"
+            inputMode="numeric"
+            onChange={(e) => setNumber(e.target.value.replace(/\D/g, ""))}
+            placeholder="98XXXXXX00"
+            maxLength={10}
+            className="pl-11 h-10 text-sm font-mono"
           />
         </div>
         {lookup.isFetching && (
