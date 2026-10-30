@@ -1,5 +1,5 @@
 import { Building2, CreditCard, Database, Globe, Plane, HandCoins, ShoppingBag, LayoutDashboard, Users, Zap, Trophy } from "lucide-react";
-import { LifeBuoy, MonitorPlay, Music2, ParkingSquare, Radio, Send, Smartphone, Tv, Wifi, Vault, SmartphoneCharging } from "lucide-react";
+import { LifeBuoy, MonitorPlay, Music2, ParkingSquare, Radio, Send, Smartphone, Tv, Wifi, SmartphoneCharging } from "lucide-react";
 
 export type NavItem = {
   href: string;
@@ -18,6 +18,7 @@ export type NavItem = {
  * items are hidden from admins.
  */
 export const NAV_ITEMS: NavItem[] = [
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   {
     href: "/recharge",
     label: "Recharge",
@@ -60,23 +61,21 @@ export const NAV_ITEMS: NavItem[] = [
     icon: ParkingSquare,
     customerOnly: true,
   },
-  
-  { href: "/plans", label: "Recharge Plans", icon: Zap, adminOnly: true },
-  { href: "/esim-plans", label: "eSIM Plans", icon: Globe, adminOnly: true },
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/users", label: "Users", icon: Users, adminOnly: true },
+  { href: "/tv", label: "Zylo TV", icon: Tv, customerOnly: true },
+  { href: "/tv/my", label: "My TV", icon: MonitorPlay, customerOnly: true },
+  { href: "/wifi", label: "Zylo WiFi", icon: Wifi, customerOnly: true },
+  { href: "/wifi/my", label: "My WiFi", icon: Wifi, customerOnly: true },
   { href: "/organization", label: "My Organization", icon: Building2, customerOnly: true },
   { href: "/orders", label: "Order History", icon: ShoppingBag },
   { href: "/payments", label: "Payment History", icon: CreditCard },
+  { href: "/users", label: "Users", icon: Users, adminOnly: true },
+  { href: "/plans", label: "Recharge Plans", icon: Zap, adminOnly: true },
+  { href: "/esim-plans", label: "eSIM Plans", icon: Globe, adminOnly: true },
   { href: "/sims", label: "SIMs", icon: Smartphone, adminOnly: true },
-  { href: "/tv", label: "Zylo TV", icon: Tv, customerOnly: true },
-  { href: "/tv/my", label: "My TV", icon: MonitorPlay, customerOnly: true },
   { href: "/tv-admin", label: "TV Console", icon: Radio, adminOnly: true },
-  { href: "/wifi", label: "Zylo WiFi", icon: Wifi, customerOnly: true },
-  { href: "/wifi/my", label: "My WiFi", icon: Wifi, customerOnly: true },
   { href: "/wifi-admin", label: "WiFi Console", icon: Wifi, adminOnly: true },
   { href: "/music-admin", label: "Music Console", icon: Music2, adminOnly: true },
+  { href: "/loans-admin", label: "Data Loans", icon: HandCoins, adminOnly: true },
   { href: "/support", label: "Support", icon: LifeBuoy, customerOnly: true },
   { href: "/support-admin", label: "Support Desk", icon: LifeBuoy, adminOnly: true },
-  { href: "/loans-admin", label: "Data Loans", icon: HandCoins, adminOnly: true },
 ];

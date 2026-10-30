@@ -84,6 +84,9 @@
   * {
     @apply border-border;
   }
+  html {
+    scroll-behavior: smooth;
+  }
   body {
     @apply overflow-x-hidden bg-background text-foreground;
     font-family: var(--font-sans);

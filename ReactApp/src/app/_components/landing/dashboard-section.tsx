@@ -20,15 +20,6 @@ export default function DashboardSection() {
           transition={{ duration: 0.7 }}
           className="relative z-10"
         >
-          <div className="mb-6 flex items-center gap-4">
-            <span className="text-2xl font-extrabold text-lime-500">
-              04
-            </span>
-            <span className="text-xs font-semibold tracking-[0.18em] text-slate-500">
-              ALL IN ONE PLACE
-            </span>
-          </div>
-
           <h2 className="text-5xl font-extrabold leading-[1.04] tracking-[-0.05em] sm:text-6xl">
             Manage
             <br />

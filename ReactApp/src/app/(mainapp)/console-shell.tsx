@@ -39,7 +39,7 @@ export function ConsoleShell({
   return (
     <SidebarProvider>
       <Sidebar collapsible="icon">
-        <SidebarBrand />
+        <SidebarBrand user={user} />
         <SidebarNav items={items} />
         <SidebarUserFooter user={user} />
         <SidebarRail />

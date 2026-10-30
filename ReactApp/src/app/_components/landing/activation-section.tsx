@@ -51,15 +51,6 @@ export default function ActivationSection() {
       <div className="mx-auto grid max-w-[1500px] items-center gap-14 lg:grid-cols-[0.8fr_1.2fr] lg:gap-12">
         {/* Left content */}
         <div>
-          <div className="mb-6 flex items-center gap-4">
-            <span className="text-2xl font-extrabold text-lime-500">
-              02
-            </span>
-            <span className="text-xs font-semibold tracking-[0.2em] text-slate-500 sm:text-sm">
-              ACTIVATE IN MINUTES
-            </span>
-          </div>
-
           <motion.h2
             initial={{ opacity: 0, y: 25 }}
             whileInView={{ opacity: 1, y: 0 }}

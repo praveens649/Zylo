@@ -46,7 +46,7 @@ export function NotificationsDrawer({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-[92vw] sm:w-[480px] p-0">
+      <SheetContent side="right" className="flex w-[92vw] flex-col p-0 sm:w-[480px]">
         <SheetHeader className="border-b border-border/60 px-5 py-4">
           <div className="flex items-center justify-between">
             <SheetTitle className="font-display text-lg">
@@ -72,7 +72,7 @@ export function NotificationsDrawer({
           </div>
         </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="min-h-0 flex-1 overflow-y-auto p-4">
           {isPending ? (
             <div className="flex items-center gap-2 py-14 justify-center text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" /> Loading…

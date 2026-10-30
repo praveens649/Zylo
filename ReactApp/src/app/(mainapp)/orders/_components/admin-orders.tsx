@@ -36,6 +36,7 @@ import {
 import GenericTable from "@/components/ui/generic-table";
 
 import { useOrders } from "../_hooks/use-orders";
+import { PageHero } from "../../_components/page-hero";
 
 /* ------------------------------------------------------------------ */
 /*  Style maps                                                        */
@@ -333,14 +334,12 @@ export function AdminOrders() {
   return (
     <div className="flex flex-col gap-6">
       {/* Page header */}
-      <div>
-        <h1 className="font-display text-2xl font-bold tracking-tight">
-          Order History
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          All orders placed by customers — track status, fulfilment, and payment.
-        </p>
-      </div>
+      <PageHero
+        badge="Order Tracking"
+        icon={<ShoppingBag className="mr-1 h-3.5 w-3.5" />}
+        title="Order History"
+        subtitle="Every order placed through Zylo — SIMs, recharges, TV, WiFi, parking and more. Track status, fulfilment and payment."
+      />
 
       {/* Summary cards */}
       {!isPending && !error && <SummaryCards orders={orders} />}

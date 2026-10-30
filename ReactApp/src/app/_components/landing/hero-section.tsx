@@ -31,28 +31,35 @@ export default function HeroSection() {
     >
       {/* Navigation */}
       <nav className="relative z-20 mx-auto flex max-w-[1720px] items-center justify-between gap-6 px-6 py-5 lg:px-16">
-        <a href="#home" className="flex items-center gap-3">
-          <span className="grid h-12 w-12 place-items-center rounded-2xl bg-[#A8F51F] text-black">
-            <Zap size={26} strokeWidth={2.8} />
-          </span>
-          <span className="text-3xl font-extrabold tracking-tight">
-            Zylo
-          </span>
-        </a>
-
+        <div className="flex items-center gap-4">
+          <a href="#home" className="flex items-center gap-3">
+            <span className="grid h-12 w-12 place-items-center rounded-2xl bg-[#A8F51F] text-black">
+              <Zap size={26} strokeWidth={2.8} />
+            </span>
+            <span className="text-3xl font-extrabold tracking-tight">
+              Zylo
+            </span>
+          </a>
+        </div>
         <div className="hidden items-center gap-8 text-sm font-medium lg:flex">
-          {["Home", "Features", "How it works", "Plans", "Support"].map(
+          {[
+            { label: "Home", href: "#home" },
+            { label: "How it works", href: "#how-it-works" },
+            { label: "Features", href: "#features" },
+            { label: "Plans", href: "#get-started" },
+            { label: "Support", href: "/support" },
+          ].map(
             (item, index) => (
               <a
-                key={item}
-                href={["#home", "#features", "#how-it-works", "#plans", "#support"][index]}
+                key={item.label}
+                href={item.href}
                 className={`py-2 transition hover:text-lime-600 ${
                   index === 0
                     ? "border-b-[3px] border-[#A8F51F]"
                     : ""
                 }`}
               >
-                {item}
+                {item.label}
               </a>
             )
           )}
@@ -82,15 +89,6 @@ export default function HeroSection() {
       <section className="mx-auto grid max-w-[1720px] items-center gap-4 px-6 pb-16 pt-8 lg:min-h-[690px] lg:grid-cols-2 lg:px-16">
         {/* Left content */}
         <div className="relative z-10">
-          <div className="mb-5 flex items-start gap-5">
-            <span className="text-3xl font-extrabold text-lime-500">
-              01
-            </span>
-            <p className="pt-2 text-xs font-semibold tracking-[0.24em] text-slate-600 sm:text-sm">
-              NEXT-GEN TELECOM
-            </p>
-          </div>
-
           <motion.h1
             initial={{ opacity: 0, y: 28 }}
             animate={{ opacity: 1, y: 0 }}

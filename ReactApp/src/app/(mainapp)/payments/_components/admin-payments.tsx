@@ -37,6 +37,7 @@ import {
 import GenericTable from "@/components/ui/generic-table";
 
 import { usePayments } from "../_hooks/use-payments";
+import { PageHero } from "../../_components/page-hero";
 
 /* ------------------------------------------------------------------ */
 /*  Style maps                                                        */
@@ -314,14 +315,12 @@ export function AdminPayments() {
   return (
     <div className="flex flex-col gap-6">
       {/* Page header */}
-      <div>
-        <h1 className="font-display text-2xl font-bold tracking-tight">
-          Payments
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Payment transaction history — track, filter, and review all payments.
-        </p>
-      </div>
+      <PageHero
+        badge="Billing"
+        icon={<CreditCard className="mr-1 h-3.5 w-3.5" />}
+        title="Payment History"
+        subtitle="Every Stripe test transaction — recharges, orders and subscriptions. Track, filter and review payment outcomes."
+      />
 
       {/* Summary cards */}
       {!isPending && !error && <SummaryCards payments={payments} />}
