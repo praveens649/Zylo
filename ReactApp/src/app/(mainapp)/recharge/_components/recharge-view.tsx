@@ -258,32 +258,7 @@ export function RechargeView() {
           <GiftRecharge recipient={giftTarget} onSelect={setGiftTarget} />
 
           {giftTarget ? null : selectedSim ? (
-            <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-              <div className="lg:col-span-2">
-                <CurrentPlanCard sim={selectedSim} />
-              </div>
-              <div className="flex flex-col justify-center gap-3 rounded-2xl border border-border/60 bg-card/60 p-5 shadow-sm">
-                <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                  <Zap className="h-4 w-4 text-primary" />
-                  How recharging works
-                </div>
-                <ul className="flex flex-col gap-2 text-xs text-muted-foreground">
-                  <li className="flex gap-2">
-                    <span className="font-bold text-primary">1.</span>
-                    Choose any plan below and confirm the recharge.
-                  </li>
-                  <li className="flex gap-2">
-                    <span className="font-bold text-primary">2.</span>
-                    Pay securely on Stripe&apos;s checkout page.
-                  </li>
-                  <li className="flex gap-2">
-                    <span className="font-bold text-primary">3.</span>
-                    Plan activates instantly — or queues after your current
-                    plan&apos;s end date if you recharge early.
-                  </li>
-                </ul>
-              </div>
-            </div>
+            <CurrentPlanCard sim={selectedSim} />
           ) : (
             <div className="flex items-center gap-4 rounded-2xl border border-primary/25 bg-primary/5 p-5">
               <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
