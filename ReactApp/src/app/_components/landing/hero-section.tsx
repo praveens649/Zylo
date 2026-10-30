@@ -179,7 +179,7 @@ export default function HeroSection() {
 
           {/* Main SIM image: place your transparent PNG in public/images */}
           <motion.img
-            src="/public/orbit.png"
+            src="/orbit.png"
             alt="Zylo SIM card with global connectivity"
             initial={{ opacity: 0, scale: 0.75, y: 30 }}
             animate={{
