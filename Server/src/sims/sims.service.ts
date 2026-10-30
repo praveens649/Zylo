@@ -18,6 +18,7 @@ export interface AdminSimRow {
     | 'READY_TO_INSTALL'
     | 'ACTIVE'
     | 'GRACE_PERIOD'
+    | 'PARKED'
     | 'SUSPENDED'
     | 'DEACTIVATED'
     | 'CANCELLED';
@@ -77,6 +78,11 @@ export class SimsService {
             select: { id: true, number: true, prefix: true, type: true },
           },
           organization: { select: { id: true, name: true } },
+          numberParkings: {
+            where: { status: 'ACTIVE' },
+            select: { id: true },
+            take: 1,
+          },
           planSubscriptions: {
             where: { status: 'ACTIVE' },
             include: {
@@ -124,7 +130,14 @@ export class SimsService {
         phoneNumber: sim.phoneNumber,
         category: sim.category,
         technology: sim.technology,
-        status: sim.status === 'LOST' ? 'DEACTIVATED' : sim.status,
+        // An ACTIVE parking holds the number — it must never look like an
+        // ordinary lapsed SIM that ops could deactivate or recycle.
+        status:
+          sim.numberParkings.length > 0
+            ? 'PARKED'
+            : sim.status === 'LOST'
+              ? 'DEACTIVATED'
+              : sim.status,
         activatedAt: sim.activatedAt,
         planExpiredAt: sim.planExpiredAt,
         destinationCountry: null,

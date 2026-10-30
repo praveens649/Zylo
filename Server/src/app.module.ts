@@ -17,6 +17,7 @@ import { PlansModule } from './plans/plans.module.js';
 import { SetTopBoxModule } from './set-top-box/set-top-box.module.js';
 import { WifiModule } from './wifi/wifi.module.js';
 import { RechargeModule } from './recharge/recharge.module.js';
+import { ParkingModule } from './parking/parking.module.js';
 import { TravelEsimModule } from './travel-esim/travel-esim.module.js';
 import { NumbersModule } from './numbers/numbers.module.js';
 import { OnboardingModule } from './onboarding/onboarding.module.js';
@@ -60,6 +61,7 @@ import { EnvelopeInterceptor } from './common/envelope.interceptor.js';
     SetTopBoxModule,
     WifiModule,
     RechargeModule,
+    ParkingModule,
     TravelEsimModule,
     NumbersModule,
     OnboardingModule,

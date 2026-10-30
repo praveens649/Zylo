@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { RechargeModule } from '../recharge/recharge.module.js';
+import { ParkingModule } from '../parking/parking.module.js';
 import { TravelEsimModule } from '../travel-esim/travel-esim.module.js';
 import { StripeService } from './stripe.service.js';
 import { StripeController } from './stripe.controller.js';
@@ -18,7 +19,7 @@ import { MusicModule } from '../music/music.module.js';
  *   POST /api/v1/stripe/webhook                — Stripe event receiver (signature)
  */
 @Module({
-  imports: [SetTopBoxModule, WifiModule, RechargeModule, TravelEsimModule, MusicModule],
+  imports: [SetTopBoxModule, WifiModule, RechargeModule, ParkingModule, TravelEsimModule, MusicModule],
   controllers: [StripeController, StripeWebhookController],
   providers: [StripeService],
   exports: [StripeService],

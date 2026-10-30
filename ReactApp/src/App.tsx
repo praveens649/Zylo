@@ -17,6 +17,8 @@ import OrdersPage from "@/app/(mainapp)/orders/page";
 import PaymentsPage from "@/app/(mainapp)/payments/page";
 import PlansPage from "@/app/(mainapp)/plans/page";
 import RechargePage from "@/app/(mainapp)/recharge/page";
+import ParkingPage from "@/app/(mainapp)/parking/page";
+import NumberVaultPage from "@/app/(mainapp)/number-vault/page";
 import DataBankPage from "@/app/(mainapp)/data-bank/page";
 import DataTransferPage from "@/app/(mainapp)/data-transfer/page";
 import MusicPage from "@/app/(mainapp)/music/page";
@@ -53,6 +55,8 @@ export default function App() {
             <Route path="/onboarding" element={<OnboardingPage />} />
             <Route path="/dashboard" element={<CustomerDashboardPage />} />
             <Route path="/recharge" element={<RechargePage />} />
+            <Route path="/parking" element={<ParkingPage />} />
+            <Route path="/number-vault" element={<NumberVaultPage />} />
             <Route path="/data-bank" element={<DataBankPage />} />
             <Route path="/data-transfer" element={<DataTransferPage />} />
             <Route path="/music" element={<MusicPage />} />
