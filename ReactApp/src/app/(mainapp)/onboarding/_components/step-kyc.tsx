@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { ChevronRight, Loader2, ShieldCheck } from "lucide-react";
+import { format, isValid, parse } from "date-fns";
+import { CalendarIcon, ChevronRight, Loader2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import {
   Card,
   CardDescription,
@@ -9,6 +11,11 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -121,13 +128,47 @@ export function StepKyc({
             <Label htmlFor="dateOfBirth" className="text-xs font-medium">
               Date of Birth *
             </Label>
-            <Input
-              id="dateOfBirth"
-              type="date"
-              value={dateOfBirth}
-              onChange={(e) => setDateOfBirth(e.target.value)}
-              required
-            />
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  id="dateOfBirth"
+                  type="button"
+                  variant="outline"
+                  className="w-full justify-start font-normal"
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
+                  {dateOfBirth ? (
+                    format(
+                      parse(dateOfBirth, "yyyy-MM-dd", new Date()),
+                      "dd MMM yyyy"
+                    )
+                  ) : (
+                    <span className="text-muted-foreground">Pick a date</span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  captionLayout="dropdown"
+                  selected={
+                    isValid(parse(dateOfBirth, "yyyy-MM-dd", new Date()))
+                      ? parse(dateOfBirth, "yyyy-MM-dd", new Date())
+                      : undefined
+                  }
+                  defaultMonth={
+                    isValid(parse(dateOfBirth, "yyyy-MM-dd", new Date()))
+                      ? parse(dateOfBirth, "yyyy-MM-dd", new Date())
+                      : new Date(2000, 0)
+                  }
+                  startMonth={new Date(1940, 0)}
+                  endMonth={new Date()}
+                  onSelect={(d) =>
+                    setDateOfBirth(d ? format(d, "yyyy-MM-dd") : "")
+                  }
+                />
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
 
