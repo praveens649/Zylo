@@ -25,6 +25,7 @@ import { AppDialog } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { formatDate, formatDateTime, formatINR } from "@/lib/format";
 import { goToCheckout, useTvAction, useTvConnections, useTvPlans } from "../_hooks/use-tv";
@@ -146,7 +147,7 @@ function RescheduleDialog({ inst, onClose }: { inst: TvInstallation; onClose: ()
     <>
       <AppDialog open onOpenChange={(o) => !o && onClose()} title="Reschedule installation">
         <div className="space-y-4">
-          <FormField label="New date"><Input type="date" min={isoDay(1)} max={isoDay(60)} value={date} onChange={(e) => setDate(e.target.value)} /></FormField>
+          <FormField label="New date"><DatePicker min={isoDay(1)} max={isoDay(60)} value={date} onChange={setDate} className="h-9" /></FormField>
           <FormField label="Time slot">
             <select className={`${fieldCls} h-9`} value={slot} onChange={(e) => setSlot(e.target.value as InstallationSlot)}>
               {Object.entries(SLOT_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}

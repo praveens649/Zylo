@@ -7,6 +7,7 @@ import type { AdminConnection, AdminInstallation, AdminOrder } from "@/api/tv.ap
 import { AppDialog } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import GenericTable from "@/components/ui/generic-table";
 import { formatDate, formatDateTime, formatINR } from "@/lib/format";
@@ -71,7 +72,7 @@ function ScheduleDialog({ inst, onClose }: { inst: AdminInstallation; onClose: (
   return (
     <AppDialog open onOpenChange={(o) => !o && onClose()} title={`Schedule ${inst.connection.connectionNumber}`} description={`Customer prefers ${formatDate(inst.preferredDate)} — ${SLOT_LABEL[inst.preferredSlot]}`}>
       <div className="space-y-4">
-        <FormField label="Visit date & time"><Input type="datetime-local" value={at} onChange={(e) => setAt(e.target.value)} /></FormField>
+        <FormField label="Visit date & time"><DatePicker withTime min={new Date().toISOString().slice(0, 10)} value={at} onChange={setAt} className="h-9" /></FormField>
         <FormField label="Technician name"><Input value={name} onChange={(e) => setName(e.target.value)} /></FormField>
         <FormField label="Technician phone"><Input value={phone} inputMode="numeric" maxLength={10} onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))} /></FormField>
         <div className="flex justify-end">
