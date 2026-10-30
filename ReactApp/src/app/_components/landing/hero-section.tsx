@@ -31,15 +31,16 @@ export default function HeroSection() {
     >
       {/* Navigation */}
       <nav className="relative z-20 mx-auto flex max-w-[1720px] items-center justify-between gap-6 px-6 py-5 lg:px-16">
-        <a href="#home" className="flex items-center gap-3">
-          <span className="grid h-12 w-12 place-items-center rounded-2xl bg-[#A8F51F] text-black">
-            <Zap size={26} strokeWidth={2.8} />
-          </span>
-          <span className="text-3xl font-extrabold tracking-tight">
-            Zylo
-          </span>
-        </a>
-
+        <div className="flex items-center gap-4">
+          <a href="#home" className="flex items-center gap-3">
+            <span className="grid h-12 w-12 place-items-center rounded-2xl bg-[#A8F51F] text-black">
+              <Zap size={26} strokeWidth={2.8} />
+            </span>
+            <span className="text-3xl font-extrabold tracking-tight">
+              Zylo
+            </span>
+          </a>
+        </div>
         <div className="hidden items-center gap-8 text-sm font-medium lg:flex">
           {[
             { label: "Home", href: "#home" },
