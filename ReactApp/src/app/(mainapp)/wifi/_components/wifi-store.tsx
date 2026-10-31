@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
 import {
   CalendarClock,
@@ -27,6 +27,7 @@ import type { DeviceOwnership, InstallationSlot, WifiDevice, WifiPlan } from "@/
 import { wifiApi } from "@/api/wifi.api";
 import { useWifiDevices, useWifiPlans, errorMessage, goToCheckout } from "../_hooks/use-wifi";
 import { BandBadge, FormField, SLOT_LABEL, WifiHero, fieldCls, isoDay } from "./wifi-ui";
+import { WifiTabSwitch } from "./wifi-tab-switch";
 
 const SLOTS: InstallationSlot[] = ["MORNING", "AFTERNOON", "EVENING"];
 
@@ -49,7 +50,16 @@ const INITIAL_FORM = {
 
 type OpenPanel = "selection" | "installation" | null;
 
-export function WifiStore() {
+export function WifiStore({
+  onSwitchTab,
+  currentTab = "browse",
+  connectionCount,
+}: {
+  onSwitchTab?: (tab: "browse" | "my") => void;
+  currentTab?: "browse" | "my";
+  connectionCount?: number;
+} = {}) {
+  const navigate = useNavigate();
   const devices = useWifiDevices();
   const plans = useWifiPlans();
 
@@ -166,6 +176,13 @@ export function WifiStore() {
         badge="FIBER-TO-THE-HOME"
         title="Zylo WiFi for your home"
         subtitle="Blazing-fast fibre broadband with a router included, installed by certified technicians within days. Plans renew every 30 days — pause anytime."
+        right={
+          <WifiTabSwitch
+            tab={currentTab}
+            onChange={onSwitchTab}
+            count={connectionCount}
+          />
+        }
       />
 
       <div className="space-y-6 lg:grid lg:grid-cols-[1fr_340px] lg:items-start lg:gap-6 lg:space-y-0">
@@ -442,9 +459,13 @@ export function WifiStore() {
             <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
               <CalendarClock className="h-3 w-3" /> Connection activates only after installation is completed.
             </p>
-            <Link to="/wifi/my" className="block text-center text-xs text-primary underline-offset-4 hover:underline">
+            <button
+              type="button"
+              onClick={() => (onSwitchTab ? onSwitchTab("my") : navigate("/wifi?tab=my"))}
+              className="block w-full text-center text-xs text-primary underline-offset-4 hover:underline"
+            >
               Already have Zylo WiFi? Manage your connection
-            </Link>
+            </button>
           </CardContent>
         </Card>
       </div>
@@ -499,3 +520,5 @@ export function WifiStore() {
     </div>
   );
 }
+
+export default WifiStore;

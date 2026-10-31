@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
   AlertCircle,
   Check,
@@ -10,7 +10,6 @@ import {
   HardDrive,
   Loader2,
   Lock,
-  MonitorPlay,
   Tv,
   Wifi,
 } from "lucide-react";
@@ -24,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { formatINR, money } from "@/lib/format";
 import { goToCheckout, useTvAction, useTvBoxes, useTvConnections, useTvPlans } from "../_hooks/use-tv";
 import { FormField, isoDay, ResolutionBadge, SLOT_LABEL, TvHero, fieldCls } from "./tv-ui";
+import { TvTabSwitch } from "./tv-tab-switch";
 
 const cn = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(" ");
 
@@ -37,7 +37,16 @@ function hardwareCost(box: TvBox, o: BoxOwnership) {
 
 const LIVE_STATUSES = ["PENDING_INSTALLATION", "ACTIVE", "PAUSED", "GRACE_PERIOD", "SUSPENDED"];
 
-export function TvStore() {
+export function TvStore({
+  onSwitchTab,
+  currentTab = "browse",
+  connectionCount,
+}: {
+  onSwitchTab?: (tab: "browse" | "my") => void;
+  currentTab?: "browse" | "my";
+  connectionCount?: number;
+} = {}) {
+  const navigate = useNavigate();
   const boxesQ = useTvBoxes();
   const plansQ = useTvPlans();
   const connsQ = useTvConnections();
@@ -121,12 +130,11 @@ export function TvStore() {
         title="Bring Zylo TV home"
         subtitle="Pick a set-top box, choose your channel packs and book a free installation visit. Pay securely with Stripe (test mode)."
         right={
-          <Button asChild variant="outline" className="shrink-0">
-            <Link to="/tv/my">
-              <MonitorPlay className="mr-2 h-4 w-4" />
-              My TV
-            </Link>
-          </Button>
+          <TvTabSwitch
+            tab={currentTab}
+            onChange={onSwitchTab}
+            count={connectionCount ?? (connsQ.data?.length || 0)}
+          />
         }
       />
 
@@ -157,8 +165,13 @@ export function TvStore() {
                 </p>
               </div>
             </div>
-            <Button asChild size="sm" variant="outline" className="shrink-0">
-              <Link to="/tv/my">Open My TV</Link>
+            <Button
+              size="sm"
+              variant="outline"
+              className="shrink-0"
+              onClick={() => (onSwitchTab ? onSwitchTab("my") : navigate("/tv?tab=my"))}
+            >
+              Open My TV
             </Button>
           </CardContent>
         </Card>

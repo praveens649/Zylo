@@ -1,37 +1,45 @@
 import { useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { CheckCircle2, Wifi } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { CheckCircle2, Loader2, Wifi } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { subscriptionsApi } from "@/api/subscriptions.api";
 import { useWifiConnections } from "../_hooks/use-wifi";
 
-/**
- * Stripe redirects here with ?session_id=. The payment is confirmed by the
- * Stripe webhook (server-side); this page just reflects the result. If the
- * webhook is slow, My WiFi lets the customer check the payment status again.
- */
 export function WifiSuccess() {
   const [params] = useSearchParams();
   const sessionId = params.get("session_id");
-  const { data, refetch } = useWifiConnections();
+  const qc = useQueryClient();
+  const conns = useWifiConnections();
+
+  const verify = useQuery({
+    queryKey: ["wifi", "verify", sessionId],
+    queryFn: () => subscriptionsApi.verifyCheckout(sessionId!),
+    enabled: !!sessionId,
+    retry: false,
+    staleTime: Infinity,
+  });
 
   useEffect(() => {
-    refetch();
-  }, [refetch]);
+    if (verify.isSuccess) {
+      qc.invalidateQueries({ queryKey: ["wifi"] });
+    }
+  }, [verify.isSuccess, qc]);
 
-  const pending = (data ?? []).find((c) => c.status === "PENDING_INSTALLATION");
+  const pending = (conns.data ?? []).find((c) => c.status === "PENDING_INSTALLATION");
 
   return (
-    <div className="mx-auto flex max-w-2xl justify-center p-4">
-      <Card className="w-full border-primary/30 text-center">
+    <div className="flex min-h-[60vh] items-center justify-center p-4">
+      <Card className="w-full max-w-md text-center">
         <CardHeader>
-          <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
-            <CheckCircle2 className="h-8 w-8 text-primary" />
+          <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-500">
+            {verify.isPending ? <Loader2 className="h-6 w-6 animate-spin text-primary" /> : <CheckCircle2 className="h-6 w-6" />}
           </div>
-          <CardTitle className="font-display text-2xl">Payment received</CardTitle>
+          <CardTitle className="text-xl">Payment successful!</CardTitle>
           <CardDescription>
-            {sessionId
-              ? "Your Zylo WiFi order is being processed. We will assign your router and schedule the installation — your connection goes live once the visit is completed."
+            {pending
+              ? "Your installation visit has been booked. Our technician will contact you before arriving."
               : "Your Zylo WiFi order is being processed."}
           </CardDescription>
         </CardHeader>
@@ -44,7 +52,7 @@ export function WifiSuccess() {
           )}
           <div className="flex flex-col items-center gap-2">
             <Button className="w-full sm:w-auto" asChild>
-              <Link to="/wifi/my">
+              <Link to="/wifi?tab=my">
                 <Wifi className="mr-2 h-4 w-4" /> Track installation in My WiFi
               </Link>
             </Button>
@@ -57,3 +65,5 @@ export function WifiSuccess() {
     </div>
   );
 }
+
+export default WifiSuccess;

@@ -29,7 +29,10 @@ export function SidebarNav({ items }: { items: NavItem[] }) {
         <SidebarGroupContent>
           <SidebarMenu className="gap-1">
             {items.map((item) => {
-              const isActive = pathname === item.href;
+              const isActive =
+                pathname === item.href ||
+                (item.href === "/tv" && (pathname === "/tv" || pathname.startsWith("/tv/"))) ||
+                (item.href === "/wifi" && (pathname === "/wifi" || pathname.startsWith("/wifi/")));
               return (
                 <SidebarMenuItem key={`${item.href}-${item.label}`}>
                   <SidebarMenuButton

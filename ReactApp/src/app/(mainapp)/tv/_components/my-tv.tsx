@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   AlertCircle,
@@ -39,6 +39,7 @@ import {
   TvHero,
   fieldCls,
 } from "./tv-ui";
+import { TvTabSwitch } from "./tv-tab-switch";
 
 type Dialog = "addon" | "pause" | "reschedule" | "support" | null;
 
@@ -390,7 +391,16 @@ function ConnectionCard({ c }: { c: TvConnection }) {
   );
 }
 
-export function MyTv() {
+export function MyTv({
+  onSwitchTab,
+  currentTab = "my",
+  connectionCount,
+}: {
+  onSwitchTab?: (tab: "browse" | "my") => void;
+  currentTab?: "browse" | "my";
+  connectionCount?: number;
+} = {}) {
+  const navigate = useNavigate();
   const q = useTvConnections();
   const qc = useQueryClient();
   const [params] = useSearchParams();
@@ -418,7 +428,13 @@ export function MyTv() {
         badge="Zylo TV"
         title="My TV"
         subtitle="Track your installation, renew packs, add extra channels or pause while you travel."
-        right={<Button asChild className="shrink-0"><Link to="/tv"><Plus className="mr-2 h-4 w-4" />New connection</Link></Button>}
+        right={
+          <TvTabSwitch
+            tab={currentTab}
+            onChange={onSwitchTab}
+            count={connectionCount ?? list.length}
+          />
+        }
       />
       {params.get("payment") === "cancelled" && (
         <p className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
@@ -439,7 +455,12 @@ export function MyTv() {
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Tv className="h-7 w-7" /></div>
           <h3 className="mt-4 font-display text-lg font-bold">No Zylo TV connection yet</h3>
           <p className="mt-1.5 max-w-sm text-xs text-muted-foreground">Order a set-top box and your first channel pack to get started.</p>
-          <Button asChild className="mt-5"><Link to="/tv">Browse Zylo TV</Link></Button>
+          <Button
+            className="mt-5"
+            onClick={() => (onSwitchTab ? onSwitchTab("browse") : navigate("/tv?tab=browse"))}
+          >
+            Browse Zylo TV
+          </Button>
         </div>
       )}
       <div className="grid gap-5">{list.map((c) => <ConnectionCard key={c.id} c={c} />)}</div>

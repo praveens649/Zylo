@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Ban,
@@ -29,14 +29,7 @@ import type { InstallationSlot, WifiConnection, WifiInstallation, WifiPlan } fro
 import { wifiApi } from "@/api/wifi.api";
 import { useWifiAction, useWifiConnections, useWifiPlans, errorMessage, goToCheckout } from "../_hooks/use-wifi";
 import { ConfirmDialog, ConnectionStatusBadge, FormField, SLOT_LABEL, WifiHero, fieldCls, isoDay } from "./wifi-ui";
-
-function Warn({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-      {children}
-    </div>
-  );
-}
+import { WifiTabSwitch } from "./wifi-tab-switch";
 
 function Info({ children }: { children: React.ReactNode }) {
   return (
@@ -208,7 +201,8 @@ function AddOnDialog({ conn, plans }: { conn: WifiConnection; plans: WifiPlan[] 
         ) : (
           <div className="space-y-3">
             {available.map((p) => (
-              <button key={p.id} type="button" onClick={() => setPlanId(p.id)} className={`flex w-full items-center justify-between rounded-lg border-2 p-3 text-left ${planId === p.id ? "border-primary bg-primary/5" : ""}`}>
+              <button key={p.id} type="button" onClick={() => setPlanId(p.id)} className={`flex w-full items-center justify-between rounded-lg border-2 p-3 text-left ${planId === p.id ? "border-primary bg-primary/5" : ""}`}
+                >
                 <span>
                   <span className="font-medium">{p.name}</span>
                   <span className="block text-xs text-muted-foreground">{p.description ?? `${p.validityDays} days`}</span>
@@ -357,7 +351,16 @@ function PendingOrderCard({ conn }: { conn: WifiConnection }) {
 
 // ------------------------------------------------------------------ main view
 
-export function MyWifi() {
+export function MyWifi({
+  onSwitchTab,
+  currentTab = "my",
+  connectionCount,
+}: {
+  onSwitchTab?: (tab: "browse" | "my") => void;
+  currentTab?: "browse" | "my";
+  connectionCount?: number;
+} = {}) {
+  const navigate = useNavigate();
   const { data, isLoading } = useWifiConnections();
   const plans = useWifiPlans();
   const [params, setParams] = useSearchParams();
@@ -389,11 +392,11 @@ export function MyWifi() {
         title="My Zylo WiFi"
         subtitle="Manage your broadband connection — renew your plan, pause when away, track installations and raise support tickets."
         right={
-          <Button variant="outline" size="sm" asChild>
-            <Link to="/wifi">
-              <Wifi className="mr-1.5 h-4 w-4" /> Add another connection
-            </Link>
-          </Button>
+          <WifiTabSwitch
+            tab={currentTab}
+            onChange={onSwitchTab}
+            count={connectionCount ?? connections.length}
+          />
         }
       />
 
@@ -402,8 +405,10 @@ export function MyWifi() {
           <CardContent className="flex flex-col items-center gap-3 p-10 text-center">
             <Wifi className="h-10 w-10 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">No Zylo WiFi connections yet.</p>
-            <Button asChild>
-              <Link to="/wifi">Get connected</Link>
+            <Button
+              onClick={() => (onSwitchTab ? onSwitchTab("browse") : navigate("/wifi?tab=browse"))}
+            >
+              Get connected
             </Button>
           </CardContent>
         </Card>
@@ -429,24 +434,16 @@ export function MyWifi() {
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-4">
+
+              <CardContent className="space-y-4 pt-0">
                 {conn.status === "PENDING_INSTALLATION" && <OrderTracker conn={conn} />}
 
-                {conn.status === "DISCONNECTED" && conn.returnDueAt && (
-                  <Warn>Please return the rented router by {formatDate(conn.returnDueAt)} to release your deposit.</Warn>
-                )}
-                {conn.status === "GRACE_PERIOD" && (
-                  <Warn>Plan expired — in grace period until {formatDate(conn.gracePeriodEndsAt)}. Renew now to avoid suspension.</Warn>
-                )}
-                {conn.status === "SUSPENDED" && (
-                  <Warn>Service suspended. Renew your plan to restore connectivity.</Warn>
-                )}
-
                 {conn.currentPlan && (
-                  <div className="flex flex-wrap items-center gap-6 rounded-lg border bg-muted/30 p-3 text-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border bg-muted/20 p-4">
                     <div>
-                      <p className="flex items-center gap-1.5 font-medium">
-                        <Gauge className="h-4 w-4 text-primary" /> {conn.currentPlan.speedMbps} Mbps · {conn.currentPlan.name}
+                      <p className="text-xs text-muted-foreground">Current plan</p>
+                      <p className="font-display text-lg font-bold">
+                        {conn.currentPlan.speedMbps} Mbps · {conn.currentPlan.name}
                       </p>
                       <p className="text-xs text-muted-foreground">{conn.currentPlan.dataLimitGb ? `${conn.currentPlan.dataLimitGb} GB data` : "Unlimited data"}</p>
                     </div>
@@ -513,3 +510,5 @@ function ResumeButton({ conn }: { conn: WifiConnection }) {
     </Button>
   );
 }
+
+export default MyWifi;

@@ -1,10 +1,10 @@
 import { RequireCustomer } from "@/app/(mainapp)/_components/require-permission";
-import { WifiStore } from "./_components/wifi-store";
+import WifiView from "./_components/wifi-view";
 
 export default function WifiPage() {
   return (
     <RequireCustomer adminHref="/wifi-admin">
-      <WifiStore />
+      <WifiView />
     </RequireCustomer>
   );
 }

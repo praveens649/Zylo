@@ -1,5 +1,5 @@
 import { Building2, CreditCard, Database, Globe, Plane, HandCoins, ShoppingBag, LayoutDashboard, Users, Zap, Trophy } from "lucide-react";
-import { LifeBuoy, MonitorPlay, Music2, ParkingSquare, Radio, Send, Smartphone, Tv, Wifi, SmartphoneCharging } from "lucide-react";
+import { LifeBuoy, Music2, ParkingSquare, Radio, Send, Smartphone, Tv, Wifi, SmartphoneCharging } from "lucide-react";
 
 export type NavItem = {
   href: string;
@@ -9,7 +9,6 @@ export type NavItem = {
   adminOnly?: boolean;
   /** Hide from SUPER_ADMIN users (customer-only actions such as buying). */
   customerOnly?: boolean;
- 
 };
 
 /**
@@ -62,9 +61,7 @@ export const NAV_ITEMS: NavItem[] = [
     customerOnly: true,
   },
   { href: "/tv", label: "Zylo TV", icon: Tv, customerOnly: true },
-  { href: "/tv/my", label: "My TV", icon: MonitorPlay, customerOnly: true },
   { href: "/wifi", label: "Zylo WiFi", icon: Wifi, customerOnly: true },
-  { href: "/wifi/my", label: "My WiFi", icon: Wifi, customerOnly: true },
   { href: "/organization", label: "My Organization", icon: Building2, customerOnly: true },
   { href: "/orders", label: "Order History", icon: ShoppingBag },
   { href: "/payments", label: "Payment History", icon: CreditCard },

@@ -44,7 +44,7 @@ export function TvSuccess() {
               <p className="text-sm text-muted-foreground">
                 Thank you! We'll assign your box and confirm an installation slot. Track everything in My TV.
               </p>
-              <Button asChild><Link to="/tv/my">Go to My TV</Link></Button>
+              <Button asChild><Link to="/tv?tab=my">Go to My TV</Link></Button>
             </>
           ) : (
             <>
@@ -54,7 +54,7 @@ export function TvSuccess() {
                 If you were charged, it will appear in My TV shortly. Otherwise you can try again.
               </p>
               <div className="flex gap-2">
-                <Button asChild variant="outline"><Link to="/tv/my">My TV</Link></Button>
+                <Button asChild variant="outline"><Link to="/tv?tab=my">My TV</Link></Button>
                 <Button asChild><Link to="/tv">Back to Zylo TV</Link></Button>
               </div>
             </>
