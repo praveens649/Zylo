@@ -66,15 +66,15 @@ export function TvHero({
 }) {
   return (
     <div className="relative overflow-hidden rounded-3xl border border-primary/20 bg-gradient-to-r from-primary/10 via-purple-500/10 to-teal-500/10 p-6 shadow-sm md:p-8">
-      <div className="absolute -right-10 -top-10 h-64 w-64 rounded-full bg-primary/10 blur-3xl" />
-      <div className="absolute -bottom-10 -left-10 h-64 w-64 rounded-full bg-teal-500/10 blur-3xl" />
+      <div className="pointer-events-none absolute -right-10 -top-10 h-64 w-64 rounded-full bg-primary/10 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-10 -left-10 h-64 w-64 rounded-full bg-teal-500/10 blur-3xl" />
       <div className="relative z-10 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <Badge className="border-primary/30 bg-primary/20 text-primary">{badge}</Badge>
           <h1 className="mt-2 font-display text-3xl font-black tracking-tight sm:text-4xl">{title}</h1>
           <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">{subtitle}</p>
         </div>
-        {right}
+        {right && <div className="relative z-20 shrink-0">{right}</div>}
       </div>
     </div>
   );

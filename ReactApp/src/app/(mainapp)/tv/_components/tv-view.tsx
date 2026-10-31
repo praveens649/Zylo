@@ -9,20 +9,11 @@ export function TvView() {
   const [searchParams, setSearchParams] = useSearchParams();
   const connsQ = useTvConnections();
   const connections = connsQ.data ?? [];
-  const hasLiveConn = connections.some((c) => !["CANCELLED"].includes(c.status));
 
-  const tabParam = searchParams.get("tab");
-  const tab: "browse" | "my" =
-    tabParam === "my"
-      ? "my"
-      : tabParam === "browse"
-      ? "browse"
-      : hasLiveConn
-      ? "my"
-      : "browse";
+  const tab: "browse" | "my" = searchParams.get("tab") === "my" ? "my" : "browse";
 
   const handleTabChange = (nextTab: "browse" | "my") => {
-    setSearchParams(nextTab === "my" ? { tab: "my" } : {});
+    setSearchParams({ tab: nextTab }, { replace: true });
   };
 
   return (
@@ -45,4 +36,3 @@ export function TvView() {
 }
 
 export default TvView;
-

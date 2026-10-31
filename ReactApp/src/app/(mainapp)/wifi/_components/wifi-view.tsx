@@ -9,20 +9,11 @@ export function WifiView() {
   const [searchParams, setSearchParams] = useSearchParams();
   const connsQ = useWifiConnections();
   const connections = connsQ.data ?? [];
-  const hasLive = connections.some((c) => !["CANCELLED"].includes(c.status));
 
-  const tabParam = searchParams.get("tab");
-  const tab: "browse" | "my" =
-    tabParam === "my"
-      ? "my"
-      : tabParam === "browse"
-      ? "browse"
-      : hasLive
-      ? "my"
-      : "browse";
+  const tab: "browse" | "my" = searchParams.get("tab") === "my" ? "my" : "browse";
 
   const handleTabChange = (nextTab: "browse" | "my") => {
-    setSearchParams(nextTab === "my" ? { tab: "my" } : {});
+    setSearchParams({ tab: nextTab }, { replace: true });
   };
 
   return (
@@ -45,4 +36,3 @@ export function WifiView() {
 }
 
 export default WifiView;
-

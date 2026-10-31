@@ -1,5 +1,4 @@
 import { Tv, MonitorPlay } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
 export function TvTabSwitch({
@@ -11,21 +10,19 @@ export function TvTabSwitch({
   onChange?: (tab: "browse" | "my") => void;
   count?: number;
 }) {
-  const navigate = useNavigate();
-  const select = (next: "browse" | "my") => {
-    if (onChange) onChange(next);
-    else navigate(`/tv?tab=${next}`);
-  };
-
   return (
-    <div className="inline-flex items-center gap-1 rounded-2xl border border-primary/20 bg-background/85 p-1.5 shadow-sm backdrop-blur-md">
+    <div className="relative z-20 inline-flex items-center gap-1 rounded-2xl border border-primary/20 bg-background/90 p-1.5 shadow-sm backdrop-blur-md">
       <button
         type="button"
-        onClick={() => select("browse")}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onChange?.("browse");
+        }}
         className={cn(
-          "flex items-center gap-2 rounded-xl px-3.5 py-1.5 text-xs font-semibold sm:text-sm transition-all",
+          "relative flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold sm:text-sm transition-all cursor-pointer select-none",
           tab === "browse"
-            ? "bg-primary text-primary-foreground shadow-sm"
+            ? "bg-primary text-primary-foreground shadow-sm font-bold"
             : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
         )}
       >
@@ -34,11 +31,15 @@ export function TvTabSwitch({
       </button>
       <button
         type="button"
-        onClick={() => select("my")}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onChange?.("my");
+        }}
         className={cn(
-          "flex items-center gap-2 rounded-xl px-3.5 py-1.5 text-xs font-semibold sm:text-sm transition-all",
+          "relative flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold sm:text-sm transition-all cursor-pointer select-none",
           tab === "my"
-            ? "bg-primary text-primary-foreground shadow-sm"
+            ? "bg-primary text-primary-foreground shadow-sm font-bold"
             : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
         )}
       >
@@ -60,4 +61,3 @@ export function TvTabSwitch({
     </div>
   );
 }
-
