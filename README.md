@@ -1,35 +1,58 @@
-# Zylo
+# ⚡ Zylo
 
-## How to demo Data Loan
+> A full-stack, enterprise-grade telecom management and digital services ecosystem powering mobile subscriptions, eSIMs, data banking, automated micro-loans, and home digital services.
 
-Zylo Data Loan lets a customer borrow a small amount of data (100 / 250 / 500 MB)
-free of charge when their daily data runs out. It is repaid automatically from
-new Data Bank deposits, or settled when they next recharge. Everything is
-simulated — no real network data is used.
+---
 
-### Rules
+## ✨ Features
 
-- One open loan per SIM (`ACTIVE`, `PARTIALLY_REPAID` or `DUE`). No monthly
-  cap — once a loan is repaid, settled or cancelled, the SIM can borrow again.
-- A SIM needs an `ACTIVE` plan subscription with `dataBankEnabled = true`
-  (plans that can save data are the ones that can repay a loan).
-- Limits are server-side constants in `Server/src/loans/loan-rules.ts`:
-  max **500 MB** per loan, due in **7** days, amounts in 50 MB steps ≥ 100 MB.
-- Borrowed MB is merged into the day's `DailyDataUsage.allowanceMb` — it shows
-  and consumes as ordinary daily data. The `DataLoan` record tracks the debt.
+- **📱 SIM & Plan Engine**: Real-time management for Physical SIMs & Travel eSIMs (QR generation), supporting Prepaid, Postpaid, Business, and Validity plans.
+- **🏦 Data Bank & Data Loans**: Roll over unused daily data or borrow instant zero-fee emergency data (100–500 MB) with automated ledger reconciliation on next recharge/deposit.
+- **💳 Payments & Billing**: Complete Stripe integration with webhook-driven subscription life-cycles, invoice generation, and transaction tracking.
+- **🏠 Connected Services**: Add-on suite for Fiber Broadband/WiFi, Set-Top Box (IPTV) packages, and integrated Music streaming.
+- **👥 Multi-Role Portals**:
+  - **Customer Portal**: Self-service usage telemetry, instant recharge, plan switching, and profile management.
+  - **Admin Control Center**: System telemetry, subscriber audits, plan curation, job triggers, and loan ledger management.
+- **⚡ Enterprise Core**: Built with idempotency keys, rate limiting, distributed caching, and automated cron sweeps.
 
-### Setup
+---
+
+## 🛠️ Tech Stack
+
+| Layer | Technologies |
+|---|---|
+| **Frontend** | React 19, TypeScript, Vite, Tailwind CSS, TanStack Query, Radix UI, Framer Motion |
+| **Backend** | NestJS, TypeScript, Prisma ORM, PostgreSQL (Neon), Upstash Redis |
+| **Integrations** | Stripe (Payments & Webhooks), Resend (Transactional Email), YouTube API |
+| **Tooling** | pnpm workspaces, ESLint, Oxlint, Vitest, Husky |
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- **Node.js** >= 20.x
+- **pnpm** >= 9.x
+- **PostgreSQL** & **Redis**
+
+### Installation
 
 ```bash
-# Server/.env — optional flags
-LOAN_JOBS_ENABLED=true    # hourly due-date/settlement sweep (default on)
-ALLOW_DEMO_JOBS=true      # enables POST /admin/jobs/loan-nightly (demo only)
+# 1. Clone repository & install dependencies
+pnpm install
+
+# 2. Configure environment variables
+cp Server/.env.example Server/.env   # populate database, JWT, and Stripe keys
 ```
 
-No schema migration is needed — `DataLoan` / `DataLoanTransaction` already
-exist in `prisma/schema.prisma`.
+### Database Setup
 
-### Demo script
+```bash
+# Push schema and seed baseline data
+pnpm db:push
+pnpm seed
+```
 
 1. **Borrow** — sign in as a customer with an active Zylo Max/Ultra plan.
    On the Dashboard or the Data Bank page, open the *Zylo Data Loan* card,
@@ -48,17 +71,28 @@ exist in `prisma/schema.prisma`.
    in the detail dialog, and a **Cancel** action (reason required) that
    writes an `ADJUSTMENT` row and notifies the customer.
 
-### Endpoints
+### Running Locally
 
-| Endpoint | Role |
+```bash
+# Start backend API (http://localhost:5000)
+pnpm server
+
+# Start frontend application (http://localhost:3000)
+pnpm client
+```
+
+---
+
+## 📜 Key Commands
+
+| Command | Action |
 |---|---|
-| `GET /api/v1/loans/eligibility?simId=` | customer |
-| `POST /api/v1/loans` (`Idempotency-Key` header) | customer |
-| `GET /api/v1/loans?simId=` | customer |
-| `GET /api/v1/loans/active?simId=` | customer |
-| `GET /api/v1/admin/loans` · `/summary` · `/:id` | super admin |
-| `POST /api/v1/admin/loans/:id/cancel` | super admin |
-| `POST /api/v1/admin/jobs/loan-nightly?asOf=` | super admin + `ALLOW_DEMO_JOBS` |
+| `pnpm client` | Starts the React frontend in development mode |
+| `pnpm server` | Runs the NestJS API in watch mode |
+| `pnpm db:push` | Synchronizes Prisma schema with PostgreSQL |
+| `pnpm seed` | Seeds default administrative accounts |
+| `pnpm stripe` | Starts local Stripe webhook listener |
+| `pnpm lint` | Runs linters across frontend and backend packages |
 
-All eligibility, ownership, and limit checks are enforced server-side;
-repeated requests with the same `Idempotency-Key` return the same loan.
+
+
